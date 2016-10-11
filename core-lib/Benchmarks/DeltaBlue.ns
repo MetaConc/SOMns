@@ -19,7 +19,7 @@ class DeltaBlue usingPlatform: platform andHarness: harness = (
     )
   )
 
-  class Plan = Vector new: 15 (
+  class Plan = Vector storage: (Array new: 15) (
     (* A Plan is an ordered list of constraints to be executed in sequence to
     resatisfy all currently satisfiable constraints in the face of one or more
     changing inputs. *)

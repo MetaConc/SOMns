@@ -551,6 +551,18 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     )
 
     public copy = ( ^ self copyFrom: 1 )
+    public asValueArray = (
+      ^ ValueArray new: self size withAll: [:i | self at: i ]
+    )
+    
+    public asTransferArray = (
+      | arr |
+      arr := TransferArray new: self size.
+      self doIndexes: [:i |
+        arr at: i put: (self at: i)
+      ].
+      ^ arr
+    )
   ) : (
     (* Allocation *)
     public new                      = ( ^ self new: 0 )
@@ -659,10 +671,10 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     println = ( self print. '' println )
   )
 
-  public class Vector new: size = (
+  public class Vector storage: array = (
   | private firstIdx ::= 1.
     private lastIdx  ::= 1.
-    private storage  ::= Array new: size. |
+    private storage  ::= array. |
   ) (
     (* Accessing *)
     public at: index = (
@@ -877,7 +889,20 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     )
   ) : (
     public new = ( ^ self new: 50 )
+    
+    public new: size = ( ^ self storage: (Array new: size) )
 
+    public with: elem = (
+      | newVector |
+      newVector:: self new: 1.
+      newVector append: elem.
+      ^ newVector
+    )
+  )
+
+  public class TransferVector storage: array = Vector storage: array <: TransferObject ()() : (
+    public new = ( ^ self new: 50 )
+    public new: size = ( ^ self storage: (TransferArray new: size) )
     public with: elem = (
       | newVector |
       newVector:: self new: 1.
