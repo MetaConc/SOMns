@@ -1736,7 +1736,7 @@ class Savina usingPlatform: platform andHarness: harness = Value (
     )
   )
 
-  public class FilterBank = Benchmark <: Value ()( todo = () )
+  public class FilterBank = Benchmark <: Value ()( todo = ( USES_A_SHARED_ARRAY_FOR_INITIALIZATION ) )
 
   public class Sieve new: limit local: numMaxLocalPrimes = Benchmark <: Value (
   | private limit = limit.
@@ -2019,6 +2019,8 @@ class Savina usingPlatform: platform andHarness: harness = Value (
       run problemSize: '200000:10:500:100'
     )
   )
+
+  public class OnlineFacilityLocation = Benchmark ()( todo = ( USES_MUTABLE_ARRAY_LIST_TO_INITIALIZE_WORKERS ) )
 
   public class TrapezoidalApproximation numWorkers: w numPieces: n left: l right: r = Benchmark <: Value (
   | private numWorkers = w.
