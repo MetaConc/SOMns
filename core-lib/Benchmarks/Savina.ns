@@ -2,7 +2,10 @@ class Savina usingPlatform: platform andHarness: harness = Value (
 | private Benchmark = harness Benchmark.
   private actors    = platform actors.
   private Array     = platform kernel Array.
-  private TransferArray= platform kernel TransferArray.
+  private TransferArray  = platform kernel TransferArray.
+  private TransferObject = platform kernel TransferObject.
+  private TransferVector = platform kernel TransferVector.
+  private ValueArray= platform kernel ValueArray.
   private Vector    = platform kernel Vector.
   private Dictionary= platform collections Dictionary.
   private system    = platform system.
@@ -2124,6 +2127,293 @@ class Savina usingPlatform: platform andHarness: harness = Value (
       run problemSize: '100:10000000:1:5'
     )
   )
+  
+  public class PrecisePiComputation numWorkers: numWorkers precision: precision = Benchmark <: Value (
+  | private numWorkers = numWorkers.
+    private precision  = precision.
+  |
+  )(
+    class Master = (
+    | private workers = Array new: numWorkers. 
+      
+    |
+    )()
+    
+    public benchmark = (
+      | master completionPP |
+      completionPP := actors createPromisePair.
+      master := (actors createActorFromValue: Master) <-: new.
+      master <-: start.
+      ^ completionPP promise
+    )
+  )
+
+  public class RecursiveMatricMultiplication = Benchmark <: Value ()(
+  
+    public benchmark = (
+      | completionPP master |
+      completionPP := actors createPromisePair.
+      master := (actors createActorFromValue: Master) <-: new: completionPP resolver.
+      ^ resolver promise
+    )
+    
+    todo = ( USES_SHARED_STATIC_ARRAY_WHICH_ARE_MUTATED_BY_ALL_WORKER )
+  )
+  
+  
+  
+  public class Quicksort = Benchmark ()( todo = ( USES_SHARED_ARRAY_AND_LIST ) )
+  
+  (* Original version exchanges data *)
+  public class AllPairsShortestPath numNodes: numNodes blockSize: blockSize = Benchmark <: Value (
+  | private numNodes  = numNodes.
+    private blockSize = blockSize.
+  |)(
+    class Matrix rows: height columns: width storage: content = (
+    | private numRows = height.
+      private numCols = width.
+      private content = content.
+    |
+    ) (
+      public at: row at: col = (
+        ^ content at: (row - 1) * numCols + col
+      )
+      
+      public at: row at: col put: val = (
+        ^ content at: (row - 1) * numCols + col put: val
+      )
+      
+      public asValueMatrix = (
+        ^ ValueMatrix rows: numRows columns: numCols values: content
+      )
+      
+      public asTransferMatrix = (
+        ^ TransferMatrix rows: numRows columns: numCols storage: content asTransferArray
+      )
+      
+      public elementSum = (
+        ^ content sum
+      )
+    ) : (
+      public rows: height columns: width value: val = (
+        | storage |
+        storage := Array new: height * width withAll: val.
+        ^ self rows: height columns: width storage: storage
+      )
+    )
+    
+    class ValueMatrix rows: height columns: width values: vals = Value (
+    | private numRows = height.
+      private numCols = width.
+      private content = vals asValueArray.
+    |)(
+      public at: row at: col = (
+        ^ content at: (row - 1) * numCols + col
+      )
+    )
+    
+    class TransferMatrix rows: height columns: width storage: content =
+        Matrix rows: height columns: width storage: content <: TransferObject (
+    )() : (
+      public rows: height columns: width value: val = (
+        | storage |
+        storage := TransferArray new: height * width withAll: val.
+        ^ self rows: height columns: width storage: storage
+      )
+    )
+    
+    class ResultActor numActors: numActors completionRes: completionRes = (
+    | private completionRes = completionRes.
+      private checkSum   ::= 0.
+      private numResults ::= 0.
+      private numActors = numActors.
+    |
+    )(
+      public result: result = (
+        checkSum := checkSum + result.
+        numResults := numResults + 1.
+        numResults = numActors ifTrue: [
+          completionRes resolve: checkSum ]
+      )
+    )
+    
+    class FloydWarshallActor new: myBlockId blockSize: blockSize
+                       graphData: graphData resultActor: resultActor = (
+    | private numBlocksInSingleDim = numNodes / blockSize.
+      private numNeighbors         = 2 * (numBlocksInSingleDim - 1).
+      
+      private rowOffset = (myBlockId / numBlocksInSingleDim) * blockSize.
+      private colOffset = (myBlockId % numBlocksInSingleDim) * blockSize.
+      
+      private k ::= -1.
+      private neighborDataPerIteration = Dictionary new.
+      private receivedNeighbors ::= false.
+      private currentIterData ::= getBlock: graphData blockId: myBlockId.
+      
+      private resultActor = resultActor.
+      private neighbors ::= nil.
+    |)(
+      public result: data blockId: sourceId k: k = (
+        | haveAllData |
+        receivedNeighbors ifFalse: [ self error: 'Block has not received neighbors yet' ].
+        haveAllData := storeIteration: data blockId: sourceId k: k.
+        haveAllData ifTrue: [
+          k := k + 1.
+          performComputation.
+          notifyNeighbors.
+          neighborDataPerIteration removeAll.
+          k = (numNodes - 1) ifTrue: [
+            resultActor result: computeCheckSum ] ].
+      )
+      
+      public start = (
+        notifyNeighbors.
+      )
+      
+      public setNeighbors: n = (
+        receivedNeighbors := true.
+        neighbors := n.
+      )
+      
+      private computeCheckSum = (
+        ^ currentIterData elementSum
+      )
+      
+      private storeIteration: data blockId: sourceId k: k = (
+        neighborDataPerIteration at: sourceId put: data.
+        ^ neighborDataPerIteration size = numNeighbors
+      )
+      
+      private performComputation = (
+        | prevIterData |
+        prevIterData := currentIterData.
+        currentIterData := TransferMatrix rows: blockSize columns: blockSize values: 0.
+        
+        0 to: blockSize - 1 do: [:i |
+          0 to: blockSize - 1 do: [:j |
+            | gi gj newIterData |
+            gi := rowOffset + i.
+            gj := colOffset + j.
+            
+            newIterData := (elementAt: gi at: k  src: k - 1 prevData: prevIterData) +
+                           (elementAt: k  at: gj src: k - 1 prevData: prevIterData).
+            currentIterData at: i at: j put: ((prevIterData at: i at: j) min: newIterData) ] ]
+      )
+      
+      private elementAt: row at: col src: srcIter prevData: prevIterData = (
+        | destBlockId localRow localCol |
+        destBlockId := ((row / numNodes) * numBlocksInSingleDim) + (col / numNodes).
+        localRow    := row % numNodes.
+        localCol    := col % numNodes.
+        
+        ^ destBlockId = myBlockId
+          ifTrue:  [ prevIterData at: localRow at: localCol ]
+          ifFalse: [
+            | blockData |
+            blockData := neighborDataPerIteration at: destBlockId.
+            blockData at: localRow at: localCol ]
+      )
+      
+      private notifyNeighbors = (
+        neighbors do: [:n | n <-: result: currentIterData blockId: myBlockId k: k ]
+      )
+      
+      private getBlock: srcData blockId: myBlockId = (
+        | localData globalStartRow globalStartCol |
+        localData := TransferMatrix rows: blockSize columns: blockSize value: 0.
+        
+        globalStartRow := (myBlockId / numBlocksInSingleDim) * blockSize.
+        globalStartCol := (myBlockId % numBlocksInSingleDim) * blockSize.
+        
+        1 to: blockSize do: [:i |
+          1 to: blockSize do: [: j |
+            localData at: i at: j put: (srcData at: i + globalStartRow at: j + globalStartCol).
+          ] ].
+
+        ^ localData
+      )
+    )
+  
+    public benchmark = (
+      | completionPP graphData numBlocksInSingleDim blockActors resultActor |
+      completionPP := actors createPromisePair.
+      graphData := generateGraph.
+      numBlocksInSingleDim := numNodes / blockSize.
+      
+      resultActor := (actors createActorFromValue: ResultActor)
+                        <-: numActors: numBlocksInSingleDim * numBlocksInSingleDim
+                            completionRes: completionPP resolver.
+      
+      blockActors := Matrix rows: numBlocksInSingleDim columns: numBlocksInSingleDim value: nil.
+      
+      (* create actors *)
+      1 to: numBlocksInSingleDim do: [:i |
+        1 to: numBlocksInSingleDim do: [:j |
+          | myBlockId apspActor |
+          myBlockId := ((i - 1) * numBlocksInSingleDim) + j.
+          apspActor := (actors createActorFromValue: FloydWarshallActor)
+                         <-: new: myBlockId blockSize: blockSize
+                             graphData: graphData resultActor: resultActor.
+          blockActors at: i at: j put: apspActor
+      ] ].
+      
+      (* create the links to the neighbors *)
+      1 to: numBlocksInSingleDim do: [:bi |
+        1 to: numBlocksInSingleDim do: [:bj |
+          | neighbors numNeighbors |
+          numNeighbors := (numBlocksInSingleDim - 1) * 2.
+          neighbors := TransferVector new: numNeighbors.
+          
+          1 to: numBlocksInSingleDim do: [:r |
+            r = bi ifFalse: [
+              neighbors append: (blockActors at: r at: bj) ] ].
+          
+          1 to: numBlocksInSingleDim do: [:c |
+            c = bj ifFalse: [
+              neighbors append: (blockActors at: bi at: c) ] ].
+          
+          (blockActors at: bi at: bj) <-: setNeighbors: neighbors.
+      ] ].
+      
+      1 to: numBlocksInSingleDim do: [:bi |
+        1 to: numBlocksInSingleDim do: [:bj |
+          (blockActors at: bi at: bj) <-: start. (* initial message *)
+      ] ].
+      
+      ^ completionPP promise
+    )
+  
+    private generateGraph = (
+      | random localData |
+      random := Random new.
+      localData := Matrix rows: numNodes columns: numNodes value: 0.
+      
+      1 to: numNodes do: [:i |
+        i + 1 to: numNodes do: [:j |
+          | r |
+          r := (random next % blockSize) + 1.
+          localData at: i at: j put: r.
+          localData at: j at: i put: r.
+        ]
+      ].
+      ^ localData asValueMatrix
+    )
+  
+  ) : (
+    public newInstance: problemSize = (
+      | problem |
+      problem := problemSize split: ':'.
+      ^ self numNodes: (problem at: 1) asInteger
+            blockSize: (problem at: 2) asInteger
+    )
+    
+    public setupVerifiedRun: run = (
+      self todo.
+      run problemSize: '300:500'
+    )
+  )
+  
+  public class SuccessiveOverRelaxation = Benchmark ()( todo = ( USES_SHARED_ARRAYS ) )
 
 
   public class SuccessiveOverRelaxation = Benchmark <: Value ()( todo = ( USES_SHARED_ARRAYS ) )
