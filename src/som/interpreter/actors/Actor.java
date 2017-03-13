@@ -1,6 +1,9 @@
 package som.interpreter.actors;
 
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory;
@@ -11,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 import som.VM;
+import som.interpreter.SArguments;
 import som.interpreter.objectstorage.ObjectTransitionSafepoint;
 import som.primitives.ObjectPrims.IsValue;
 import som.vm.Activity;
@@ -18,11 +22,14 @@ import som.vm.ActivityThread;
 import som.vm.VmSettings;
 import som.vmobjects.SAbstractObject;
 import som.vmobjects.SArray.STransferArray;
+import som.vmobjects.SBlock;
 import som.vmobjects.SObject;
 import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
+import som.vmobjects.SSymbol;
 import tools.ObjectBuffer;
 import tools.TraceData;
 import tools.concurrency.ActorExecutionTrace;
+import tools.concurrency.Assertion;
 import tools.concurrency.TracingActivityThread;
 import tools.concurrency.TracingActors.ReplayActor;
 import tools.concurrency.TracingActors.TracingActor;
@@ -77,6 +84,8 @@ public class Actor implements Activity {
   /** Is scheduled on the pool, and executes messages to this actor. */
   protected final ExecAllMessages executor;
 
+  private SSymbol actorType = null;
+
   // used to collect absolute numbers from the threads
   private static Object statsLock = new Object();
   private static long numCreatedMessages  = 0;
@@ -85,6 +94,9 @@ public class Actor implements Activity {
   private static long numResolvedPromises = 0;
   private static long numRuinedPromises = 0;
 
+  private List<Assertion> activeAssertions;
+  private HashMap<SSymbol, SBlock> sendHooks;
+  private HashMap<SSymbol, SBlock> receiveHooks;
   /**
    * Possible roles for an actor.
    */
@@ -187,6 +199,84 @@ public class Actor implements Activity {
       dbg.prepareSteppingUntilNextRootNode();
     }
   }
+  public void addAssertion(final Assertion a) {
+    if (activeAssertions == null) {
+      activeAssertions = new ArrayList<>();
+    }
+    activeAssertions.add(a);
+  }
+
+  public void addSendHook(final SSymbol msg, final SBlock block) {
+    if (sendHooks == null) {
+      sendHooks = new HashMap<>();
+    }
+    sendHooks.put(msg, block);
+  }
+
+  public void addReceiveHook(final SSymbol msg, final SBlock block) {
+    if (receiveHooks == null) {
+      receiveHooks = new HashMap<>();
+    }
+    receiveHooks.put(msg, block);
+  }
+
+  public SSymbol getActorType() {
+    return actorType;
+  }
+
+  public void setActorType(final SSymbol actorType) {
+    this.actorType = actorType;
+  }
+
+  private void checkAssertions(final EventualMessage msg) {
+    if (activeAssertions == null || activeAssertions.size() == 0) {
+      return;
+    }
+
+    List<Assertion> temp = activeAssertions;
+
+    activeAssertions = new ArrayList<>();
+
+
+    for (Assertion a : temp) {
+      a.evaluate(this, msg);
+    }
+  }
+
+  public void checkSendHooks(final EventualMessage msg) {
+    if (sendHooks != null) {
+      if (sendHooks.containsKey(msg.getSelector())) {
+        SBlock block = sendHooks.get(msg.getSelector());
+        sendHooks.clear();
+        if (receiveHooks != null) {
+          receiveHooks.clear();
+        }
+
+        if (block.getMethod().getNumberOfArguments() > 0) {
+          block.getMethod().invoke(new Object[] {block, SArguments.getArgumentsWithoutReceiver(msg.getArgs())});
+        } else {
+          block.getMethod().invoke(new Object[] {block});
+        }
+      } else if (sendHooks.size() > 0) {
+        throw new AssertionError("sending Message: " + msg.getSelector() + " violates the message protocol!");
+      }
+    }
+  }
+
+  private void checkReceiveHooks(final EventualMessage msg) {
+    if (receiveHooks != null) {
+      if (receiveHooks.containsKey(msg.getSelector())) {
+        SBlock block = receiveHooks.get(msg.getSelector());
+        receiveHooks.clear();
+        if (sendHooks != null) {
+          sendHooks.clear();
+        }
+        block.getMethod().invoke(new Object[] {block, SArguments.getArgumentsWithoutReceiver(msg.getArgs())});
+      } else  if (receiveHooks.size() > 0) {
+        throw new AssertionError("receiving Message: " + msg.getSelector() + " violates the message protocol!");
+      }
+    }
+  }
 
   /**
    * Is scheduled on the fork/join pool and executes messages for a specific
@@ -261,6 +351,9 @@ public class Actor implements Activity {
         final ActorProcessingThread currentThread, final WebDebugger dbg, final int i) {
       currentThread.currentMessage = msg;
       handleBreakPoints(msg, dbg);
+            if (VmSettings.ENABLE_ASSERTIONS) {
+              actor.checkAssertions(msg);
+            }
 
       if (i >= 0 && VmSettings.MESSAGE_TIMESTAMPS) {
         executionTimeStamps[i] = System.currentTimeMillis();
@@ -384,6 +477,10 @@ public class Actor implements Activity {
         }
       }
       super.onTermination(exception);
+    }
+
+    public Actor getCurrentlyExecutingActor() {
+      return this.currentlyExecutingActor;
     }
   }
 

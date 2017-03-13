@@ -193,6 +193,7 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
+      owner.checkSendHooks(msg);
       target.send(msg);
     }
 
@@ -206,6 +207,7 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
+      EventualMessage.getActorCurrentMessageIsExecutionOn().checkSendHooks(msg);
       registerNode.register(rcvr, msg, rcvr.getOwner());
     }
 
@@ -253,6 +255,7 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
+      current.checkSendHooks(msg);
       current.send(msg);
 
       return result;
@@ -284,6 +287,7 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
+      current.checkSendHooks(msg);
       current.send(msg);
       return Nil.nilObject;
     }
