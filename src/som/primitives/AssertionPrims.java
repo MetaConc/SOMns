@@ -12,6 +12,7 @@ import som.interpreter.actors.SFarReference;
 import som.interpreter.actors.SPromise;
 import som.interpreter.actors.SPromise.SResolver;
 import som.interpreter.nodes.nary.BinaryComplexOperation;
+import som.interpreter.nodes.nary.TernaryExpressionNode;
 import som.interpreter.nodes.nary.UnaryBasicOperation;
 import som.vm.VmSettings;
 import som.vm.constants.Nil;
@@ -26,15 +27,15 @@ import tools.concurrency.Assertion.UntilAssertion;
 public class AssertionPrims {
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertNext:")
-  public abstract static class AssertNextPrim extends UnaryBasicOperation{
+  @Primitive(primitive = "assertNext:msg:")
+  public abstract static class AssertNextPrim extends BinaryComplexOperation{
 
     protected AssertNextPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization
-    public final Object doSBlock(final SBlock statement) {
+    @Specialization (guards = "msg==null")
+    public final Object doSBlock(final SBlock statement, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
@@ -49,18 +50,35 @@ public class AssertionPrims {
 
       return Nil.nilObject;
     }
+
+    @Specialization
+    public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (Thread.currentThread() instanceof ActorProcessingThread) {
+        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+        Actor a = apt.getCurrentlyExecutingActor();
+        a.addAssertion(new NextAssertion(statement, msg));
+      } else {
+        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      }
+
+      return Nil.nilObject;
+    }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertNow:")
-  public abstract static class AssertNowPrim extends UnaryBasicOperation{
+  @Primitive(primitive = "assertNow:msg:")
+  public abstract static class AssertNowPrim extends BinaryComplexOperation{
 
     protected AssertNowPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization
-    public final Object doSBlock(final SBlock statement) {
+    @Specialization (guards = "msg==null")
+    public final Object doSBlock(final SBlock statement, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
@@ -71,18 +89,31 @@ public class AssertionPrims {
 
       return Nil.nilObject;
     }
+
+    @Specialization
+    public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (!(boolean) statement.getMethod().invoke(new Object[] {statement})) {
+          throw new AssertionError(msg);
+      }
+
+      return Nil.nilObject;
+    }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertFuture:")
-  public abstract static class AssertFuturePrim extends UnaryBasicOperation{
+  @Primitive(primitive = "assertFuture:msg:")
+  public abstract static class AssertFuturePrim extends BinaryComplexOperation{
 
     protected AssertFuturePrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization
-    public final Object doSBlock(final SBlock statement) {
+    @Specialization(guards = "msg==null")
+    public final Object doSBlock(final SBlock statement, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
@@ -97,18 +128,35 @@ public class AssertionPrims {
 
       return Nil.nilObject;
     }
+
+    @Specialization
+    public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (Thread.currentThread() instanceof ActorProcessingThread) {
+        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+        Actor a = apt.getCurrentlyExecutingActor();
+        a.addAssertion(new FutureAssertion(statement, msg));
+      } else {
+        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      }
+
+      return Nil.nilObject;
+    }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertGlobally:")
-  public abstract static class AssertGloballyPrim extends UnaryBasicOperation{
+  @Primitive(primitive = "assertGlobally:msg:")
+  public abstract static class AssertGloballyPrim extends BinaryComplexOperation{
 
     protected AssertGloballyPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization
-    public final Object doSBlock(final SBlock statement) {
+    @Specialization(guards = "msg==null")
+    public final Object doSBlock(final SBlock statement, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
@@ -123,18 +171,35 @@ public class AssertionPrims {
 
       return Nil.nilObject;
     }
+
+    @Specialization
+    public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (Thread.currentThread() instanceof ActorProcessingThread) {
+        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+        Actor a = apt.getCurrentlyExecutingActor();
+        a.addAssertion(new GloballyAssertion(statement, msg));
+      } else {
+        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      }
+
+      return Nil.nilObject;
+    }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assert:until:")
-  public abstract static class AssertUntilPrim extends BinaryComplexOperation{
+  @Primitive(primitive = "assert:until:msg:")
+  public abstract static class AssertUntilPrim extends TernaryExpressionNode{
 
     protected AssertUntilPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization
-    public final Object doSBlock(final SBlock statement, final SBlock until) {
+    @Specialization(guards = "msg == null")
+    public final Object doSBlock(final SBlock statement, final SBlock until, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
@@ -149,18 +214,35 @@ public class AssertionPrims {
 
       return Nil.nilObject;
     }
+
+    @Specialization
+    public final Object doSBlockWithMessage(final SBlock statement, final SBlock until, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (Thread.currentThread() instanceof ActorProcessingThread) {
+        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+        Actor a = apt.getCurrentlyExecutingActor();
+        a.addAssertion(new UntilAssertion(statement, until, msg));
+      } else {
+        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      }
+
+      return Nil.nilObject;
+    }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assert:release:")
-  public abstract static class AssertReleasePrim extends BinaryComplexOperation{
+  @Primitive(primitive = "assert:release:msg:")
+  public abstract static class AssertReleasePrim extends TernaryExpressionNode{
 
     protected AssertReleasePrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization
-    public final Object doSBlock(final SBlock statement, final SBlock release) {
+    @Specialization(guards = "msg==null")
+    public final Object doSBlock(final SBlock statement, final SBlock release, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
@@ -169,6 +251,23 @@ public class AssertionPrims {
         ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
         Actor a = apt.getCurrentlyExecutingActor();
         a.addAssertion(new Assertion.ReleaseAssertion(statement, release));
+      } else {
+        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      }
+
+      return Nil.nilObject;
+    }
+
+    @Specialization
+    public final Object doSBlockWithMessage(final SBlock statement, final SBlock release, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (Thread.currentThread() instanceof ActorProcessingThread) {
+        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+        Actor a = apt.getCurrentlyExecutingActor();
+        a.addAssertion(new Assertion.ReleaseAssertion(statement, release, msg));
       } else {
         throw new java.lang.RuntimeException("Assertion only available when processing messages");
       }

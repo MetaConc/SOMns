@@ -296,27 +296,50 @@ class Actors usingVmMirror: vmMirror usingKernel: kernel usingPlatform: platform
   )
 
   public assert: aBlock = (
-    vmMirror assertNow: aBlock.
+    vmMirror assertNow: aBlock msg: nil.
+  )
+
+  public assert: aBlock msg: msg = (
+    vmMirror assertNow: aBlock msg: msg.
   )
 
   public assertNext: aBlock = (
-    vmMirror assertNext: aBlock.
+    vmMirror assertNext: aBlock msg: nil.
+  )
+
+  public assertNext: aBlock msg: msg = (
+    vmMirror assertNext: aBlock msg: msg.
   )
 
   public assertFuture: aBlock = (
-    vmMirror assertFuture: aBlock.
+    vmMirror assertFuture: aBlock msg: nil.
+  )
+
+  public assertFuture: aBlock msg: msg = (
+    vmMirror assertFuture: aBlock msg: msg.
   )
 
   public assertGlobally: aBlock = (
-    vmMirror assertGlobally: aBlock.
+    vmMirror assertGlobally: aBlock msg: nil.
+  )
+
+  public assertGlobally: aBlock msg: msg= (
+    vmMirror assertGlobally: aBlock msg: msg.
   )
 
   public assert: aBlock until: anotherBlock = (
-    vmMirror assert: aBlock until: anotherBlock.
+    vmMirror assert: aBlock until: anotherBlock msg: nil.
+  )
+
+   public assert: aBlock until: anotherBlock msg: msg = (
+    vmMirror assert: aBlock until: anotherBlock msg: msg.
   )
 
   public assert: aBlock release: anotherBlock = (
-    vmMirror assert: aBlock release: anotherBlock.
+    vmMirror assert: aBlock release: anotherBlock msg: nil.
   )
-  
+
+  public assert: aBlock release: anotherBlock msg: msg = (
+    vmMirror assert: aBlock release: anotherBlock msg: msg.
+  )
 )

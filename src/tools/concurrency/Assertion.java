@@ -11,6 +11,7 @@ import som.vmobjects.SBlock;
 
 public class Assertion {
   SBlock statement;
+  String message;
   IndirectCallNode icn = IndirectCallNode.create();
 
   public Assertion(final SBlock statement) {
@@ -18,10 +19,24 @@ public class Assertion {
     this.statement = statement;
   }
 
+  public Assertion(final SBlock statement, final String msg) {
+    super();
+    this.message = msg;
+    this.statement = statement;
+  }
+
   public void evaluate(final Actor actor, final EventualMessage msg) {
     boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
     if (!result) {
+      throwError();
+    }
+  }
+
+  protected void throwError() {
+    if (message == null) {
       throw new AssertionError(statement.toString());
+    } else {
+      throw new AssertionError(message);
     }
   }
 
@@ -34,13 +49,18 @@ public class Assertion {
       this.until = until;
     }
 
+    public UntilAssertion(final SBlock statement, final SBlock until, final String msg) {
+      super(statement, msg);
+      this.until = until;
+    }
+
     @Override
     public void evaluate(final Actor actor, final EventualMessage msg) {
       boolean result = (boolean) until.getMethod().invoke(new Object[] {until});
       if (!result) {
         boolean result2 = (boolean) statement.getMethod().invoke(new Object[] {statement});
         if (!result2) {
-          throw new AssertionError(statement.toString());
+          throwError();
         } else {
           actor.addAssertion(this);
         }
@@ -56,11 +76,16 @@ public class Assertion {
       this.release = release;
     }
 
+    public ReleaseAssertion(final SBlock statement, final SBlock release, final String msg) {
+      super(statement, msg);
+      this.release = release;
+    }
+
     @Override
     public void evaluate(final Actor actor, final EventualMessage msg) {
       boolean result = (boolean) release.getMethod().invoke(new Object[] {release});
       if (!result) {
-        throw new AssertionError(statement.toString());
+        throwError();
       }
 
       boolean result2 = (boolean) statement.getMethod().invoke(new Object[] {statement});
@@ -74,6 +99,10 @@ public class Assertion {
     public NextAssertion(final SBlock statement) {
       super(statement);
     }
+
+    public NextAssertion(final SBlock statement, final String msg) {
+      super(statement, msg);
+    }
   }
 
   public static class FutureAssertion extends Assertion{
@@ -81,6 +110,13 @@ public class Assertion {
 
     public FutureAssertion(final SBlock statement) {
       super(statement);
+      synchronized (futureAssertions) {
+        futureAssertions.add(this);
+      }
+    }
+
+    public FutureAssertion(final SBlock statement, final String msg) {
+      super(statement, msg);
       synchronized (futureAssertions) {
         futureAssertions.add(this);
       }
@@ -100,7 +136,7 @@ public class Assertion {
 
     public static void checkFutureAssertions() {
       if (futureAssertions.size() > 0) {
-        throw new AssertionError(futureAssertions.iterator().next().statement.toString());
+        futureAssertions.iterator().next().throwError();
       }
     }
   }
@@ -110,11 +146,15 @@ public class Assertion {
       super(statement);
     }
 
+    public GloballyAssertion(final SBlock statement, final String msg) {
+      super(statement, msg);
+    }
+
     @Override
     public void evaluate(final Actor actor, final EventualMessage msg) {
       boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
       if (!result) {
-        throw new AssertionError(statement.toString());
+        throwError();
       } else {
         actor.addAssertion(this);
       }
