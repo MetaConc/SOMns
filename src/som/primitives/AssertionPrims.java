@@ -4,6 +4,7 @@ import com.oracle.truffle.api.dsl.GenerateNodeFactory;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.source.SourceSection;
 
+import som.interpreter.SArguments;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.Actor.ActorProcessingThread;
 import som.interpreter.actors.EventualMessage;
@@ -40,13 +41,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new NextAssertion(statement));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new NextAssertion(statement));
 
       return Nil.nilObject;
     }
@@ -57,13 +55,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new NextAssertion(statement, msg));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new NextAssertion(statement, msg));
 
       return Nil.nilObject;
     }
@@ -118,13 +113,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new FutureAssertion(statement));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new FutureAssertion(statement));
 
       return Nil.nilObject;
     }
@@ -135,13 +127,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new FutureAssertion(statement, msg));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new FutureAssertion(statement, msg));
 
       return Nil.nilObject;
     }
@@ -161,13 +150,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new GloballyAssertion(statement));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new GloballyAssertion(statement));
 
       return Nil.nilObject;
     }
@@ -178,13 +164,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new GloballyAssertion(statement, msg));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new GloballyAssertion(statement, msg));
 
       return Nil.nilObject;
     }
@@ -204,13 +187,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new UntilAssertion(statement, until));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new UntilAssertion(statement, until));
 
       return Nil.nilObject;
     }
@@ -221,13 +201,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new UntilAssertion(statement, until, msg));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new UntilAssertion(statement, until, msg));
 
       return Nil.nilObject;
     }
@@ -247,13 +224,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new Assertion.ReleaseAssertion(statement, release));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new Assertion.ReleaseAssertion(statement, release));
 
       return Nil.nilObject;
     }
@@ -263,91 +237,115 @@ public class AssertionPrims {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
       }
-
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addAssertion(new Assertion.ReleaseAssertion(statement, release, msg));
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addAssertion(new Assertion.ReleaseAssertion(statement, release, msg));
 
       return Nil.nilObject;
     }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertMessage:")
-  public abstract static class AssertMessagePrim extends UnaryBasicOperation{
+  @Primitive(primitive = "isMessage:")
+  public abstract static class IsMessagePrim extends UnaryBasicOperation{
 
-    protected AssertMessagePrim(final boolean eagerlyWrapped, final SourceSection source) {
+    protected IsMessagePrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
     @Specialization
     public final Object doSSymbol(final SSymbol selector) {
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        return EventualMessage.getCurrentExecutingMessage().getSelector().equals(selector);
-
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return EventualMessage.getCurrentExecutingMessage().getSelector().equals(selector);
     }
 
     @Specialization
     public final Object doString(final String messageType) {
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        return EventualMessage.getCurrentExecutingMessage().getSelector().getString().equals(messageType);
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return EventualMessage.getCurrentExecutingMessage().getSelector().getString().equals(messageType);
     }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertSender:")
-  public abstract static class AssertSenderPrim extends UnaryBasicOperation{
+  @Primitive(primitive = "getMessage:")
+  public abstract static class GetMessagePrim extends UnaryBasicOperation{
+    protected GetMessagePrim(final boolean eagerlyWrapped, final SourceSection source) {
+      super(eagerlyWrapped, source);
+    }
 
-    protected AssertSenderPrim(final boolean eagerlyWrapped, final SourceSection source) {
+    @Specialization
+    public final Object dovoid(final Object receiver) {
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return EventualMessage.getCurrentExecutingMessage().getSelector();
+    }
+  }
+
+  @GenerateNodeFactory
+  @Primitive(primitive = "getMessageArguments:")
+  public abstract static class GetMessageArgumentsPrim extends UnaryBasicOperation{
+    protected GetMessageArgumentsPrim(final boolean eagerlyWrapped, final SourceSection source) {
+      super(eagerlyWrapped, source);
+    }
+
+    @Specialization
+    public final Object dovoid(final Object receiver) {
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return SArguments.getArgumentsWithoutReceiver(EventualMessage.getCurrentExecutingMessage().getArgs());
+    }
+  }
+
+  @GenerateNodeFactory
+  @Primitive(primitive = "isSender:")
+  public abstract static class IsSenderPrim extends UnaryBasicOperation{
+
+    protected IsSenderPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
     @Specialization
     public final Object doSSymbol(final SSymbol actorClass) {
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        if (EventualMessage.getCurrentExecutingMessage().getSender().getActorType() == null) {
-          return actorClass.toString().equals("#main");
-        }
-        return EventualMessage.getCurrentExecutingMessage().getSender().getActorType().equals(actorClass);
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      if (EventualMessage.getCurrentExecutingMessage().getSender().getActorType() == null) {
+        return actorClass.toString().equals("#main");
       }
+      return EventualMessage.getCurrentExecutingMessage().getSender().getActorType().equals(actorClass);
     }
 
     @Specialization
     public final Object doReference(final SFarReference actor) {
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        return actor.getActor().equals(EventualMessage.getCurrentExecutingMessage().getSender());
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return actor.getActor().equals(EventualMessage.getCurrentExecutingMessage().getSender());
     }
 
     @Specialization
     public final Object doString(final String actorType) {
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        return EventualMessage.getCurrentExecutingMessage().getSender().getActorType().getString().equals(actorType);
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return EventualMessage.getCurrentExecutingMessage().getSender().getActorType().getString().equals(actorType);
     }
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertPromiseComplete:")
-  public abstract static class AssertPromiseResolvedPrim extends UnaryBasicOperation{
+  @Primitive(primitive = "getSender:")
+  public abstract static class GetSenderPrim extends UnaryBasicOperation{
 
-    protected AssertPromiseResolvedPrim(final boolean eagerlyWrapped, final SourceSection source) {
+    protected GetSenderPrim(final boolean eagerlyWrapped, final SourceSection source) {
+      super(eagerlyWrapped, source);
+    }
+
+    @Specialization
+    public final Object dovoid(final Object receiver) {
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      //TODO sending object
+      return EventualMessage.getCurrentExecutingMessage().getSender();
+    }
+  }
+
+  @GenerateNodeFactory
+  @Primitive(primitive = "isPromiseComplete:")
+  public abstract static class IsPromiseResolvedPrim extends UnaryBasicOperation{
+
+    protected IsPromiseResolvedPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
@@ -363,20 +361,38 @@ public class AssertionPrims {
   }
 
   @GenerateNodeFactory
-  @Primitive(primitive = "assertPromiseMessage:")
-  public abstract static class AssertPromiseMsgPrim extends UnaryBasicOperation{
+  @Primitive(primitive = "isPromiseMessage:")
+  public abstract static class IsPromiseMsgPrim extends UnaryBasicOperation{
 
-    protected AssertPromiseMsgPrim(final boolean eagerlyWrapped, final SourceSection source) {
+    protected IsPromiseMsgPrim(final boolean eagerlyWrapped, final SourceSection source) {
       super(eagerlyWrapped, source);
     }
 
     @Specialization
     public final Object dovoid(final Object receiver) {
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        return EventualMessage.getCurrentExecutingMessage() instanceof PromiseMessage;
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      return EventualMessage.getCurrentExecutingMessage() instanceof PromiseMessage;
+    }
+  }
+
+  @GenerateNodeFactory
+  @Primitive(primitive = "assertResultUsed:")
+  public abstract static class IsResultUsedPrim extends UnaryBasicOperation{
+
+    protected IsResultUsedPrim(final boolean eagerlyWrapped, final SourceSection source) {
+      super(eagerlyWrapped, source);
+    }
+
+    @Specialization
+    public final Object dovoid(final Object receiver) {
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      EventualMessage current = EventualMessage.getCurrentExecutingMessage();
+      if (current.getResolver() == null) {
+        throw new AssertionError("Message result is unused");
       }
+
+      EventualMessage.getActorCurrentMessageIsExecutionOn().addAssertion(new Assertion.ResultUsedAssertion(current.getResolver().getPromise(), "Message result is unused"));
+      return null;
     }
   }
 
@@ -394,13 +410,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addSendHook(message, aBlock);
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addSendHook(message, aBlock);
 
       return Nil.nilObject;
     }
@@ -420,13 +433,10 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      if (Thread.currentThread() instanceof ActorProcessingThread) {
-        ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-        Actor a = apt.getCurrentlyExecutingActor();
-        a.addReceiveHook(message, aBlock);
-      } else {
-        throw new java.lang.RuntimeException("Assertion only available when processing messages");
-      }
+      assert Thread.currentThread() instanceof ActorProcessingThread;
+      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
+      Actor a = apt.getCurrentlyExecutingActor();
+      a.addReceiveHook(message, aBlock);
 
       return Nil.nilObject;
     }

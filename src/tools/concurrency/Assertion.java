@@ -5,6 +5,7 @@ import java.util.Set;
 
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
+import som.interpreter.actors.SPromise;
 import som.vmobjects.SBlock;
 
 public class Assertion {
@@ -103,7 +104,7 @@ public class Assertion {
   }
 
   public static class FutureAssertion extends Assertion{
-    private static Set<FutureAssertion> futureAssertions = new HashSet<>();
+    protected static Set<FutureAssertion> futureAssertions = new HashSet<>();
 
     public FutureAssertion(final SBlock statement) {
       super(statement);
@@ -158,4 +159,30 @@ public class Assertion {
     }
   }
 
+  public static class ResultUsedAssertion extends FutureAssertion{
+    final SPromise checkedPromise;
+
+    public ResultUsedAssertion(final SPromise statement) {
+      super(null);
+      this.checkedPromise = statement;
+    }
+
+    public ResultUsedAssertion(final SPromise statement, final String msg) {
+      super(null, msg);
+      this.checkedPromise = statement;
+    }
+
+    @Override
+    public void evaluate(final Actor actor, final EventualMessage msg) {
+      synchronized (checkedPromise) {
+        if (checkedPromise.isResultUsed()) {
+          synchronized (futureAssertions) {
+            futureAssertions.remove(this);
+          }
+        } else {
+          actor.addAssertion(this);
+        }
+      }
+    }
+  }
 }

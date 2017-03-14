@@ -54,6 +54,7 @@ public class SPromise extends SObjectWithClass {
 
   protected Object  value;
   protected Resolution resolutionState;
+  protected boolean resultUsed;
 
   // the owner of this promise, on which all call backs are scheduled
   protected final Actor owner;
@@ -77,6 +78,10 @@ public class SPromise extends SObjectWithClass {
   @Override
   public final boolean isValue() {
     return false;
+  }
+
+  public boolean isResultUsed(){
+    return resultUsed;
   }
 
   public long getPromiseId() { return 0; }
@@ -105,6 +110,9 @@ public class SPromise extends SObjectWithClass {
   final void registerWhenResolvedUnsynced(final PromiseMessage msg) {
     if (whenResolved == null) {
       whenResolved = msg;
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        resultUsed = true;
+      }
     } else {
       registerMoreWhenResolved(msg);
     }
@@ -204,6 +212,9 @@ public class SPromise extends SObjectWithClass {
 
   /** Internal Helper, only to be used properly synchronized. */
   final Object getValueUnsync() {
+    if (VmSettings.ENABLE_ASSERTIONS) {
+      resultUsed = true;
+    }
     return value;
   }
 

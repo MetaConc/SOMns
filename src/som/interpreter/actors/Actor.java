@@ -355,9 +355,10 @@ public class Actor implements Activity {
         final ActorProcessingThread currentThread, final WebDebugger dbg, final int i) {
       currentThread.currentMessage = msg;
       handleBreakPoints(msg, dbg);
-            if (VmSettings.ENABLE_ASSERTIONS) {
-              actor.checkAssertions(msg);
-            }
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        actor.checkReceiveHooks(msg);
+        actor.checkAssertions(msg);
+      }
 
       if (i >= 0 && VmSettings.MESSAGE_TIMESTAMPS) {
         executionTimeStamps[i] = System.currentTimeMillis();

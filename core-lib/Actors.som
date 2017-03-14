@@ -280,19 +280,35 @@ class Actors usingVmMirror: vmMirror usingKernel: kernel usingPlatform: platform
   )
 
   public isMessage: msg = (
-    ^vmMirror assertMessage: msg.
+    ^vmMirror isMessage: msg.
   )
 
   public isSender: actor = (
-    ^vmMirror assertSender: actor.
+    ^vmMirror isSender: actor.
+  )
+
+  public getMessage = (
+    ^vmMirror getMessage: self.
+  )
+
+  public getMessageArgs = (
+      ^vmMirror getMessageArguments: self.
+  )
+
+  public getSender = (
+    ^vmMirror getSender: self.
   )
 
   public isPromiseMsg = (
-    ^vmMirror assertPromiseMessage: self.
+    ^vmMirror isPromiseMessage: self.
   )
 
   public isPromiseComplete: aPromise = (
-    ^vmMirror assertPromiseComplete: aPromise.
+    ^vmMirror isPromiseComplete: aPromise.
+  )
+
+  public assertResultUsed = (
+    ^vmMirror assertResultUsed: self.
   )
 
   public assert: aBlock = (
