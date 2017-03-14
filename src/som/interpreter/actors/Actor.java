@@ -2,8 +2,8 @@ package som.interpreter.actors;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory;
@@ -206,6 +206,7 @@ public class Actor implements Activity {
     activeAssertions.add(a);
   }
 
+  @TruffleBoundary
   public void addSendHook(final SSymbol msg, final SBlock block) {
     if (sendHooks == null) {
       sendHooks = new HashMap<>();
@@ -213,6 +214,7 @@ public class Actor implements Activity {
     sendHooks.put(msg, block);
   }
 
+  @TruffleBoundary
   public void addReceiveHook(final SSymbol msg, final SBlock block) {
     if (receiveHooks == null) {
       receiveHooks = new HashMap<>();
@@ -243,6 +245,7 @@ public class Actor implements Activity {
     }
   }
 
+  @TruffleBoundary
   public void checkSendHooks(final EventualMessage msg) {
     if (sendHooks != null) {
       if (sendHooks.containsKey(msg.getSelector())) {
@@ -263,6 +266,7 @@ public class Actor implements Activity {
     }
   }
 
+  @TruffleBoundary
   private void checkReceiveHooks(final EventualMessage msg) {
     if (receiveHooks != null) {
       if (receiveHooks.containsKey(msg.getSelector())) {

@@ -3,8 +3,6 @@ package tools.concurrency;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.oracle.truffle.api.nodes.IndirectCallNode;
-
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.vmobjects.SBlock;
@@ -12,7 +10,6 @@ import som.vmobjects.SBlock;
 public class Assertion {
   SBlock statement;
   String message;
-  IndirectCallNode icn = IndirectCallNode.create();
 
   public Assertion(final SBlock statement) {
     super();
