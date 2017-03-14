@@ -621,43 +621,32 @@ class Validation usingPlatform: platform andHarness: harness = Value (
   |
   )(
     
-    public class Website new: completionRes payment: payserv = (
+    public class Website new: completionRes = (
     | private completionRes = completionRes.
-      private payserv = payserv.
       private finishedCustomers ::= 0.
-      private flights = TransferArray new: numFlights withAll: 0.
-      private seats = Array new: numFlights.
+      private flights = TransferArray new: numFlights withAll: 50.
       private resolved ::= false.
     |
-      seats doIndexes: [:i |
-        seats at: i put: (TransferArray new: numSeats withAll: nil).  
-      ]
     ) (
       public requestFlights: customer = (
           ^ flights.
       )
 
-      public requestSeats: customer for: flight = (
-          ^ seats at: flight.
+      public book: customer flight: flight = (
+        ^ flights at: flight.
       )
 
-      public bookingRequest: customer flight: flight seat: seat = (
-        resolved ifFalse:[
-          payserv <-: paymentRequest: self customer: customer flight: flight seat: seat.
-        ]
-      )
-
-      public paymentConfirmed: customer flight: flight seat: seat = (
-        flights at: flight put: ((flights at: flight) + 1).
-        ((seats at: flight) at: seat) ifNotNil: [
+      public pay: customer flight: flight amount: amount= (
+        amount = (flights at: flight) ifTrue:[
+          (*ok*)
+          flights at: flight put: (amount + 10).
+        ] ifFalse:[
+          (*not enough money*)
           resolved ifFalse:[
-            completionRes resolve: false.
-            resolved := true.
+                completionRes resolve: false.
+                resolved := true.
           ]
-        ].
-
-        (seats at: flight) at: seat put: customer.
-        customer <-: bookingConfirmation.
+        ]
       )
 
       public done = (
@@ -671,22 +660,6 @@ class Validation usingPlatform: platform andHarness: harness = Value (
       )
     )
 
-    public class PaymentService = (
-    | 
-    |
-    ) (
-      public paymentRequest: web customer: customer flight: flight seat: seat = (
-        (customer <-: requestConfirmation) whenResolved: [:result|
-          result ifTrue: [
-            web <-: paymentConfirmed: customer flight: flight seat: seat.
-          ] ifFalse: [
-            (*try again*)
-            customer <-: bookFlight.
-          ]
-        ].
-      )
-    )
-
     public class Customer new: customerId website: web = (
     | private Id = customerId.
       private web = web.
@@ -694,42 +667,12 @@ class Validation usingPlatform: platform andHarness: harness = Value (
       private bookingsDone ::= 0.
     |
     ) (
-        public bookFlight = (
-          |flight seat flightd seatd|
-          flightd := false.
-          seatd := false.
+        public bookFlight = (|flight|
           (web <-: requestFlights: self) whenResolved: [:flights|
-            (*decide for a flight*)
-            [flightd not] whileTrue: [|flight|
-              flight := 1 + (rand next: numFlights).
-              (flights at: flight) < numSeats ifTrue: [
-                flightd := true.
-                (web <-: requestSeats: self for: flight) whenResolved: [:seats|
-                  (*decide for a seat*)
-                  [seatd not] whileTrue: [|seat|
-                    seat := 1 + (rand next: numSeats).
-                    (*found a free seat*)
-                    (seats at: seat) ifNil:[
-                      seatd := true.
-                      web <-: bookingRequest: self flight: flight seat: seat.
-                    ]      
-                  ]
-                ]
-              ]
-            ]
-          ]
-        )
-
-        public requestConfirmation = (
-          (*for now only successes*)
-          ^ rand nextBoolean. 
-        )
-
-        public bookingConfirmation = (
-          bookingsDone := bookingsDone+1.
-          bookingsDone < numBookings ifTrue: [
-            bookFlight.
-          ] ifFalse: [
+            flight := 1 + (rand next: numFlights).
+            web <-: book: self flight: flight.
+            web <-: pay: self flight: flight amount: (flights at: flight).
+            bookingsDone := bookingsDone + 1.
             web <-: done.
           ]
         )
@@ -738,8 +681,7 @@ class Validation usingPlatform: platform andHarness: harness = Value (
     public benchmark: abortP = (
       | customers website payment completionPP |
       completionPP := actors createPromisePair.
-      payment  := (actors createActorFromValue: PaymentService) <-: new.
-      website  := (actors createActorFromValue: Website) <-: new: completionPP resolver payment: payment.
+      website  := (actors createActorFromValue: Website) <-: new: completionPP resolver.
 
       customers := Array new: numCustomers.
       customers doIndexes: [:i |
