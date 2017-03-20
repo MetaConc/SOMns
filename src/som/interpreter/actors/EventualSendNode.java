@@ -33,6 +33,7 @@ import tools.SourceCoordinate;
 import tools.SourceCoordinate.FullSourceCoordinate;
 import tools.concurrency.Tags.EventualMessageSend;
 import tools.concurrency.Tags.ExpressionBreakpoint;
+import tools.concurrency.TracingActors.TracingActor;
 import tools.debugger.nodes.AbstractBreakpointNode;
 import tools.debugger.nodes.BreakpointNodeGen;
 import tools.debugger.nodes.DisabledBreakpointNode;
@@ -193,7 +194,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
-      owner.checkSendHooks(msg);
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) owner).checkSendHooks(msg);
+      }
       target.send(msg);
     }
 
@@ -207,7 +210,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
-      EventualMessage.getActorCurrentMessageIsExecutionOn().checkSendHooks(msg);
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) EventualMessage.getActorCurrentMessageIsExecutionOn()).checkSendHooks(msg);
+      }
       registerNode.register(rcvr, msg, rcvr.getOwner());
     }
 
@@ -255,7 +260,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
-      current.checkSendHooks(msg);
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) current).checkSendHooks(msg);
+      }
       current.send(msg);
 
       return result;
@@ -287,7 +294,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolverBreakpoint.executeCheckIsSetAndEnabled(),
           promiseResolutionBreakpoint.executeCheckIsSetAndEnabled());
-      current.checkSendHooks(msg);
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) current).checkSendHooks(msg);
+      }
       current.send(msg);
       return Nil.nilObject;
     }

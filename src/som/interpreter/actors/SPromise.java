@@ -80,7 +80,7 @@ public class SPromise extends SObjectWithClass {
     return false;
   }
 
-  public boolean isResultUsed(){
+  public boolean isResultUsed() {
     return resultUsed;
   }
 

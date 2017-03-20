@@ -59,7 +59,7 @@ public class VmSettings {
     PROMISE_RESOLVED_WITH = !al.contains("prw") && filter;
 
     ACTOR_TRACING = TRUFFLE_DEBUGGER_ENABLED || getBool("som.actorTracing", false) ||
-                    REPLAY || MESSAGE_TIMESTAMPS || MESSAGE_PARAMETERS || PROMISE_CREATION;
+                    REPLAY || MESSAGE_TIMESTAMPS || MESSAGE_PARAMETERS || PROMISE_CREATION || ENABLE_ASSERTIONS;
 
     boolean dm = getBool("som.dynamicMetrics", false);
     DYNAMIC_METRICS = dm;

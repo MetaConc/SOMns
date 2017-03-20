@@ -3,10 +3,10 @@ package tools.concurrency;
 import java.util.HashSet;
 import java.util.Set;
 
-import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.interpreter.actors.SPromise;
 import som.vmobjects.SBlock;
+import tools.concurrency.TracingActors.TracingActor;
 
 public class Assertion {
   SBlock statement;
@@ -23,7 +23,7 @@ public class Assertion {
     this.statement = statement;
   }
 
-  public void evaluate(final Actor actor, final EventualMessage msg) {
+  public void evaluate(final TracingActor actor, final EventualMessage msg) {
     boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
     if (!result) {
       throwError();
@@ -53,7 +53,7 @@ public class Assertion {
     }
 
     @Override
-    public void evaluate(final Actor actor, final EventualMessage msg) {
+    public void evaluate(final TracingActor actor, final EventualMessage msg) {
       boolean result = (boolean) until.getMethod().invoke(new Object[] {until});
       if (!result) {
         boolean result2 = (boolean) statement.getMethod().invoke(new Object[] {statement});
@@ -80,7 +80,7 @@ public class Assertion {
     }
 
     @Override
-    public void evaluate(final Actor actor, final EventualMessage msg) {
+    public void evaluate(final TracingActor actor, final EventualMessage msg) {
       boolean result = (boolean) release.getMethod().invoke(new Object[] {release});
       if (!result) {
         throwError();
@@ -121,7 +121,7 @@ public class Assertion {
     }
 
     @Override
-    public void evaluate(final Actor actor, final EventualMessage msg) {
+    public void evaluate(final TracingActor actor, final EventualMessage msg) {
       boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
       if (result) {
         synchronized (futureAssertions) {
@@ -149,7 +149,7 @@ public class Assertion {
     }
 
     @Override
-    public void evaluate(final Actor actor, final EventualMessage msg) {
+    public void evaluate(final TracingActor actor, final EventualMessage msg) {
       boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
       if (!result) {
         throwError();
@@ -173,7 +173,7 @@ public class Assertion {
     }
 
     @Override
-    public void evaluate(final Actor actor, final EventualMessage msg) {
+    public void evaluate(final TracingActor actor, final EventualMessage msg) {
       synchronized (checkedPromise) {
         if (checkedPromise.isResultUsed()) {
           synchronized (futureAssertions) {

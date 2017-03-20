@@ -5,7 +5,6 @@ import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.source.SourceSection;
 
 import som.interpreter.SArguments;
-import som.interpreter.actors.Actor;
 import som.interpreter.actors.Actor.ActorProcessingThread;
 import som.interpreter.actors.EventualMessage;
 import som.interpreter.actors.EventualMessage.PromiseMessage;
@@ -24,6 +23,7 @@ import tools.concurrency.Assertion.FutureAssertion;
 import tools.concurrency.Assertion.GloballyAssertion;
 import tools.concurrency.Assertion.NextAssertion;
 import tools.concurrency.Assertion.UntilAssertion;
+import tools.concurrency.TracingActors.TracingActor;
 
 public class AssertionPrims {
 
@@ -37,29 +37,13 @@ public class AssertionPrims {
 
     @Specialization (guards = "msg==null")
     public final Object doSBlock(final SBlock statement, final Object msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new NextAssertion(statement));
-
+      addAssertion(new NextAssertion(statement));
       return Nil.nilObject;
     }
 
     @Specialization
     public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new NextAssertion(statement, msg));
-
+      addAssertion(new NextAssertion(statement, msg));
       return Nil.nilObject;
     }
   }
@@ -109,29 +93,13 @@ public class AssertionPrims {
 
     @Specialization(guards = "msg==null")
     public final Object doSBlock(final SBlock statement, final Object msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new FutureAssertion(statement));
-
+      addAssertion(new FutureAssertion(statement));
       return Nil.nilObject;
     }
 
     @Specialization
     public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new FutureAssertion(statement, msg));
-
+      addAssertion(new FutureAssertion(statement, msg));
       return Nil.nilObject;
     }
   }
@@ -146,29 +114,13 @@ public class AssertionPrims {
 
     @Specialization(guards = "msg==null")
     public final Object doSBlock(final SBlock statement, final Object msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new GloballyAssertion(statement));
-
+      addAssertion(new GloballyAssertion(statement));
       return Nil.nilObject;
     }
 
     @Specialization
     public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new GloballyAssertion(statement, msg));
-
+      addAssertion(new GloballyAssertion(statement, msg));
       return Nil.nilObject;
     }
   }
@@ -183,29 +135,13 @@ public class AssertionPrims {
 
     @Specialization(guards = "msg == null")
     public final Object doSBlock(final SBlock statement, final SBlock until, final Object msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new UntilAssertion(statement, until));
-
+      addAssertion(new UntilAssertion(statement, until));
       return Nil.nilObject;
     }
 
     @Specialization
     public final Object doSBlockWithMessage(final SBlock statement, final SBlock until, final String msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new UntilAssertion(statement, until, msg));
-
+      addAssertion(new UntilAssertion(statement, until, msg));
       return Nil.nilObject;
     }
   }
@@ -220,28 +156,13 @@ public class AssertionPrims {
 
     @Specialization(guards = "msg==null")
     public final Object doSBlock(final SBlock statement, final SBlock release, final Object msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new Assertion.ReleaseAssertion(statement, release));
-
+      addAssertion(new Assertion.ReleaseAssertion(statement, release));
       return Nil.nilObject;
     }
 
     @Specialization
     public final Object doSBlockWithMessage(final SBlock statement, final SBlock release, final String msg) {
-      if (!VmSettings.ENABLE_ASSERTIONS) {
-        return Nil.nilObject;
-      }
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addAssertion(new Assertion.ReleaseAssertion(statement, release, msg));
-
+      addAssertion(new Assertion.ReleaseAssertion(statement, release, msg));
       return Nil.nilObject;
     }
   }
@@ -306,10 +227,10 @@ public class AssertionPrims {
     @Specialization
     public final Object doSSymbol(final SSymbol actorClass) {
       assert Thread.currentThread() instanceof ActorProcessingThread;
-      if (EventualMessage.getCurrentExecutingMessage().getSender().getActorType() == null) {
+      if (((TracingActor) EventualMessage.getCurrentExecutingMessage().getSender()).getActorType() == null) {
         return actorClass.toString().equals("#main");
       }
-      return EventualMessage.getCurrentExecutingMessage().getSender().getActorType().equals(actorClass);
+      return ((TracingActor) EventualMessage.getCurrentExecutingMessage().getSender()).getActorType().equals(actorClass);
     }
 
     @Specialization
@@ -321,7 +242,7 @@ public class AssertionPrims {
     @Specialization
     public final Object doString(final String actorType) {
       assert Thread.currentThread() instanceof ActorProcessingThread;
-      return EventualMessage.getCurrentExecutingMessage().getSender().getActorType().getString().equals(actorType);
+      return ((TracingActor) EventualMessage.getCurrentExecutingMessage().getSender()).getActorType().getString().equals(actorType);
     }
   }
 
@@ -336,7 +257,7 @@ public class AssertionPrims {
     @Specialization
     public final Object dovoid(final Object receiver) {
       assert Thread.currentThread() instanceof ActorProcessingThread;
-      //TODO sending object
+      // TODO sending object
       return EventualMessage.getCurrentExecutingMessage().getSender();
     }
   }
@@ -391,7 +312,7 @@ public class AssertionPrims {
         throw new AssertionError("Message result is unused");
       }
 
-      EventualMessage.getActorCurrentMessageIsExecutionOn().addAssertion(new Assertion.ResultUsedAssertion(current.getResolver().getPromise(), "Message result is unused"));
+      getCurrentTracingActor().addAssertion(new Assertion.ResultUsedAssertion(current.getResolver().getPromise(), "Message result is unused"));
       return null;
     }
   }
@@ -410,10 +331,7 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addSendHook(message, aBlock);
+      getCurrentTracingActor().addSendHook(message, aBlock);
 
       return Nil.nilObject;
     }
@@ -433,12 +351,22 @@ public class AssertionPrims {
         return Nil.nilObject;
       }
 
-      assert Thread.currentThread() instanceof ActorProcessingThread;
-      ActorProcessingThread apt = (ActorProcessingThread) Thread.currentThread();
-      Actor a = apt.getCurrentlyExecutingActor();
-      a.addReceiveHook(message, aBlock);
+      getCurrentTracingActor().addReceiveHook(message, aBlock);
 
       return Nil.nilObject;
     }
+  }
+
+  private static void addAssertion(final Assertion assertion) {
+    if (!VmSettings.ENABLE_ASSERTIONS) {
+      return;
+    }
+
+    getCurrentTracingActor().addAssertion(assertion);
+  }
+
+  private static TracingActor getCurrentTracingActor() {
+    assert Thread.currentThread() instanceof ActorProcessingThread;
+    return (TracingActor) ((ActorProcessingThread) Thread.currentThread()).getCurrentlyExecutingActor();
   }
 }
