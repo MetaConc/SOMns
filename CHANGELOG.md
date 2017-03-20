@@ -8,6 +8,9 @@
  - Added trace replay functionality ([PR #109](https://github.com/smarr/SOMns/pull/109))
    - Added `-r` flag to enable replay
 
+ - Added actor assertions
+   - Added `-ea` flag to enable actor assertions
+
  - Added `-vmd` flag to enable debug output
  - Added `-J` flag for JVM flags, e.g. `-JXmx2g`
  - Removed Truffle Debug REPL support, i.e., the `-td` flag. Has been deprecated
@@ -17,6 +20,7 @@
  - Block methods are named based on outer method's name
  - Enable display of code for unsuspended activities, i.e., activities not
    hitting a breakpoint
+
 
 ## [0.2.0] - 2017-03-07 Extended Concurrency Support
 
