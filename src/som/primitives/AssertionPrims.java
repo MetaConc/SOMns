@@ -1,6 +1,7 @@
 package som.primitives;
 
 import com.oracle.truffle.api.dsl.GenerateNodeFactory;
+import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.source.SourceSection;
 
@@ -28,6 +29,7 @@ import tools.concurrency.TracingActors.TracingActor;
 public class AssertionPrims {
 
   @GenerateNodeFactory
+  @ImportStatic(Nil.class)
   @Primitive(primitive = "assertNext:msg:")
   public abstract static class AssertNextPrim extends BinaryComplexOperation{
 
@@ -35,7 +37,7 @@ public class AssertionPrims {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization (guards = "msg==null")
+    @Specialization (guards = "valueIsNil(msg)")
     public final Object doSBlock(final SBlock statement, final Object msg) {
       addAssertion(new NextAssertion(statement));
       return Nil.nilObject;
@@ -49,6 +51,7 @@ public class AssertionPrims {
   }
 
   @GenerateNodeFactory
+  @ImportStatic(Nil.class)
   @Primitive(primitive = "assertNow:msg:")
   public abstract static class AssertNowPrim extends BinaryComplexOperation{
 
@@ -56,7 +59,33 @@ public class AssertionPrims {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization (guards = "msg==null")
+    @Specialization (guards = "valueIsNil(msg)")
+    public final Object doBool(final boolean bool, final Object msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (!bool) {
+          throw new AssertionError();
+      }
+
+      return Nil.nilObject;
+    }
+
+    @Specialization
+    public final Object doBool(final boolean bool, final String msg) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
+      if (!bool) {
+          throw new AssertionError(msg);
+      }
+
+      return Nil.nilObject;
+    }
+
+    @Specialization (guards = "valueIsNil(msg)")
     public final Object doSBlock(final SBlock statement, final Object msg) {
       if (!VmSettings.ENABLE_ASSERTIONS) {
         return Nil.nilObject;
@@ -84,6 +113,7 @@ public class AssertionPrims {
   }
 
   @GenerateNodeFactory
+  @ImportStatic(Nil.class)
   @Primitive(primitive = "assertFuture:msg:")
   public abstract static class AssertFuturePrim extends BinaryComplexOperation{
 
@@ -91,20 +121,25 @@ public class AssertionPrims {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization(guards = "msg==null")
+    @Specialization(guards = "valueIsNil(msg)")
     public final Object doSBlock(final SBlock statement, final Object msg) {
-      addAssertion(new FutureAssertion(statement));
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        addAssertion(new FutureAssertion(statement));
+      }
       return Nil.nilObject;
     }
 
     @Specialization
     public final Object doSBlockWithMessage(final SBlock statement, final String msg) {
-      addAssertion(new FutureAssertion(statement, msg));
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        addAssertion(new FutureAssertion(statement, msg));
+      }
       return Nil.nilObject;
     }
   }
 
   @GenerateNodeFactory
+  @ImportStatic(Nil.class)
   @Primitive(primitive = "assertGlobally:msg:")
   public abstract static class AssertGloballyPrim extends BinaryComplexOperation{
 
@@ -112,7 +147,7 @@ public class AssertionPrims {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization(guards = "msg==null")
+    @Specialization(guards = "valueIsNil(msg)")
     public final Object doSBlock(final SBlock statement, final Object msg) {
       addAssertion(new GloballyAssertion(statement));
       return Nil.nilObject;
@@ -126,6 +161,7 @@ public class AssertionPrims {
   }
 
   @GenerateNodeFactory
+  @ImportStatic(Nil.class)
   @Primitive(primitive = "assert:until:msg:")
   public abstract static class AssertUntilPrim extends TernaryExpressionNode{
 
@@ -133,7 +169,7 @@ public class AssertionPrims {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization(guards = "msg == null")
+    @Specialization(guards = "valueIsNil(msg)")
     public final Object doSBlock(final SBlock statement, final SBlock until, final Object msg) {
       addAssertion(new UntilAssertion(statement, until));
       return Nil.nilObject;
@@ -147,6 +183,7 @@ public class AssertionPrims {
   }
 
   @GenerateNodeFactory
+  @ImportStatic(Nil.class)
   @Primitive(primitive = "assert:release:msg:")
   public abstract static class AssertReleasePrim extends TernaryExpressionNode{
 
@@ -154,7 +191,7 @@ public class AssertionPrims {
       super(eagerlyWrapped, source);
     }
 
-    @Specialization(guards = "msg==null")
+    @Specialization(guards = "valueIsNil(msg)")
     public final Object doSBlock(final SBlock statement, final SBlock release, final Object msg) {
       addAssertion(new Assertion.ReleaseAssertion(statement, release));
       return Nil.nilObject;
@@ -306,13 +343,19 @@ public class AssertionPrims {
 
     @Specialization
     public final Object dovoid(final Object receiver) {
+      if (!VmSettings.ENABLE_ASSERTIONS) {
+        return Nil.nilObject;
+      }
+
       assert Thread.currentThread() instanceof ActorProcessingThread;
       EventualMessage current = EventualMessage.getCurrentExecutingMessage();
       if (current.getResolver() == null) {
         throw new AssertionError("Message result is unused");
       }
 
-      getCurrentTracingActor().addAssertion(new Assertion.ResultUsedAssertion(current.getResolver().getPromise(), "Message result is unused"));
+      if (!current.getResolver().getPromise().isResultUsed()) {
+        getCurrentTracingActor().addAssertion(new Assertion.ResultUsedAssertion(current.getResolver().getPromise(), "Message result is unused"));
+      }
       return null;
     }
   }

@@ -159,6 +159,10 @@ public class SPromise extends SObjectWithClass {
   public final synchronized void addChainedPromise(@NotNull final SPromise remote) {
     assert remote != null;
     remote.resolutionState = Resolution.CHAINED;
+    if (VmSettings.ENABLE_ASSERTIONS) {
+      resultUsed = true;
+    }
+
     if (VmSettings.PROMISE_RESOLUTION) {
       ActorExecutionTrace.promiseChained(this.getPromiseId(), remote.getPromiseId());
     }
