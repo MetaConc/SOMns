@@ -32,6 +32,7 @@ export class SystemView {
   private activities:      ActivityNode[];
   private passiveEntities: PassiveEntityNode[];
   private links: EntityLink[];
+  private protocol: ProtocolOverview;
 
   private activityNodes: d3.selection.Update<ActivityNode>;
   private entityNodes:  d3.selection.Update<PassiveEntityNode>;
