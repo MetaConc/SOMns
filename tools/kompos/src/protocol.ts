@@ -67,12 +67,12 @@ class ActorHeading {
 class TurnNode {
   x:              number;
   y:              number;
-  incoming:       Message;
+  incoming:       EmptyMessage;
   highlighted:    boolean;
   actor:          ActorHeading;
   visualization:  d3.Selection<SVGElement>;
 
-  constructor(actor: ActorHeading, message: Message){
+  constructor(actor: ActorHeading, message: EmptyMessage){
     var count = actor.addTurn(this);
     this.actor = actor;
     this.x = actor.x + (actorWidth / 2);
@@ -82,21 +82,25 @@ class TurnNode {
     this.visualization = drawTurn(this);
   }
 
-  highlight(){
-    this.highlighted = !this.highlighted;
+  changeHighlight(){
+    this.highlight(!this.highlighted);
+  }
+
+  highlight(highlighted: boolean){
+    this.highlighted = highlighted;
     if(this.highlighted){
       this.visualization.style("stroke-width", turnHighlightedWidth)
-                   .style("stroke", "black");
+                        .style("stroke", "black");
     } else {
       this.visualization.style("stroke-width", turnWidth)
-                   .style("stroke", this.getColor());
+                        .style("stroke", this.getColor());
     } 
-    if(this.incoming){this.incoming.highlight(this.highlighted)};
+    this.incoming.highlight(this.highlighted);
   }
 
   //the turn itself is made invisible by the group, only the incoming arc needs to be explicitly made invisible
   changeVisibility(visible: boolean){
-    if(this.incoming){this.incoming.changeVisibility(visible);}
+    this.incoming.changeVisibility(visible);
   }
 
   getColor(){
@@ -104,27 +108,31 @@ class TurnNode {
   }
 
   getText(){
-    if(this.incoming){
-      return this.incoming.getText();
-    } else {
-      return "42"
-    }
+    return this.incoming.getText();
   }
 }
 
-class Message {
+class EmptyMessage{
+  constructor (){};
+  highlight(_highlighted: boolean){};
+  changeVisibility(_visible: boolean){};
+  getText(){return "42"};
+}
+
+class Message extends EmptyMessage{
   sender:        TurnNode;
   target:        TurnNode;
   text:          string; 
   visualization: d3.Selection<SVGElement>;
 
   constructor(senderActor: ActorHeading, targetActor: ActorHeading, text: string){
+    super();
     this.text = text;
     var lastTurn = senderActor.lastTurn();
     if(lastTurn){
       this.sender = lastTurn;
     } else {
-      this.sender = new TurnNode(senderActor, null);
+      this.sender = new TurnNode(senderActor, new EmptyMessage());
     }
     this.target = new TurnNode(targetActor, this);  
     if(senderActor === targetActor){
@@ -136,12 +144,11 @@ class Message {
 
   highlight(highlighted: boolean){
     if(highlighted){
-      this.visualization.style("stroke-width", turnHighlightedWidth)
-                        .style("stroke", "black");
+      this.visualization.style("stroke-width", turnHighlightedWidth);
     } else {
-      this.visualization.style("stroke-width", 1)
-                        .style("stroke", this.sender.getColor());
+      this.visualization.style("stroke-width", 1);
     }
+    this.sender.highlight(highlighted);
   }
 
   changeVisibility(visible: boolean){
@@ -156,16 +163,11 @@ class Message {
     return this.text;
   }
 } 
-/*
-class EmptyMessage extends Message{
-  constructor (){};
-  highlight(_highlighted: boolean){};
-  changeVisibility(_visible: boolean){};
-}
-*/
+
 export class ProtocolOverview {
-  private actors: IdMap<ActorHeading> = {};
+  private actors: IdMap<ActorHeading>;
   private data: HistoryData;
+  private static highlighted: TurnNode;
 
   public newActivities(newActivities: Activity[]){
     for(const act of newActivities){
@@ -188,9 +190,25 @@ export class ProtocolOverview {
   public constructor(data: HistoryData){
     displayProtocolOverview();
     ActorHeading.actorCount = 0;
+    this.actors = {};
     this.data = data;
   }
+
+  //ensure only one node chain can be highlighted at the same time
+  static changeHighlight(turn: TurnNode){
+    if(ProtocolOverview.highlighted){
+      ProtocolOverview.highlighted.changeHighlight();
+    }
+    if(turn == ProtocolOverview.highlighted){
+      ProtocolOverview.highlighted = null;
+    } else {
+      turn.changeHighlight();
+      ProtocolOverview.highlighted = turn;
+    }
+  }
 }
+
+
 
 function displayProtocolOverview() {
   const canvas = $("#protocol-canvas");
@@ -247,7 +265,7 @@ function drawTurn(turn: TurnNode){
       .style("stroke-width", turnWidth)
       .style("stroke", turn.getColor())
       .on("click", function(){
-        turn.highlight();
+        ProtocolOverview.changeHighlight(turn);
       })
       .on("mouseover", function(){
         text.style("opacity", 1);
