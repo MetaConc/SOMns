@@ -68,7 +68,6 @@ class TurnNode {
   x:              number;
   y:              number;
   incoming:       EmptyMessage;
-  highlighted:    boolean;
   actor:          ActorHeading;
   visualization:  d3.Selection<SVGElement>;
 
@@ -77,25 +76,20 @@ class TurnNode {
     this.actor = actor;
     this.x = actor.x + (actorWidth / 2);
     this.y = actorStart + actorHeight + count * turnSpacing;
-    this.highlighted = false;
     this.incoming = message; //possible no message
     this.visualization = drawTurn(this);
   }
 
-  changeHighlight(){
-    this.highlight(!this.highlighted);
+  highlightOn(){
+    this.visualization.style("stroke-width", turnHighlightedWidth)
+                      .style("stroke", "black");
+    this.incoming.highlightOn();
   }
 
-  highlight(highlighted: boolean){
-    this.highlighted = highlighted;
-    if(this.highlighted){
-      this.visualization.style("stroke-width", turnHighlightedWidth)
-                        .style("stroke", "black");
-    } else {
-      this.visualization.style("stroke-width", turnWidth)
-                        .style("stroke", this.getColor());
-    } 
-    this.incoming.highlight(this.highlighted);
+  highlightOff(){
+    this.visualization.style("stroke-width", turnWidth)
+                      .style("stroke", this.getColor());
+    this.incoming.highlightOff();
   }
 
   //the turn itself is made invisible by the group, only the incoming arc needs to be explicitly made invisible
@@ -114,7 +108,8 @@ class TurnNode {
 
 class EmptyMessage{
   constructor (){};
-  highlight(_highlighted: boolean){};
+  highlightOn(){};
+  highlightOff(){};
   changeVisibility(_visible: boolean){};
   getText(){return "42"};
 }
@@ -142,13 +137,14 @@ class Message extends EmptyMessage{
     }
   }
 
-  highlight(highlighted: boolean){
-    if(highlighted){
-      this.visualization.style("stroke-width", turnHighlightedWidth);
-    } else {
-      this.visualization.style("stroke-width", 1);
-    }
-    this.sender.highlight(highlighted);
+  highlightOn(){
+    this.visualization.style("stroke-width", turnHighlightedWidth);
+    this.sender.highlightOn();
+  }
+
+  highlightOff(){
+    this.visualization.style("stroke-width", 1);
+    this.sender.highlightOff();
   }
 
   changeVisibility(visible: boolean){
@@ -197,18 +193,16 @@ export class ProtocolOverview {
   //ensure only one node chain can be highlighted at the same time
   static changeHighlight(turn: TurnNode){
     if(ProtocolOverview.highlighted){
-      ProtocolOverview.highlighted.changeHighlight();
+      ProtocolOverview.highlighted.highlightOff();
     }
     if(turn == ProtocolOverview.highlighted){
       ProtocolOverview.highlighted = null;
     } else {
-      turn.changeHighlight();
+      turn.highlightOn();
       ProtocolOverview.highlighted = turn;
     }
   }
 }
-
-
 
 function displayProtocolOverview() {
   const canvas = $("#protocol-canvas");
