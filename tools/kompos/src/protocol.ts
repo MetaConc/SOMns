@@ -260,10 +260,10 @@ class Message extends EmptyMessage {
 }
 
 export class ProtocolOverview {
-  private actors: IdMap<ActorHeading>;
-  private data: HistoryData;
-  private static highlighted: TurnNode;
-
+  private actors:                   IdMap<ActorHeading>;
+  private data:                     HistoryData;
+  private static highlighted:       TurnNode;
+  
   public newActivities(newActivities: Activity[]) {
     for(const act of newActivities){
       if(act.type === "Actor"){
@@ -290,16 +290,16 @@ export class ProtocolOverview {
   }
 
   //ensure only one node chain can be highlighted at the same time
-  static changeHighlight(turn: TurnNode, visualization: d3.Selection<SVGElement>) {
+  static changeHighlight(turn: TurnNode) {
     if(ProtocolOverview.highlighted){
       ProtocolOverview.highlighted.highlightOff();
-      shrinkTurn(turn, visualization);
+      shrinkTurn(ProtocolOverview.highlighted, ProtocolOverview.highlighted.visualization);
     }
     if(turn == ProtocolOverview.highlighted){
       ProtocolOverview.highlighted = null;
     } else {
       turn.highlightOn();
-      enlargeTurn(turn, visualization);
+      enlargeTurn(turn, turn.visualization);
       ProtocolOverview.highlighted = turn;
     }
   }
@@ -361,7 +361,7 @@ function drawTurn(turn: TurnNode) {
       .style("stroke-width", noHighlightWidth)
       .style("stroke", turn.getColor())
       .on("click", function(){
-        ProtocolOverview.changeHighlight(turn, d3.select(this));
+        ProtocolOverview.changeHighlight(turn);
       })
       .on("mouseover", function(){
         text.style("opacity", 1);
