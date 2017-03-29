@@ -1,0 +1,34 @@
+class KomposDemoChannelBP usingPlatform: platform = Value (
+| private actors    = platform actors.
+  private processes = platform processes.
+  private Array     = platform kernel Array.
+|)(
+  private class Process new: channelIn = (
+  | private channelIn = channelIn.
+  |)(
+    public run = (
+      | r |
+      r := channelIn read.
+      r println.
+    )
+  )
+
+  private channelBreakpoints = (
+     | channel |
+    channel := processes Channel new.
+
+    processes spawn: Process with: (Array with: channel in).
+
+    channel out
+      write: 42.
+  )
+
+  public main: args = (
+    | completionPP |
+    completionPP := actors createPromisePair.
+
+    channelBreakpoints.
+
+    ^ completionPP promise
+  )
+)

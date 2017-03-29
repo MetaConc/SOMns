@@ -1,0 +1,31 @@
+class KomposDemoActorBP usingPlatform: platform = Value (
+| private actors = platform actors.
+  private Array  = platform kernel Array.
+|)(
+  private class Result = ()(
+    public get = (
+      | result |
+      result := 42.
+      ^ result
+    )
+  )
+
+  private actorBreakpoints = (
+    | prom aResult |
+    aResult := (actors createActorFromValue: Result) <-: new.
+    prom := aResult <-: get.
+
+    prom whenResolved: [:r |
+      r println
+    ].
+  )
+
+  public main: args = (
+    | completionPP |
+    completionPP := actors createPromisePair.
+
+    actorBreakpoints.
+
+    ^ completionPP promise
+  )
+)
