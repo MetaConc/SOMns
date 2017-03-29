@@ -1,10 +1,27 @@
-1. Customers request a list of available flights and the price of a ticket. The ticket price increases everytime a ticket was sold. The cutomers book and then pay for the ticket.
+run:
 
-2. Run programm e.g. 10x, there is a nondeterministic bug that occurs for x% of runs
+./som -at core-lib/ReplayDemo.som
+./som -at core-lib/ReplayDemo.som
+./som -at core-lib/ReplayDemo.som
+
+then run:
+
+./som -at -r core-lib/ReplayDemo.som
+
+a few times
+
+and now:
+
+./som -ea -at -r core-lib/ReplayDemo.som
+
+
+1. Customers request a list of available flights and the price of a ticket. The ticket price increases every time a ticket was sold. The customers book and then pay for the ticket.
+
+2. Run program e.g. 10x, there is a nondeterministic bug that occurs for x% of runs
 
 3. Run with 1 iteration until a trace with bug is produced
 
-4. add replay flag -r, show that bug can be reproduced determinisitically.
+4. add replay flag -r, show that bug can be reproduced deterministically.
 
 
 5. problem: customer doesn't pay enough
