@@ -66,6 +66,8 @@ class Airline2 usingPlatform: platform = Value (
       )
 
       public book: customer flight: flight = (
+        ('Book flights for customer: ' + customer asString) println.
+
         actors assertResultUsed. (*customer should look at this*)
 
         (*assert this booking will be paid*)
@@ -110,7 +112,6 @@ class Airline2 usingPlatform: platform = Value (
     |
     ) (
         public bookFlight = (|flight|
-          ('book flights ' + Id asString) println.
           numBookings timesRepeat: [
             (web <-: requestFlights) whenResolved: [:flights|
               flight := 1 + (rand next: numFlights).
