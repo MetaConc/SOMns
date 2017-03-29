@@ -4,7 +4,7 @@ class Airline2 usingPlatform: platform = Value (
     private TransferArray= platform kernel TransferArray.
     private system    = platform system.
     private Protocol    = actors MessageProtocol.
-    
+
     private numCustomers = 11.
     private numFlights = 10.
     private numBookings = 1.
@@ -19,17 +19,17 @@ class Airline2 usingPlatform: platform = Value (
       seed := ((seed * 1309) + 13849) & 65535.
       ^ seed
     )
-    
+
     (* Returns an integer within the range of [0, bound) *)
     public next: bound = (
       ^ next % bound
     )
-    
+
     (* Returns a double uniformly distributed in the range of [0.0, 1.0) *)
     public nextDouble = (
       ^ next // 65536
     )
-    
+
     public nextBoolean = (
       ^ next < 32768
     )
@@ -67,7 +67,7 @@ class Airline2 usingPlatform: platform = Value (
   class Proto = Protocol()(
     A = (
           onReceive: #requestFlights do: [A].
-          onReceive: #book:flight: do: [:args| B: (args at: 1)].     
+          onReceive: #book:flight: do: [:args| B: (args at: 1)].
     )
 
     B: customer = (
@@ -78,7 +78,7 @@ class Airline2 usingPlatform: platform = Value (
       A.
     )
   )
-  
+
   public class Website new: completionRes = (
     | private completionRes = completionRes.
       private finishedCustomers ::= 0.
