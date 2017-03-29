@@ -110,6 +110,7 @@ class Airline2 usingPlatform: platform = Value (
     |
     ) (
         public bookFlight = (|flight|
+          ('book flights ' + Id asString) println.
           numBookings timesRepeat: [
             (web <-: requestFlights) whenResolved: [:flights|
               flight := 1 + (rand next: numFlights).
