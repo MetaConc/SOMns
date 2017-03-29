@@ -1,0 +1,164 @@
+class Airline2 usingPlatform: platform = Value (
+  | private actors    = platform actors.
+    private Array     = platform kernel Array.
+    private TransferArray= platform kernel TransferArray.
+    private system    = platform system.
+    private Protocol    = actors MessageProtocol.
+    
+    private numCustomers = 11.
+    private numFlights = 10.
+    private numBookings = 1.
+  |
+)(
+  public class Random new: seed = (
+    | private seed ::= seed.
+      private gotNextGaussian  ::= false.
+      private nextNextGaussian ::= 0.0. |
+  ) (
+    public next = (
+      seed := ((seed * 1309) + 13849) & 65535.
+      ^ seed
+    )
+    
+    (* Returns an integer within the range of [0, bound) *)
+    public next: bound = (
+      ^ next % bound
+    )
+    
+    (* Returns a double uniformly distributed in the range of [0.0, 1.0) *)
+    public nextDouble = (
+      ^ next // 65536
+    )
+    
+    public nextBoolean = (
+      ^ next < 32768
+    )
+    
+    (* Returns a double normally distributed with mean 0.0 
+       and standard deviation of 1.0 *)
+    public nextGaussian = (
+      | v1 v2 s multiplier |
+      gotNextGaussian ifTrue: [
+        gotNextGaussian := false.
+        ^ nextNextGaussian ].
+      
+      v1 := (2.0 * nextDouble) - 1.0.
+      v2 := (2.0 * nextDouble) - 1.0.
+      s  := (v1 * v1) + (v2 * v2).
+      
+      [s >= 1.0 or: [s = 0.0]] whileTrue: [
+        v1 := (2.0 * nextDouble) - 1.0.
+        v2 := (2.0 * nextDouble) - 1.0.
+        s  := (v1 * v1) + (v2 * v2).
+      ].
+      
+      multiplier := (-2.0 * s log // s) sqrt.
+      nextNextGaussian := v2 * multiplier.
+      gotNextGaussian := true.
+      ^ v1 * multiplier
+    )
+  ) : (
+    public new = (
+      ^ new: 74755
+    )
+  )
+
+  (*ensures that booking-payment sequence is not interrupted by another booking *)
+  class Proto = Protocol()(
+    A = (
+          onReceive: #requestFlights do: [A].
+          onReceive: #book:flight: do: [:args| B: (args at: 1)].     
+    )
+
+    B: customer = (
+      onReceive: #pay:flight:amount do: [:args| assert: (args at: 1) = customer. A].
+    )
+
+    public start = (
+      A.
+    )
+  )
+  
+  public class Website new: completionRes = (
+    | private completionRes = completionRes.
+      private finishedCustomers ::= 0.
+      private flights = TransferArray new: numFlights withAll: 50.
+      private resolved ::= false.
+      (*private proto = Proto new.*)
+    |
+    ) (
+      public requestFlights = (
+          ^ flights.
+      )
+
+      public book: customer flight: flight = (
+        actors assertResultUsed. (*customer should look at this*)
+
+        (*assert this booking will be paid*)
+        actors assertFuture: [
+          actors getMessage = #pay:flight:amount: and: [(actors getMessageArgs at: 1) = customer and:
+          (actors getMessageArgs at: 2) = flight]
+        ].
+
+        ^ flights at: flight.
+      )
+
+      public pay: customer flight: flight amount: amount= (
+        amount = (flights at: flight) ifTrue:[
+          (*ok*)
+          flights at: flight put: (amount + 10).
+
+        ] ifFalse:[
+          (*not enough money, fail*)
+          'FAIL' println.
+          resolved ifFalse:[
+                completionRes resolve: false.
+                resolved := true.
+          ]
+        ]
+      )
+
+      public done = (
+        finishedCustomers := finishedCustomers + 1.
+        finishedCustomers = numCustomers ifTrue: [
+          resolved ifFalse:[
+                completionRes resolve: true.
+                resolved := true.
+          ]
+        ]
+      )
+    )
+
+    public class Customer new: customerId website: web = (
+    | private Id = customerId.
+      private web = web.
+      private rand = Random new: customerId + 73425.
+    |
+    ) (
+        public bookFlight = (|flight|
+          numBookings timesRepeat: [
+            (web <-: requestFlights) whenResolved: [:flights|
+              flight := 1 + (rand next: numFlights).
+              web <-: book: Id flight: flight.
+              web <-: pay: Id flight: flight amount: (flights at: flight).
+              web <-: done.
+            ]
+          ]
+        )
+      )
+
+  public main: args = (
+    | customers website payment completionPP |
+    completionPP := actors createPromisePair.
+    website  := (actors createActorFromValue: Website) <-: new: completionPP resolver.
+    customers := Array new: numCustomers.
+    customers doIndexes: [:i |
+      | c |
+      c := (actors createActorFromValue: Customer) <-: new: i website: website.
+      customers at: i put: c ].
+
+    customers do: [:c | c <-: bookFlight ].
+
+    ^ completionPP promise
+  )
+)

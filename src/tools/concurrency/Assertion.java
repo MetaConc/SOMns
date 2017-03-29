@@ -133,10 +133,13 @@ public class Assertion {
     }
 
     public void finalCheck() {
-      boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
+      if (futureAssertions.size() > 0) {
+        futureAssertions.iterator().next().throwError();
+      }
+      /*boolean result = (boolean) statement.getMethod().invoke(new Object[] {statement});
       if (!result) {
         throwError();
-      }
+      }*/
     }
 
     public static void checkFutureAssertions() {

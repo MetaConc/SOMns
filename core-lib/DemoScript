@@ -1,0 +1,20 @@
+1. Customers request a list of available flights and the price of a ticket. The ticket price increases everytime a ticket was sold. The cutomers book and then pay for the ticket.
+
+2. Run programm e.g. 10x, there is a nondeterministic bug that occurs for x% of runs
+
+3. Run with 1 iteration until a trace with bug is produced
+
+4. add replay flag -r, show that bug can be reproduced determinisitically.
+
+
+5. problem: customer doesn't pay enough
+- customer doesn't look at updated price: result used assertion
+- customer pays for a different flight: assert pay message after book has matching parameters
+- another customer paid between book and pay: assert pay has to follow book
+
+6. run again, assertion error shows that the actual price was ignored by the customer (used initial offer instead)
+
+7. fix bookFlight so result is used (when resolved, use result for pay message amount).
+
+8. run again
+
