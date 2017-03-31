@@ -26,6 +26,7 @@ import tools.debugger.nodes.BreakpointNodeGen;
 import tools.debugger.nodes.DisabledBreakpointNode;
 import tools.debugger.stepping.StepActorOperation;
 import tools.debugger.stepping.Stepping;
+import tools.debugger.stepping.Stepping.SteppingType;
 
 
 public class Breakpoints {
@@ -170,7 +171,7 @@ public class Breakpoints {
         ss -> new BreakpointEnabling<>(new MessageReceiverBreakpoint(false, section)));
 
    if (bkp.isDisabled() && stepping != null) {
-     bkp.setEnabled(stepping.isStepInto(section));
+     bkp.setEnabled(stepping.isStepOperation(section, SteppingType.STEP_INTO));
    }
 
    return bkp;

@@ -19,10 +19,9 @@ public class Stepping {
     this.stepActor = stepActor;
   }
 
-  public boolean isStepInto(final FullSourceCoordinate source) {
+  public boolean isStepOperation(final FullSourceCoordinate source, final SteppingType type) {
     if (stepActor != null) {
-      if (stepActor.getSteppingType() == SteppingType.STEP_INTO && source.equals(stepActor.getSourceSection())) {
-        stepActor = null;
+      if (stepActor.getSteppingType() == type && source.equals(stepActor.getSourceSection())) {
         return true;
       }
     }
