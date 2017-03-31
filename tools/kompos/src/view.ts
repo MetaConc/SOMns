@@ -819,7 +819,9 @@ export class View {
       pause:    act.find(".act-pause"),
       stepInto: act.find(".act-step-into"),
       stepOver: act.find(".act-step-over"),
-      return:   act.find(".act-return")
+      return:   act.find(".act-return"),
+      stepIntoMessage: act.find(".act-step-into-message"),
+      stepOverMessage: act.find(".act-step-over-message")
     };
   }
 
@@ -837,6 +839,8 @@ export class View {
     btns.stepInto.removeClass("disabled");
     btns.stepOver.removeClass("disabled");
     btns.return.removeClass("disabled");
+    btns.stepIntoMessage.removeClass("disabled");
+    btns.stepOverMessage.removeClass("disabled");
   }
 
   public switchActivityDebuggerToResumedState(act: Activity) {
@@ -853,6 +857,8 @@ export class View {
     btns.stepInto.addClass("disabled");
     btns.stepOver.addClass("disabled");
     btns.return.addClass("disabled");
+    btns.stepIntoMessage.addClass("disabled");
+    btns.stepOverMessage.addClass("disabled");
   }
 
   public onContinueExecution(act: Activity) {

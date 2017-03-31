@@ -167,7 +167,7 @@ interface UpdateBreakpoint {
   breakpoint: BreakpointData;
 }
 
-export type StepType = "stepInto" | "stepOver" | "return" | "resume" | "stop";
+export type StepType = "stepInto" | "stepOver" | "return" | "resume" | "stop" | "stepIntoMessage" | "stepOverMessage";
 
 export interface StepMessage {
   action: StepType;

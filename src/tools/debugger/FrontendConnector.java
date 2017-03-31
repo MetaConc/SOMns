@@ -48,6 +48,7 @@ import tools.debugger.session.MessageReceiverBreakpoint;
 import tools.debugger.session.MessageSenderBreakpoint;
 import tools.debugger.session.PromiseResolutionBreakpoint;
 import tools.debugger.session.PromiseResolverBreakpoint;
+import tools.debugger.stepping.StepActorOperation;
 
 /**
  * Connect the debugger to the UI front-end.
@@ -295,6 +296,10 @@ public class FrontendConnector {
 
   public void registerOrUpdate(final ChannelOppositeBreakpoint bp) {
     breakpoints.addOrUpdate(bp);
+  }
+
+  public void registerOrUpdate(final StepActorOperation step) {
+    breakpoints.setActorStepping(step);
   }
 
   public Suspension getSuspension(final long activityId) {

@@ -58,6 +58,8 @@ import tools.debugger.session.MessageReceiverBreakpoint;
 import tools.debugger.session.MessageSenderBreakpoint;
 import tools.debugger.session.PromiseResolutionBreakpoint;
 import tools.debugger.session.PromiseResolverBreakpoint;
+import tools.debugger.stepping.StepActorMessage.StepIntoMessage;
+import tools.debugger.stepping.StepActorMessage.StepOverMessage;
 
 
 /**
@@ -210,6 +212,8 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     inMsgAF.register("return",   Return.class);
     inMsgAF.register("resume",   Resume.class);
     inMsgAF.register("stop",     Stop.class);
+    inMsgAF.register("stepIntoMessage", StepIntoMessage.class);
+    inMsgAF.register("stepOverMessage", StepOverMessage.class);
     inMsgAF.register("StackTraceRequest", StackTraceRequest.class);
     inMsgAF.register("ScopesRequest",     ScopesRequest.class);
     inMsgAF.register("VariablesRequest",  VariablesRequest.class);

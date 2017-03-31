@@ -24,6 +24,8 @@ import tools.debugger.WebDebugger;
 import tools.debugger.nodes.AbstractBreakpointNode;
 import tools.debugger.nodes.BreakpointNodeGen;
 import tools.debugger.nodes.DisabledBreakpointNode;
+import tools.debugger.stepping.StepActorOperation;
+import tools.debugger.stepping.Stepping;
 
 
 public class Breakpoints {
@@ -54,6 +56,8 @@ public class Breakpoints {
   /** Manually managed by us, instead of Truffle. */
   private final Map<FullSourceCoordinate, BreakpointEnabling<ChannelOppositeBreakpoint>> channelOppositeBreakpoint;
 
+  private Stepping stepping;
+
   public Breakpoints(final Debugger debugger, final WebDebugger webDebugger) {
     this.truffleBreakpoints           = new HashMap<>();
     this.receiverBreakpoints          = new HashMap<>();
@@ -61,6 +65,7 @@ public class Breakpoints {
     this.promiseResolutionBreakpoints = new HashMap<>();
     this.channelOppositeBreakpoint    = new HashMap<>();
     this.debuggerSession = debugger.startSession(webDebugger);
+    this.stepping = null;
   }
 
   public void doSuspend(final MaterializedFrame frame, final SteppingLocation steppingLocation) {
@@ -161,8 +166,14 @@ public class Breakpoints {
 
  public synchronized BreakpointEnabling<MessageReceiverBreakpoint> getReceiverBreakpoint(
       final FullSourceCoordinate section) {
-    return receiverBreakpoints.computeIfAbsent(section,
+   BreakpointEnabling<MessageReceiverBreakpoint> bkp = receiverBreakpoints.computeIfAbsent(section,
         ss -> new BreakpointEnabling<>(new MessageReceiverBreakpoint(false, section)));
+
+   if (bkp.isDisabled() && stepping != null) {
+     bkp.setEnabled(stepping.isStepInto(section));
+   }
+
+   return bkp;
   }
 
   public synchronized BreakpointEnabling<PromiseResolverBreakpoint> getPromiseResolverBreakpoint(
@@ -222,4 +233,9 @@ public class Breakpoints {
       return new DisabledBreakpointNode();
     }
   }
+
+  public void setActorStepping(final StepActorOperation step) {
+    this.stepping = new Stepping(step);
+  }
+
 }

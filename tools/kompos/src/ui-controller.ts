@@ -298,4 +298,22 @@ export class UiController extends Controller {
     this.view.onContinueExecution(act);
     this.vmConnection.sendDebuggerAction("return", act);
   }
+
+  public stepIntoMessage(actId: string) {
+    const activityId = getActivityIdFromView(actId);
+    const act = this.dbg.getActivity(activityId);
+    if (act.running) { return; }
+    act.running = true;
+    this.view.onContinueExecution(act);
+    this.vmConnection.sendDebuggerAction("stepIntoMessage", act);
+  }
+
+  public stepOverMessage(actId: string) {
+    const activityId = getActivityIdFromView(actId);
+    const act = this.dbg.getActivity(activityId);
+    if (act.running) { return; }
+    act.running = true;
+    this.view.onContinueExecution(act);
+    this.vmConnection.sendDebuggerAction("stepOverMessage", act);
+  }
 }
