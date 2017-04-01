@@ -3,6 +3,7 @@ package som.interpreter.actors;
 import com.oracle.truffle.api.nodes.Node;
 
 import som.interpreter.actors.EventualMessage.PromiseMessage;
+import som.vm.VmSettings;
 
 
 public abstract class RegisterOnPromiseNode {
@@ -20,6 +21,10 @@ public abstract class RegisterOnPromiseNode {
       // of handlers. We can split the case for a resolved promise out, because
       // we need to schedule the callback/msg directly anyway
       synchronized (promise) {
+        if (VmSettings.ENABLE_ASSERTIONS) {
+          promise.resultUsed = true;
+        }
+
         if (!promise.isResolvedUnsync()) {
           if (promise.isErroredUnsync()) {
             // short cut on error, this promise will never resolve successfully, so,

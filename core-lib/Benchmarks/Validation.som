@@ -612,4 +612,93 @@ class Validation usingPlatform: platform andHarness: harness = Value (
     public newInstance: problemSize = ( ^ self new: problemSize asInteger )
     public setupVerifiedRun: run = ( run problemSize: 100 )
   )
+
+  public class Airline new: numCustomers = Benchmark <: Value (
+  | private numCustomers = numCustomers.
+    private numFlights = 10.
+    private numSeats = 35.
+    private numBookings = 10.
+  |
+  )(
+    
+    public class Website new: completionRes = (
+    | private completionRes = completionRes.
+      private finishedCustomers ::= 0.
+      private flights = TransferArray new: numFlights withAll: 50.
+      private resolved ::= false.
+    |
+    ) (
+      public requestFlights: customer = (
+          ^ flights.
+      )
+
+      public book: customer flight: flight = (
+        ^ flights at: flight.
+      )
+
+      public pay: customer flight: flight amount: amount= (
+        amount = (flights at: flight) ifTrue:[
+          (*ok*)
+          flights at: flight put: (amount + 10).
+        ] ifFalse:[
+          (*not enough money*)
+          resolved ifFalse:[
+                completionRes resolve: false.
+                resolved := true.
+          ]
+        ]
+      )
+
+      public done = (
+        finishedCustomers := finishedCustomers + 1.
+        finishedCustomers = numCustomers ifTrue: [
+          resolved ifFalse:[
+                completionRes resolve: true.
+                resolved := true.
+          ]
+        ]
+      )
+    )
+
+    public class Customer new: customerId website: web = (
+    | private Id = customerId.
+      private web = web.
+      private rand = Random new: customerId + 73425.
+      private bookingsDone ::= 0.
+    |
+    ) (
+        public bookFlight = (|flight|
+          (web <-: requestFlights: self) whenResolved: [:flights|
+            flight := 1 + (rand next: numFlights).
+            web <-: book: self flight: flight.
+            web <-: pay: self flight: flight amount: (flights at: flight).
+            bookingsDone := bookingsDone + 1.
+            web <-: done.
+          ]
+        )
+      )
+  
+    public benchmark: abortP = (
+      | customers website payment completionPP |
+      completionPP := actors createPromisePair.
+      website  := (actors createActorFromValue: Website) <-: new: completionPP resolver.
+
+      customers := Array new: numCustomers.
+      customers doIndexes: [:i |
+        | c |
+        c := (actors createActorFromValue: Customer) <-: new: i website: website.
+        customers at: i put: c ].
+
+      customers do: [:c | c <-: bookFlight ].
+
+      ^ completionPP promise
+    )
+    
+    public verifyResult: isCorrect = (
+      ^ isCorrect
+    )
+  ) : (
+    public newInstance: problemSize = ( ^ self new: problemSize asInteger )
+    public setupVerifiedRun: run = ( run problemSize: 100 )
+  )
 )

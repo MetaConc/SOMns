@@ -13,7 +13,9 @@ import som.primitives.Primitive;
 import som.primitives.actors.PromisePrims.IsActorModule;
 import som.vm.VmSettings;
 import som.vm.constants.KernelObj;
+import som.vmobjects.SClass;
 import tools.concurrency.ActorExecutionTrace;
+import tools.concurrency.TracingActors.TracingActor;
 
 
 @GenerateNodeFactory
@@ -32,7 +34,11 @@ public abstract class CreateActorPrim extends BinaryComplexOperation {
     Actor actor = Actor.createActor();
     SFarReference ref = new SFarReference(actor, argument);
 
+    assert argument instanceof SClass;
+    SClass actorClass = (SClass) argument;
+
     if (VmSettings.ACTOR_TRACING) {
+      ((TracingActor) actor).setActorType(actorClass.getName());
       ActorExecutionTrace.actorCreation(ref, sourceSection);
     }
     return ref;

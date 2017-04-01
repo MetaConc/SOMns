@@ -29,6 +29,7 @@ import som.vm.constants.Nil;
 import som.vmobjects.SSymbol;
 import tools.concurrency.Tags.EventualMessageSend;
 import tools.concurrency.Tags.ExpressionBreakpoint;
+import tools.concurrency.TracingActors.TracingActor;
 import tools.debugger.nodes.AbstractBreakpointNode;
 import tools.debugger.session.Breakpoints;
 
@@ -179,6 +180,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           EventualMessage.getCurrentExecutingMessageId(), target, selector, args,
           owner, resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) owner).checkSendHooks(msg);
+      }
       target.send(msg);
     }
 
@@ -190,6 +194,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           EventualMessage.getCurrentExecutingMessageId(), selector, args,
           rcvr.getOwner(), resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) EventualMessage.getActorCurrentMessageIsExecutionOn()).checkSendHooks(msg);
+      }
       registerNode.register(rcvr, msg, rcvr.getOwner());
     }
 
@@ -237,6 +244,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           current, selector, args, current,
           resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) current).checkSendHooks(msg);
+      }
       current.send(msg);
 
       return result;
@@ -266,6 +276,9 @@ public class EventualSendNode extends ExprWithTagsNode {
           current, selector, args, current,
           null, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+      if (VmSettings.ENABLE_ASSERTIONS) {
+        ((TracingActor) current).checkSendHooks(msg);
+      }
       current.send(msg);
       return Nil.nilObject;
     }
