@@ -149,6 +149,7 @@ class TurnNode {
   //   shift other turns downwards to prevent overlap
   enlarge(yShift: number) {
     this.actor.transpose(this.count, yShift);
+    //this.visualization.style("fill", "none");
     for (const message of this.outgoing) {
       message.enlarge();
     }
@@ -158,6 +159,7 @@ class TurnNode {
   //   every message starts from the center of the node
   shrink() {
     this.actor.transpose(this.count, 0);
+    //this.visualization.style("fill", this.getColor());
     for (const message of this.outgoing) {
       message.shrink();
     }
@@ -215,6 +217,7 @@ class Message extends EmptyMessage {
   text:          string; 
   order:         number;  // indicates order of message sends inside turn
   visualization: d3.Selection<SVGElement>;
+  ancor:         d3.Selection<SVGElement>;
   visibility:    string;
   messageToSelf: boolean; // is both the sender and receiver the same object
 
@@ -229,23 +232,23 @@ class Message extends EmptyMessage {
     this.targetShift = 0; 
     this.messageToSelf = senderActor === targetActor;
     this.visibility = "inherit";
-    this.draw(false); 
+    this.draw(); 
   }
 
-  private draw(createAncors: boolean){
+  private draw(){
     if(this.messageToSelf){
-        this.visualization = drawMessageToSelf(this, createAncors, this.visibility);
+        this.visualization = drawMessageToSelf(this, this.visibility);
       } else {  
-        this.visualization = drawMessage(this, createAncors, this.visibility);
+        this.visualization = drawMessage(this, this.visibility);
       }
   }
 
   // remove the visualization and create a new one
   // if the ancor where not defined yet the remove doesn't do anything
-  private redraw(createAncors: boolean){
-    d3.select("#endMarker"+this.id).remove();
+  private redraw(){
+    d3.select("#endMarker"+this.id).remove(); //todo is this necessairy?
     this.visualization.remove();
-    this.draw(createAncors);
+    this.draw();
   }
 
   highlightOn() {
@@ -267,27 +270,30 @@ class Message extends EmptyMessage {
       this.visibility = "hidden";
     }
     this.visualization.style("visibility", this.visibility);
+    if(this.ancor){this.ancor.style("visibility", this.visibility)}; //if the ancor exist, update its visibility
   }
 
   enlarge() {
     this.senderShift = this.order * messageSpacing;
-    this.redraw(true);
+    this.ancor = createMessageAncor(this, this.visibility);
+    this.redraw();
   }
 
   shrink(){
-    d3.select("#startMarker"+this.id).remove();
+    this.ancor.remove();
+    this.ancor = null;
     this.senderShift = 0;
-    this.redraw(false);
+    this.redraw();
   }
 
   shiftAtSender(yShift: number){
     this.senderShift = yShift;
-    this.redraw(false);
+    this.redraw();
   }
 
   shiftAtTarget(yShift: number) {
     this.targetShift = yShift;
-    this.redraw(false);
+    this.redraw();
   }
 
   getSender(){
@@ -388,7 +394,6 @@ function drawActor(actor: ActorHeading){
     .attr("height", actorHeight)
     .attr("width", actorWidth)
     .style("fill", actor.color)
-    .style("stroke", actor.color)
     .style("opacity", opacity)
     .on("click", function(){
       actor.changeVisibility();
@@ -442,20 +447,16 @@ function transposeTurn(visualization: d3.Selection<SVGElement>, yShift: number){
   visualization.attr("transform", "translate(0," + yShift + ")")
 }
 
-function drawMessage(message: Message, createAncors: boolean, visibility: string){
+function drawMessage(message: Message, visibility: string){
   var sender = message.sender;
   var target = message.target;
   createMessageArrow(sender.getColor(), message.id);
-  if(createAncors){
-    createMessageAncor(sender.getColor(), message.id);
-  }
   var visualization = sender.getContainer().append("line")
     .attr("x1", sender.x)
     .attr("y1", sender.y + message.senderShift)
     .attr("x2", target.x)
     .attr("y2", target.y + message.targetShift)
     .attr("marker-end", "url(#endMarker"+message.id+")")
-    .attr("marker-start", "url(#startMarker"+message.id+")")
     .style("stroke", sender.getColor())
     .style("visibility", visibility);
   return visualization;
@@ -466,14 +467,10 @@ const lineGenerator: any =
     .y(function(d) { return d[1]; })
     .interpolate("linear");
 
-function drawMessageToSelf(message: Message, createAncors: boolean, visibility: string){
+function drawMessageToSelf(message: Message, visibility: string){
   var sender = message.sender;
   var target = message.target;
   createMessageArrow(sender.getColor(), message.id);
-  if(createAncors){
-    createMessageAncor(sender.getColor(), message.id);
-  }
-    
   var lineData: [number, number][] = [
     [ sender.x , sender.y + message.senderShift],
     [ sender.x+turnRadius*1.5 , sender.y + message.senderShift],
@@ -482,7 +479,6 @@ function drawMessageToSelf(message: Message, createAncors: boolean, visibility: 
   var visualization = sender.getContainer().append("path")
     .attr("d", lineGenerator(lineData))
     .attr("marker-end", "url(#endMarker"+message.id+")")
-    .attr("marker-start", "url(#startMarker"+message.id+")")
     .style("fill", "none")
     .style("stroke", sender.getColor())
     .style("visibility", visibility);
@@ -507,21 +503,17 @@ function createMessageArrow(color: string, id: number){
     .attr("class","arrowHead");
 }
 
-function createMessageAncor(color: string, id: number){
-  var lineData: [number, number][] = 
-    [[0, 0],
-     [0, markerSize],
-     [markerSize, markerSize],
-     [markerSize, 0]];
-  defs.append("marker")
-    .attr("id", "startMarker"+id)
-    .attr("refX", 0) 
-    .attr("refY", 0)
-    .attr("markerWidth", markerSize)
-    .attr("markerHeight", markerSize)
-    .style("fill", color)
-    .append("path")
-    .attr("d", lineGenerator(lineData))
+function createMessageAncor(message: Message, visibility: string){
+  var sender = message.sender;
+  var target = message.target;
+  
+  return sender.getContainer().append("rect")
+    .attr("x", sender.x-markerSize/2)
+    .attr("y", sender.y+message.senderShift-markerSize/2)
+    .attr("height", markerSize)
+    .attr("width", markerSize)
+    .style("fill", target.getColor())
+    .style("visibility", visibility)
     .on("click", function(){
       dbgLog("clicked marker");
     });
