@@ -215,6 +215,7 @@ class Message extends EmptyMessage {
   text:          string; 
   order:         number;  // indicates order of message sends inside turn
   visualization: d3.Selection<SVGElement>;
+  visibility:    string;
   messageToSelf: boolean; // is both the sender and receiver the same object
 
   constructor(senderActor: ActorHeading, targetActor: ActorHeading, text: string) {
@@ -227,15 +228,16 @@ class Message extends EmptyMessage {
     this.target = new TurnNode(targetActor, this);
     this.targetShift = 0; 
     this.messageToSelf = senderActor === targetActor;
+    this.visibility = "inherit";
     this.draw(false); 
   }
 
   private draw(createAncors: boolean){
     if(this.messageToSelf){
-      this.visualization = drawMessageToSelf(this, createAncors);
-    } else {  
-      this.visualization = drawMessage(this, createAncors);
-    }
+        this.visualization = drawMessageToSelf(this, createAncors, this.visibility);
+      } else {  
+        this.visualization = drawMessage(this, createAncors, this.visibility);
+      }
   }
 
   // remove the visualization and create a new one
@@ -260,10 +262,11 @@ class Message extends EmptyMessage {
   // this allows message going from and to a hidden turn to stay hidden if either party becomes visible
   changeVisibility(visible: boolean) {
     if(visible){
-      this.visualization.style("visibility", "inherit");
+      this.visibility = "inherit"
     } else {
-      this.visualization.style("visibility", "hidden");
+      this.visibility = "hidden";
     }
+    this.visualization.style("visibility", this.visibility);
   }
 
   enlarge() {
@@ -439,7 +442,7 @@ function transposeTurn(visualization: d3.Selection<SVGElement>, yShift: number){
   visualization.attr("transform", "translate(0," + yShift + ")")
 }
 
-function drawMessage(message: Message, createAncors: boolean){
+function drawMessage(message: Message, createAncors: boolean, visibility: string){
   var sender = message.sender;
   var target = message.target;
   createMessageArrow(sender.getColor(), message.id);
@@ -451,9 +454,10 @@ function drawMessage(message: Message, createAncors: boolean){
     .attr("y1", sender.y + message.senderShift)
     .attr("x2", target.x)
     .attr("y2", target.y + message.targetShift)
-    .style("stroke", sender.getColor())
     .attr("marker-end", "url(#endMarker"+message.id+")")
-    .attr("marker-start", "url(#startMarker"+message.id+")");
+    .attr("marker-start", "url(#startMarker"+message.id+")")
+    .style("stroke", sender.getColor())
+    .style("visibility", visibility);
   return visualization;
 }
 const lineGenerator: any = 
@@ -462,7 +466,7 @@ const lineGenerator: any =
     .y(function(d) { return d[1]; })
     .interpolate("linear");
 
-function drawMessageToSelf(message: Message, createAncors){
+function drawMessageToSelf(message: Message, createAncors: boolean, visibility: string){
   var sender = message.sender;
   var target = message.target;
   createMessageArrow(sender.getColor(), message.id);
@@ -477,10 +481,11 @@ function drawMessageToSelf(message: Message, createAncors){
     [ target.x , target.y + message.targetShift]];
   var visualization = sender.getContainer().append("path")
     .attr("d", lineGenerator(lineData))
+    .attr("marker-end", "url(#endMarker"+message.id+")")
+    .attr("marker-start", "url(#startMarker"+message.id+")")
     .style("fill", "none")
     .style("stroke", sender.getColor())
-    .attr("marker-end", "url(#endMarker"+message.id+")")
-    .attr("marker-start", "url(#startMarker"+message.id+")");
+    .style("visibility", visibility);
   return visualization;
 }
 
