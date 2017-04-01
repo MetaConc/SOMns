@@ -246,7 +246,7 @@ class Message extends EmptyMessage {
   // remove the visualization and create a new one
   // if the ancor where not defined yet the remove doesn't do anything
   private redraw(){
-    d3.select("#endMarker"+this.id).remove(); //todo is this necessairy?
+    d3.select("#arrowMarker"+this.id).remove(); //todo is this necessairy?
     this.visualization.remove();
     this.draw();
   }
@@ -456,7 +456,7 @@ function drawMessage(message: Message, visibility: string){
     .attr("y1", sender.y + message.senderShift)
     .attr("x2", target.x)
     .attr("y2", target.y + message.targetShift)
-    .attr("marker-end", "url(#endMarker"+message.id+")")
+    .attr("marker-end", "url(#arrowMarker"+message.id+")")
     .style("stroke", sender.getColor())
     .style("visibility", visibility);
   return visualization;
@@ -478,7 +478,7 @@ function drawMessageToSelf(message: Message, visibility: string){
     [ target.x , target.y + message.targetShift]];
   var visualization = sender.getContainer().append("path")
     .attr("d", lineGenerator(lineData))
-    .attr("marker-end", "url(#endMarker"+message.id+")")
+    .attr("marker-end", "url(#arrowMarker"+message.id+")")
     .style("fill", "none")
     .style("stroke", sender.getColor())
     .style("visibility", visibility);
@@ -491,12 +491,13 @@ function createMessageArrow(color: string, id: number){
      [markerSize, markerSize/2],
      [0, markerSize]];
   defs.append("marker")
-    .attr("id", "endMarker"+id)
+    .attr("id", "arrowMarker"+id)
     .attr("refX", markerSize+turnRadius) // shift allong path (place arrow on path outside turn)
     .attr("refY", markerSize/2) // shift ortogonal of path (place arrow on middle of path)
     .attr("markerWidth", markerSize)
     .attr("markerHeight", markerSize)
     .attr("orient", "auto")
+    .attr("markerUnits", "userSpaceOnUse")
     .style("fill", color)
     .append("path")
     .attr("d", lineGenerator(lineData))
