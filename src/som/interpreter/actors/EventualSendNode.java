@@ -135,8 +135,18 @@ public class EventualSendNode extends ExprWithTagsNode {
     /**
      * Update messageReceiverBreakpoint in case that a step into has been made.
      */
-    public void updateMessageReceiverBkp() {
-      this.messageReceiverBreakpoint   = insert(Breakpoints.createReceiver(source));
+    private void checkSteppingInto() {
+      this.messageReceiverBreakpoint = insert(Breakpoints.createReceiver(this.source));
+    }
+    /**
+     * Verify if any stepping operation has been invoked for this message.
+     */
+    private boolean isSteppingOver() {
+      boolean stepOver = Breakpoints.checkStepOver(this.source);
+      if (!stepOver) {
+        checkSteppingInto();
+      }
+      return stepOver;
     }
 
     /**
@@ -182,12 +192,15 @@ public class EventualSendNode extends ExprWithTagsNode {
       assert !(args[0] instanceof SFarReference) : "This should not happen for this specialization, but it is handled in determineTargetAndWrapArguments(.)";
       assert !(args[0] instanceof SPromise) : "Should not happen either, but just to be sure";
 
-      updateMessageReceiverBkp();
+      boolean step = isSteppingOver();
 
       DirectMessage msg = new DirectMessage(
           EventualMessage.getCurrentExecutingMessageId(), target, selector, args,
           owner, resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+
+      msg.setSendNodeSourceSection(this.source);
+      msg.setStepOver(step);
       target.send(msg);
     }
 
@@ -195,12 +208,15 @@ public class EventualSendNode extends ExprWithTagsNode {
         final SResolver resolver, final RegisterWhenResolved registerNode) {
       assert rcvr.getOwner() == EventualMessage.getActorCurrentMessageIsExecutionOn() : "think this should be true because the promise is an Object and owned by this specific actor";
 
-      updateMessageReceiverBkp();
+      boolean step = isSteppingOver();
 
       PromiseSendMessage msg = new PromiseSendMessage(
           EventualMessage.getCurrentExecutingMessageId(), selector, args,
           rcvr.getOwner(), resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+
+      msg.setSendNodeSourceSection(this.source);
+      msg.setStepOver(step);
       registerNode.register(rcvr, msg, rcvr.getOwner());
     }
 
@@ -244,12 +260,15 @@ public class EventualSendNode extends ExprWithTagsNode {
       SPromise  result   = SPromise.createPromise(current, promiseResolutionBreakpoint.executeCheckIsSetAndEnabled(), false, false);
       SResolver resolver = SPromise.createResolver(result);
 
-      updateMessageReceiverBkp();
+      boolean step = isSteppingOver();
 
       DirectMessage msg = new DirectMessage(EventualMessage.getCurrentExecutingMessageId(),
           current, selector, args, current,
           resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+
+      msg.setSendNodeSourceSection(this.source);
+      msg.setStepOver(step);
       current.send(msg);
 
       return result;
@@ -275,12 +294,15 @@ public class EventualSendNode extends ExprWithTagsNode {
     public final Object toNearRefWithoutResultPromise(final Object[] args) {
       Actor current = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-      updateMessageReceiverBkp();
+      boolean step = isSteppingOver();
 
       DirectMessage msg = new DirectMessage(EventualMessage.getCurrentExecutingMessageId(),
           current, selector, args, current,
           null, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
+
+      msg.setSendNodeSourceSection(this.source);
+      msg.setStepOver(step);
       current.send(msg);
       return Nil.nilObject;
     }

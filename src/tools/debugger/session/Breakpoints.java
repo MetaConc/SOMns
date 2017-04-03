@@ -1,6 +1,7 @@
 package tools.debugger.session;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.oracle.truffle.api.RootCallTarget;
@@ -239,4 +240,33 @@ public class Breakpoints {
     this.stepping = new Stepping(step);
   }
 
+  public Stepping getStepping() {
+    return this.stepping;
+  }
+
+  public static boolean checkStepOver(final SourceSection source) {
+    if (VmSettings.TRUFFLE_DEBUGGER_ENABLED) {
+      FullSourceCoordinate sourceCoord = SourceCoordinate.create(source);
+      Breakpoints breakpointCatalog = VM.getWebDebugger().getBreakpoints();
+      if (breakpointCatalog.getStepping() != null && breakpointCatalog.getStepping().isStepOperation(sourceCoord, SteppingType.STEP_OVER)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  public void prepareStepOverMessage(final SourceSection source) {
+    // disable existing breakpoints
+    List<Breakpoint> list = debuggerSession.getBreakpoints();
+    for (Breakpoint breakpoint : list) {
+      if (breakpoint.isEnabled()) {
+        breakpoint.setEnabled(false);
+      }
+    }
+
+    FullSourceCoordinate sourceCoord = SourceCoordinate.create(source);
+    // do step-into in this message to stop in the receiver side
+    setActorStepping(new StepActorOperation(sourceCoord, SteppingType.STEP_INTO));
+  }
 }

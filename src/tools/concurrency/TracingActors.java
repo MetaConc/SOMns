@@ -253,7 +253,7 @@ public class TracingActors {
 
         for (EventualMessage msg : todo) {
           currentThread.currentMessage = msg;
-          handleBreakPoints(firstMessage, dbg);
+          handleBreakpoints(firstMessage, dbg);
           msg.execute();
           currentThread.currentMessageId += 1;
         }

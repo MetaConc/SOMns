@@ -114,6 +114,10 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     breakpoints.prepareSteppingAfterNextRootNode();
   }
 
+  public void prepareStepOverMessage(final SourceSection source) {
+    breakpoints.prepareStepOverMessage(source);
+  }
+
   Suspension getSuspension(final long activityId) {
     return idToSuspension.get(activityId);
   }

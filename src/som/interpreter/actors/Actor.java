@@ -77,6 +77,9 @@ public class Actor implements Activity {
   /** Is scheduled on the pool, and executes messages to this actor. */
   protected final ExecAllMessages executor;
 
+  /** Flag that indicates if a step-over action has been made in the previous message. */
+  protected static boolean stopNextMessage;
+
   // used to collect absolute numbers from the threads
   private static Object statsLock = new Object();
   private static long numCreatedMessages  = 0;
@@ -182,9 +185,13 @@ public class Actor implements Activity {
     mailboxExtension.append(msg);
   }
 
-  protected static void handleBreakPoints(final EventualMessage msg, final WebDebugger dbg) {
+  protected static void handleBreakpoints(final EventualMessage msg, final WebDebugger dbg) {
     if (VmSettings.TRUFFLE_DEBUGGER_ENABLED && msg.isBreakpoint()) {
       dbg.prepareSteppingUntilNextRootNode();
+    }
+
+    if (VmSettings.TRUFFLE_DEBUGGER_ENABLED && stopNextMessage) {
+      dbg.prepareStepOverMessage(msg.getSendNodeSourceSection());
     }
   }
 
@@ -241,11 +248,13 @@ public class Actor implements Activity {
 
       try {
         execute(firstMessage, currentThread, dbg, -1);
+        stopNextMessage = firstMessage.isStepOver();
 
         if (size > 1) {
           int i = 0;
           for (EventualMessage msg : mailboxExtension) {
             execute(msg, currentThread, dbg, i);
+            stopNextMessage = msg.isStepOver();
             i++;
           }
         }
@@ -260,7 +269,7 @@ public class Actor implements Activity {
     private void execute(final EventualMessage msg,
         final ActorProcessingThread currentThread, final WebDebugger dbg, final int i) {
       currentThread.currentMessage = msg;
-      handleBreakPoints(msg, dbg);
+      handleBreakpoints(msg, dbg);
 
       if (i >= 0 && VmSettings.MESSAGE_TIMESTAMPS) {
         executionTimeStamps[i] = System.currentTimeMillis();

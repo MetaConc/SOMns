@@ -21,6 +21,10 @@ public abstract class EventualMessage {
   protected final SResolver resolver;
   protected final RootCallTarget onReceive;
   protected final long causalMessageId;
+  /**
+   * SourceSection corresponding to the sendNode of the message.
+   */
+  protected SourceSection sourceSection;
 
   /**
     * Indicates the case when an asynchronous message has a receiver breakpoint.
@@ -33,6 +37,10 @@ public abstract class EventualMessage {
    * (with or without resolver).
    */
   protected final boolean triggerPromiseResolverBreakpoint;
+  /**
+   * Indicates if the step-over operation has been activated for this message.
+   */
+  protected boolean triggerStepOver;
 
   protected EventualMessage(final long causalMessageId, final Object[] args,
       final SResolver resolver, final RootCallTarget onReceive,
@@ -43,6 +51,8 @@ public abstract class EventualMessage {
     this.onReceive = onReceive;
     this.triggerMessageReceiverBreakpoint = triggerMessageReceiverBreakpoint;
     this.triggerPromiseResolverBreakpoint = triggerPromiseResolverBreakpoint;
+    this.triggerStepOver = false;
+    this.sourceSection = null;
     assert onReceive.getRootNode() instanceof ReceivedMessage || onReceive.getRootNode() instanceof ReceivedCallback;
   }
 
@@ -344,5 +354,21 @@ public abstract class EventualMessage {
    */
   public void setIsMessageReceiverBreakpoint(final boolean triggerBreakpoint) {
     this.triggerMessageReceiverBreakpoint = triggerBreakpoint;
+  }
+
+  public boolean isStepOver() {
+    return this.triggerStepOver;
+  }
+
+  public void setStepOver(final boolean step) {
+     this.triggerStepOver = step;
+  }
+
+  public SourceSection getSendNodeSourceSection() {
+    return this.sourceSection;
+  }
+
+  public void setSendNodeSourceSection(final SourceSection source) {
+    this.sourceSection = source;
   }
 }
