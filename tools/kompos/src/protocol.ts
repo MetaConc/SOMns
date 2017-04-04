@@ -11,7 +11,7 @@ const actorSpacing = 100;   // space between actors (width)
 const turnRadius = 20;      // radius of turns
 const turnSpacing = 50;     // space between consequent turns
 const messageSpacing = 20;  // space between multiple message when enlarged
-const markerSize = 7;       // size of markers (arrows and squares of enlarged messages)
+const markerSize = 10;       // size of markers (arrows and squares of enlarged messages)
 
 const noHighlightWidth = 2; // width of turn borders when not highlighted
 const highlightedWidth = 5; // width of turn borders when highlighted
@@ -217,7 +217,7 @@ class Message extends EmptyMessage {
   text:          string; 
   order:         number;  // indicates order of message sends inside turn
   visualization: d3.Selection<SVGElement>;
-  ancor:         d3.Selection<SVGElement>;
+  anchor:         d3.Selection<SVGElement>;
   visibility:    string;
   messageToSelf: boolean; // is both the sender and receiver the same object
 
@@ -244,7 +244,7 @@ class Message extends EmptyMessage {
   }
 
   // remove the visualization and create a new one
-  // if the ancor where not defined yet the remove doesn't do anything
+  // if the anchor where not defined yet the remove doesn't do anything
   private redraw(){
     d3.select("#arrowMarker"+this.id).remove(); //todo is this necessairy?
     this.visualization.remove();
@@ -270,18 +270,18 @@ class Message extends EmptyMessage {
       this.visibility = "hidden";
     }
     this.visualization.style("visibility", this.visibility);
-    if(this.ancor){this.ancor.style("visibility", this.visibility)}; //if the ancor exist, update its visibility
+    if(this.anchor){this.anchor.style("visibility", this.visibility)}; //if the anchor exist, update its visibility
   }
 
   enlarge() {
     this.senderShift = this.order * messageSpacing;
-    this.ancor = createMessageAncor(this, this.visibility);
+    this.anchor = createMessageAnchor(this, this.visibility);
     this.redraw();
   }
 
   shrink(){
-    this.ancor.remove();
-    this.ancor = null;
+    this.anchor.remove();
+    this.anchor = null;
     this.senderShift = 0;
     this.redraw();
   }
@@ -409,7 +409,7 @@ function drawTurn(turn: TurnNode) {
     .style("opacity", 0)
     .text(turn.getText());   
 
-  var visualization = turn.getContainer().append("ellipse")
+  return turn.getContainer().append("ellipse")
       .attr("cx", turn.x)
       .attr("cy", turn.y)
       .attr("rx", turnRadius)
@@ -427,7 +427,6 @@ function drawTurn(turn: TurnNode) {
       .on("mouseout", function(){
         text.style("opacity", 0);
       });
-  return visualization;
 }
 
 function enlargeTurn(turn: TurnNode, visualization: d3.Selection<SVGElement>) {
@@ -451,7 +450,7 @@ function drawMessage(message: Message, visibility: string){
   var sender = message.sender;
   var target = message.target;
   createMessageArrow(sender.getColor(), message.id);
-  var visualization = sender.getContainer().append("line")
+  return sender.getContainer().append("line")
     .attr("x1", sender.x)
     .attr("y1", sender.y + message.senderShift)
     .attr("x2", target.x)
@@ -459,8 +458,8 @@ function drawMessage(message: Message, visibility: string){
     .attr("marker-end", "url(#arrowMarker"+message.id+")")
     .style("stroke", sender.getColor())
     .style("visibility", visibility);
-  return visualization;
 }
+
 const lineGenerator: any = 
   d3.svg.line()
     .x(function(d) { return d[0]; })
@@ -476,13 +475,12 @@ function drawMessageToSelf(message: Message, visibility: string){
     [ sender.x+turnRadius*1.5 , sender.y + message.senderShift],
     [ target.x+turnRadius*1.5 , target.y + message.targetShift], 
     [ target.x , target.y + message.targetShift]];
-  var visualization = sender.getContainer().append("path")
+  return sender.getContainer().append("path")
     .attr("d", lineGenerator(lineData))
     .attr("marker-end", "url(#arrowMarker"+message.id+")")
     .style("fill", "none")
     .style("stroke", sender.getColor())
     .style("visibility", visibility);
-  return visualization;
 }
 
 function createMessageArrow(color: string, id: number){
@@ -504,7 +502,7 @@ function createMessageArrow(color: string, id: number){
     .attr("class","arrowHead");
 }
 
-function createMessageAncor(message: Message, visibility: string){
+function createMessageAnchor(message: Message, visibility: string){
   var sender = message.sender;
   var target = message.target;
   
@@ -514,6 +512,7 @@ function createMessageAncor(message: Message, visibility: string){
     .attr("height", markerSize)
     .attr("width", markerSize)
     .style("fill", target.getColor())
+    .style("stroke", "black")
     .style("visibility", visibility)
     .on("click", function(){
       dbgLog("clicked marker");
