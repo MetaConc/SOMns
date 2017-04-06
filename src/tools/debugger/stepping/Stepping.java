@@ -10,7 +10,8 @@ public class Stepping {
 
   public enum SteppingType{
     STEP_INTO,
-    STEP_OVER
+    STEP_OVER,
+    STEP_RETURN
   }
 
   private StepActorOperation stepActor;
@@ -19,13 +20,16 @@ public class Stepping {
     this.stepActor = stepActor;
   }
 
-  public boolean isStepOperation(final FullSourceCoordinate source, final SteppingType type) {
-    if (stepActor != null) {
-      if (stepActor.getSteppingType() == type && source.equals(stepActor.getSourceSection())) {
-        return true;
+  public SteppingType getSteppingTypeOperation(final FullSourceCoordinate source) {
+    if (stepActor != null && source.equals(stepActor.getSourceSection())) {
+      if (stepActor.getSteppingType() == SteppingType.STEP_INTO) {
+        return SteppingType.STEP_INTO;
+      } else if (stepActor.getSteppingType() == SteppingType.STEP_OVER) {
+        return SteppingType.STEP_OVER;
+      } else if (stepActor.getSteppingType() == SteppingType.STEP_RETURN) {
+        return SteppingType.STEP_RETURN;
       }
     }
-    return false;
+    return null;
   }
-
 }

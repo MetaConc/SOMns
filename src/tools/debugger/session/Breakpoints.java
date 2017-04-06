@@ -16,6 +16,7 @@ import com.oracle.truffle.api.instrumentation.StandardTags.RootTag;
 import com.oracle.truffle.api.source.SourceSection;
 
 import som.VM;
+import som.interpreter.actors.EventualMessage;
 import som.interpreter.actors.ReceivedRootNode;
 import som.vm.VmSettings;
 import tools.SourceCoordinate;
@@ -172,7 +173,7 @@ public class Breakpoints {
         ss -> new BreakpointEnabling<>(new MessageReceiverBreakpoint(false, section)));
 
    if (bkp.isDisabled() && stepping != null) {
-     bkp.setEnabled(stepping.isStepOperation(section, SteppingType.STEP_INTO));
+     bkp.setEnabled(stepping.getSteppingTypeOperation(section) == SteppingType.STEP_INTO);
    }
 
    return bkp;
@@ -244,29 +245,43 @@ public class Breakpoints {
     return this.stepping;
   }
 
-  public static boolean checkStepOver(final SourceSection source) {
+/**
+ * Return the stepping operation corresponding for a sourceSection.
+ */
+  public static SteppingType checkSteppingOperation(final SourceSection source) {
     if (VmSettings.TRUFFLE_DEBUGGER_ENABLED) {
       FullSourceCoordinate sourceCoord = SourceCoordinate.create(source);
       Breakpoints breakpointCatalog = VM.getWebDebugger().getBreakpoints();
-      if (breakpointCatalog.getStepping() != null && breakpointCatalog.getStepping().isStepOperation(sourceCoord, SteppingType.STEP_OVER)) {
-        return true;
+      if (breakpointCatalog.getStepping() != null) {
+        return breakpointCatalog.getStepping().getSteppingTypeOperation(sourceCoord);
       }
     }
 
-    return false;
+    return null;
   }
 
-  public void prepareStepOverMessage(final SourceSection source) {
-    // disable existing breakpoints
-    List<Breakpoint> list = debuggerSession.getBreakpoints();
-    for (Breakpoint breakpoint : list) {
-      if (breakpoint.isEnabled()) {
-        breakpoint.setEnabled(false);
-      }
+  public void prepareStepIntoMessage() {
+    disableBreakpoints();
+    prepareSteppingUntilNextRootNode();
+  }
+
+  public void prepareStepReturnFromMessage(final EventualMessage msg) {
+    disableBreakpoints();
+    if (msg.getResolver() != null) {
+      msg.getResolver().getPromise().setTriggerStepReturnOnCallbacks(true);
     }
-
-    FullSourceCoordinate sourceCoord = SourceCoordinate.create(source);
-    // do step-into in this message to stop in the receiver side
-    setActorStepping(new StepActorOperation(sourceCoord, SteppingType.STEP_INTO));
   }
+
+  /**
+   * Disable existing breakpoints in the debugger session.
+   */
+    public void disableBreakpoints() {
+      List<Breakpoint> list = debuggerSession.getBreakpoints();
+      for (Breakpoint breakpoint : list) {
+        if (breakpoint.isEnabled()) {
+          breakpoint.setEnabled(false);
+        }
+      }
+      this.stepping = null;
+    }
 }

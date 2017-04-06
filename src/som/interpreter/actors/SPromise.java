@@ -78,6 +78,11 @@ public class SPromise extends SObjectWithClass {
    * createPromisePair primitive.
    */
   private final boolean explicitPromise;
+ /**
+  * Indicates to stop before the callback of the promise is executed
+  * when the user made a step-return.
+  */
+  private boolean triggerStepReturnOnCallbacks;
 
   protected SPromise(@NotNull final Actor owner, final boolean triggerPromiseResolutionBreakpoint,
       final boolean triggerExplicitPromiseResolverBreakpoint,
@@ -455,5 +460,14 @@ public class SPromise extends SObjectWithClass {
 
   boolean isTriggerExplicitPromiseResolverBreakpoint() {
     return triggerExplicitPromiseResolverBreakpoint;
+  }
+
+  public void setTriggerStepReturnOnCallbacks(
+      final boolean triggerStepReturnOnCallbacks) {
+    this.triggerStepReturnOnCallbacks = triggerStepReturnOnCallbacks;
+  }
+
+  boolean isTriggerStepReturnOnCallbacks() {
+    return triggerStepReturnOnCallbacks;
   }
 }

@@ -56,4 +56,13 @@ public abstract class StepActorMessage extends IncommingMessage{
       return new StepActorOperation(sourceCoord, SteppingType.STEP_OVER);
     }
   }
+
+  public static class StepReturnMessage extends StepActorMessage {
+    @Override
+    public StepActorOperation processStepping(final SuspendedEvent event) {
+      SourceSection source = event.getSourceSection();
+      FullSourceCoordinate sourceCoord = SourceCoordinate.create(source);
+      return new StepActorOperation(sourceCoord, SteppingType.STEP_RETURN);
+    }
+  }
 }

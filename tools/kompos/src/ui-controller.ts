@@ -316,4 +316,13 @@ export class UiController extends Controller {
     this.view.onContinueExecution(act);
     this.vmConnection.sendDebuggerAction("stepOverMessage", act);
   }
+
+  public stepReturnMessage(actId: string) {
+    const activityId = getActivityIdFromView(actId);
+    const act = this.dbg.getActivity(activityId);
+    if (act.running) { return; }
+    act.running = true;
+    this.view.onContinueExecution(act);
+    this.vmConnection.sendDebuggerAction("stepReturnMessage", act);
+  }
 }

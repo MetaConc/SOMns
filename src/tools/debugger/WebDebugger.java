@@ -22,6 +22,7 @@ import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.source.SourceSection;
 
 import som.interpreter.actors.Actor;
+import som.interpreter.actors.EventualMessage;
 import som.vm.Activity;
 import som.vm.ActivityThread;
 import tools.SourceCoordinate;
@@ -60,6 +61,7 @@ import tools.debugger.session.PromiseResolutionBreakpoint;
 import tools.debugger.session.PromiseResolverBreakpoint;
 import tools.debugger.stepping.StepActorMessage.StepIntoMessage;
 import tools.debugger.stepping.StepActorMessage.StepOverMessage;
+import tools.debugger.stepping.StepActorMessage.StepReturnMessage;
 
 
 /**
@@ -114,8 +116,12 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     breakpoints.prepareSteppingAfterNextRootNode();
   }
 
-  public void prepareStepOverMessage(final SourceSection source) {
-    breakpoints.prepareStepOverMessage(source);
+  public void prepareStepReturnMessage(final EventualMessage msg) {
+    breakpoints.prepareStepReturnFromMessage(msg);
+  }
+
+  public void prepareStepIntoMessage() {
+    breakpoints.prepareStepIntoMessage();
   }
 
   Suspension getSuspension(final long activityId) {
@@ -218,6 +224,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     inMsgAF.register("stop",     Stop.class);
     inMsgAF.register("stepIntoMessage", StepIntoMessage.class);
     inMsgAF.register("stepOverMessage", StepOverMessage.class);
+    inMsgAF.register("stepReturnMessage", StepReturnMessage.class);
     inMsgAF.register("StackTraceRequest", StackTraceRequest.class);
     inMsgAF.register("ScopesRequest",     ScopesRequest.class);
     inMsgAF.register("VariablesRequest",  VariablesRequest.class);

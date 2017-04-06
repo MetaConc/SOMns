@@ -11,6 +11,8 @@ import java.util.concurrent.TimeUnit;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 import som.VM;
+import som.interpreter.actors.EventualMessage.PromiseCallbackMessage;
+import som.interpreter.actors.EventualMessage.PromiseSendMessage;
 import som.interpreter.objectstorage.ObjectTransitionSafepoint;
 import som.primitives.ObjectPrims.IsValue;
 import som.vm.Activity;
@@ -185,15 +187,34 @@ public class Actor implements Activity {
     mailboxExtension.append(msg);
   }
 
-  protected static void handleBreakpoints(final EventualMessage msg, final WebDebugger dbg) {
-    if (VmSettings.TRUFFLE_DEBUGGER_ENABLED && msg.isBreakpoint()) {
-      dbg.prepareSteppingUntilNextRootNode();
+  protected static void handleBreakpointsAndStepping(final EventualMessage msg, final WebDebugger dbg) {
+    if (VmSettings.TRUFFLE_DEBUGGER_ENABLED) {
+      // check step-into and breakpoint before the message is processed
+      if (msg.isStepInto()) {
+        dbg.prepareStepIntoMessage();
+      } else if (msg.isBreakpoint()) {
+        dbg.prepareSteppingUntilNextRootNode();
+      }
+      // check if a step-over has been made in the previous message
+      if (stopNextMessage) {
+       dbg.prepareStepIntoMessage();
+      }
+      // check step-return
+      if (msg.isStepReturn()) {
+          dbg.prepareStepReturnMessage(msg.getCausalMessage());
+      }
+      // check type of callback if a step-return has been made
+      if (msg instanceof PromiseSendMessage) {
+        if (((PromiseSendMessage) msg).getPromise().isTriggerStepReturnOnCallbacks()) {
+          dbg.prepareSteppingUntilNextRootNode();
+        }
+      } else if (msg instanceof PromiseCallbackMessage) {
+        if (((PromiseCallbackMessage) msg).getOriginalPromise().isTriggerStepReturnOnCallbacks()) {
+          dbg.prepareSteppingUntilNextRootNode();
+        }
+      }
     }
-
-    if (VmSettings.TRUFFLE_DEBUGGER_ENABLED && stopNextMessage) {
-      dbg.prepareStepOverMessage(msg.getSendNodeSourceSection());
-    }
-  }
+ }
 
   /**
    * Is scheduled on the fork/join pool and executes messages for a specific
@@ -269,7 +290,7 @@ public class Actor implements Activity {
     private void execute(final EventualMessage msg,
         final ActorProcessingThread currentThread, final WebDebugger dbg, final int i) {
       currentThread.currentMessage = msg;
-      handleBreakpoints(msg, dbg);
+      handleBreakpointsAndStepping(msg, dbg);
 
       if (i >= 0 && VmSettings.MESSAGE_TIMESTAMPS) {
         executionTimeStamps[i] = System.currentTimeMillis();
