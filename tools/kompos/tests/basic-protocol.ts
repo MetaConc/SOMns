@@ -301,6 +301,51 @@ describe("Basic Protocol", function() {
       });
     }));
 
+    it("should single stepping over", onlyWithConnection(() => {
+      return new Promise((resolve, _reject) => {
+        ctrl.stackP.then(_ => {
+          conn.fullyConnected.then(_ => {
+            conn.sendDebuggerAction("stepOver", ctrl.stoppedActivities[0]);
+          });
+
+          const p = ctrl.getStackP(1).then(msgAfterStep => {
+            expectStack(msgAfterStep.stackFrames, 3, "Ping>>#ping", 26);
+          });
+          resolve(p);
+        });
+      });
+    }));
+
+    it("should message stepping into", onlyWithConnection(() => {
+      return new Promise((resolve, _reject) => {
+        ctrl.stackP.then(_ => {
+          conn.fullyConnected.then(_ => {
+            conn.sendDebuggerAction("stepIntoMessage", ctrl.stoppedActivities[0]);
+          });
+
+          const p = ctrl.getStackP(1).then(msgAfterStep => {
+            expectStack(msgAfterStep.stackFrames, 2, "Ping>>#validate", 33);
+          });
+          resolve(p);
+        });
+      });
+    }));
+
+    it("should message stepping return", onlyWithConnection(() => {
+      return new Promise((resolve, _reject) => {
+        ctrl.stackP.then(_ => {
+          conn.fullyConnected.then(_ => {
+            conn.sendDebuggerAction("stepReturnMessage", ctrl.stoppedActivities[0]);
+          });
+
+          const p = ctrl.getStackP(1).then(msgAfterStep => {
+            expectStack(msgAfterStep.stackFrames, 3, "Ping>>#ping", 27);
+          });
+          resolve(p);
+        });
+      });
+    }));
+
     it("should be possible to dynamically activate line breakpoints",
         onlyWithConnection(() => {
       return Promise.all([

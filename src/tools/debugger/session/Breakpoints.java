@@ -245,9 +245,9 @@ public class Breakpoints {
     return this.stepping;
   }
 
-/**
- * Return the stepping operation corresponding for a sourceSection.
- */
+  /**
+   * Return the stepping operation corresponding for a source section.
+   */
   public static SteppingType checkSteppingOperation(final SourceSection source) {
     if (VmSettings.TRUFFLE_DEBUGGER_ENABLED) {
       FullSourceCoordinate sourceCoord = SourceCoordinate.create(source);
@@ -260,11 +260,18 @@ public class Breakpoints {
     return null;
   }
 
+  /**
+   * Disable existing breakpoints and runs execution before the next root node is executed.
+   */
   public void prepareStepIntoMessage() {
     disableBreakpoints();
     prepareSteppingUntilNextRootNode();
   }
 
+  /**
+   * Disable existing breakpoints and set true flag in the promise of a message that was step return.
+   *
+   */
   public void prepareStepReturnFromMessage(final EventualMessage msg) {
     disableBreakpoints();
     if (msg.getResolver() != null) {

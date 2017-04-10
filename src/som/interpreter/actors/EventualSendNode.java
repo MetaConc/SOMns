@@ -267,7 +267,6 @@ public class EventualSendNode extends ExprWithTagsNode {
           resolver, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
 
-    //  msg.setSendNodeSourceSection(this.source);
       msg.setTriggerStepping(step);
       current.send(msg);
 
@@ -301,7 +300,6 @@ public class EventualSendNode extends ExprWithTagsNode {
           null, onReceive,
           messageReceiverBreakpoint.executeCheckIsSetAndEnabled(), promiseResolverBreakpoint.executeCheckIsSetAndEnabled());
 
-    //  msg.setSendNodeSourceSection(this.source);
       msg.setTriggerStepping(step);
       current.send(msg);
       return Nil.nilObject;
