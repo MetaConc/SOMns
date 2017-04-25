@@ -1,0 +1,19 @@
+class Explanation usingPlatform: platform = Value (
+| private actors = platform actors.
+|)(
+  class Ping new = (
+    |A|)(
+      public store: val = (
+        A := val.
+      )
+      public load = (
+        ^ A)
+  )
+  public main: args = (
+    |ping1 ping2 promise|
+    ping1 := (actors createActorFromValue: Ping) <-: new.
+    ping2 := (actors createActorFromValue: Ping) <-: new.
+    ping1 <-: store: 1.
+    ^ 0.
+  )
+)

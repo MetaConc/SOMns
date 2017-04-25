@@ -1,0 +1,35 @@
+class Minimal usingPlatform: platform = Value (
+| private actors = platform actors.
+|)(
+
+  private class TestException signal: reason = Exception (
+        | public msg |
+        msg := reason.
+        self signal.
+  )()
+
+  class Ping new = ()(
+      public ping = (
+        'ping>>Ping' println.
+        ^ 'pong'.
+      )
+    )
+
+  class Pong new: p = (
+    | private ping = p. promise|
+    ) (
+    public start = (
+      'start>>Pong' println.
+      promise := ping <-: ping.
+      ^ promise whenResolved: [:v | v.].
+    )
+  )
+
+  public main: args = (
+    |ping pong promise|
+    ping := (actors createActorFromValue: Ping) <-: new.
+    pong := (actors createActorFromValue: Pong) <-: new: ping.
+    promise := pong <-: start.
+    ^ promise whenResolved: [:v | v println. 0].
+  )
+)

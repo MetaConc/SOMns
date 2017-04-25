@@ -329,7 +329,10 @@ export class ProtocolOverview {
     for(const [senderId, targetId, messageId] of newMessages){
       var senderActor = this.actors[senderId];
       var targetActor = this.actors[targetId];
+      console.assert(senderActor != undefined);
+      console.assert(targetActor != undefined);
       var message = this.data.getName(messageId);
+      dbgLog("new message: " + message + " from: " + senderActor.name + " to: " + targetActor.name);
       new Message(senderActor, targetActor, message);
     }
   }

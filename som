@@ -170,7 +170,8 @@ BOOT_CLASSPATH = ('-Xbootclasspath/a:'
              + BASE_DIR + '/build/classes:'
              + BASE_DIR + '/libs/truffle/truffle/mxbuild/dists/truffle-api.jar:'
              + BASE_DIR + '/libs/truffle/truffle/mxbuild/dists/truffle-debug.jar:'
-             + BASE_DIR + '/libs/somns-deps.jar')
+             + BASE_DIR + '/libs/somns-deps.jar:'
+			 + BASE_DIR + '/libs/neo4j-java-driver.jar')
 
 SOM_ARGS = [BOOT_CLASSPATH, 'som.VM',
             '--platform', args.som_platform, '--kernel', args.som_kernel]
