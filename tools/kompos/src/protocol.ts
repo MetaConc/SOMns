@@ -22,6 +22,20 @@ var defs;         // global container to store all markers
 
 var color = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99", "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262", "#5574a6", "#3b3eac"];
 
+// Interfaces for easy typing
+export interface MessageEvent {
+  id:        number;
+  sender:    number;
+  receiver:  number;
+  symbol:    number;
+  parameters: Parameter[];
+}
+
+export interface Parameter {
+  type:     number;
+  value:    any;
+}
+
 // each actor has their own svg group.
 // one heading group: the square, the text field and the other group. 
 // one collection group: turns and messages
@@ -325,14 +339,14 @@ export class ProtocolOverview {
     }
   }
 
-  public newMessages(newMessages: [number, number, number][]) {
-    for(const [senderId, targetId, messageId] of newMessages){
-      var senderActor = this.actors[senderId];
-      var targetActor = this.actors[targetId];
+  public newMessages(newMessages: MessageEvent[]) {
+    for(const newMessage of newMessages){
+      var senderActor = this.actors[newMessage.sender];
+      var targetActor = this.actors[newMessage.receiver];
       console.assert(senderActor != undefined);
       console.assert(targetActor != undefined);
-      var message = this.data.getName(messageId);
-      dbgLog("new message: " + message + " from: " + senderActor.name + " to: " + targetActor.name);
+      var message = this.data.getName(newMessage.symbol);
+      dbgLog("new message: " + message + " id: " + newMessage.id + " from: " + senderActor.name + " to: " + targetActor.name);
       new Message(senderActor, targetActor, message);
     }
   }
