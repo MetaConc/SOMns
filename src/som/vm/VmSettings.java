@@ -22,6 +22,7 @@ public class VmSettings {
   public static final boolean PROMISE_RESOLUTION;
   public static final boolean PROMISE_RESOLVED_WITH;
   public static final boolean REPLAY;
+  public static final boolean TIME_TRAVELLING;
 
   public static final boolean TRUFFLE_DEBUGGER_ENABLED;
 
@@ -57,6 +58,8 @@ public class VmSettings {
 
     ACTOR_TRACING = TRUFFLE_DEBUGGER_ENABLED || getBool("som.actorTracing", false) ||
                     REPLAY || MESSAGE_PARAMETERS || PROMISE_CREATION;
+	
+    TIME_TRAVELLING = ACTOR_TRACING;
 
     boolean dm = getBool("som.dynamicMetrics", false);
     DYNAMIC_METRICS = dm;

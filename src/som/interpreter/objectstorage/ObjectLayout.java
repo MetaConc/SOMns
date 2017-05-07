@@ -198,4 +198,8 @@ public final class ObjectLayout {
         + ", " + (latestLayoutForClass.isValid() ? "valid" : "invalid") + "; "
         + fieldsAndLocations() + "]";
   }
+
+  public HashMap<SlotDefinition, Class<?>> getStorageTypes() {
+    return storageTypes;
+  }
 }

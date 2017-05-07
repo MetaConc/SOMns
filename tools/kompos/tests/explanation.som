@@ -2,18 +2,36 @@ class Explanation usingPlatform: platform = Value (
 | private actors = platform actors.
 |)(
   class Ping new = (
-    |A|)(
+    |A B C broll|)(
       public store: val = (
         A := val.
+        B := val+1.
+        C := 'dub'.
+        broll := Broll new: 2.
       )
       public load = (
         ^ A)
+      public read = (
+        ^ broll read
+      )
   )
+
+  class Broll new: X = (
+    |D|
+    D := X.)(
+    public read = (
+      ^ D)
+  )
+
+
   public main: args = (
     |ping1 ping2 promise|
     ping1 := (actors createActorFromValue: Ping) <-: new.
     ping2 := (actors createActorFromValue: Ping) <-: new.
     ping1 <-: store: 1.
-    ^ 0.
+    ping1 <-: load.
+    ping2 <-: store: 2.
+    promise := ping1 <-: read.
+    ^ promise whenResolved: [ :val | val println. 0].
   )
 )

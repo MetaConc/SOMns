@@ -109,8 +109,8 @@ public abstract class EventualMessage {
     public String toString() {
       String t = target.toString();
       return "DirectMsg(" + selector.toString() + ", "
-        + Arrays.toString(args) +  ", " + t
-        + ", sender: " + (sender == null ? "" : sender.toString()) + ")";
+      + Arrays.toString(args) +  ", " + t
+      + ", sender: " + (sender == null ? "" : sender.toString()) + ")";
     }
   }
 
@@ -225,7 +225,7 @@ public abstract class EventualMessage {
         t = target.toString();
       }
       return "PSendMsg(" + selector.toString() + " " + Arrays.toString(args) +  ", " + t
-        + ", sender: " + (finalSender == null ? "" : finalSender.toString()) + ")";
+          + ", sender: " + (finalSender == null ? "" : finalSender.toString()) + ")";
     }
 
     @Override

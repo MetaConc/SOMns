@@ -1,5 +1,8 @@
 package som.interpreter.actors;
 
+import static tools.timeTravelling.ObjectWriter.writeTargetArgument;
+
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory;
@@ -46,6 +49,15 @@ import tools.debugger.entities.DynamicScopeType;
  *    - and sequentially executes all messages
  */
 public class Actor implements Activity {
+  private boolean inDatabase = false;
+
+  public void addedToDatabase() {
+    inDatabase = true;
+  }
+
+  public boolean inDatabase() {
+    return inDatabase;
+  }
 
   public static Actor createActor(final VM vm) {
     if (VmSettings.REPLAY) {
@@ -264,6 +276,9 @@ public class Actor implements Activity {
         if (VmSettings.ACTOR_TRACING) {
           ActorExecutionTrace.scopeStart(DynamicScopeType.TURN, msg.getMessageId(),
               msg.getTargetSourceSection());
+        }
+		if (VmSettings.TIME_TRAVELLING) {
+          writeTargetArgument(currentThread.currentMessageId, msg, msg.getArgs()[0]);
         }
         msg.execute();
       } finally {
