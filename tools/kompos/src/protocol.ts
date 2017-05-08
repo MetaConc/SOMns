@@ -22,6 +22,12 @@ var defs;         // global container to store all markers
 
 var color = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99", "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262", "#5574a6", "#3b3eac"];
 
+const lineGenerator: any = 
+  d3.svg.line()
+    .x(function(d) { return d[0]; })
+    .y(function(d) { return d[1]; })
+    .interpolate("linear");
+
 // Interfaces for easy typing
 export interface messageEvent {
   id:        number;
@@ -41,33 +47,29 @@ export interface parameter {
 // one collection group: turns and messages
 //   to hide an actor the other group and all incoming messages are set to hidden
 class ActorHeading {
-  name:               string;
+  static actorCount:  number = 0;
+  turns:              TurnNode[];
+  activity:           Activity;    
   x:                  number;
   y:                  number;
   color:              string;
-  turnCount:          number;
-  container:          d3.Selection<SVGElement>;
-  turns:              TurnNode[];
-  static actorCount:  number = 0;
   visibility:         boolean;
-  activity:           Activity;  
-
+  container:          d3.Selection<SVGElement>;
+  
   constructor(activity: Activity) {
-    this.name = activity.name;
-    this.color = color[ActorHeading.actorCount % color.length]; 
-    this.x = 50+ActorHeading.actorCount++*actorSpacing;
-    this.y = actorStart;
-    this.turnCount = 0;
-    this.visibility = true;
     this.turns = [];
     this.activity = activity;
-    drawActor(this);
+    this.x = 50+ActorHeading.actorCount++*actorSpacing;
+    this.y = actorStart;
+    this.color = color[ActorHeading.actorCount % color.length]; 
+    this.visibility = true;
+    this.draw();
   }
 
   // add new turn to the actor, increases turnCount and adds turn to list of turns
   addTurn(turn: TurnNode) {
     this.turns.push(turn);
-    return ++this.turnCount;
+    return this.turns.length;
   }
 
   // if no turn was created create turn without origin
@@ -79,6 +81,19 @@ class ActorHeading {
     }
   }
 
+  getContainer() {
+    return this.container;
+  }
+
+  getColor() {
+    return this.color;
+  }
+
+  getName() {
+    return this.activity.name;
+  }
+
+  //-----------visualization------------
   // set the visibility of the collection group, this hiddes all turns and messages outgoing from these turns.
   // afterwards set the visibility of each incoming message individually
   changeVisibility() {
@@ -100,40 +115,67 @@ class ActorHeading {
     }
   }
 
-  getColor() {
-    return this.color;
-  }
+  draw(){
+    var actor = this;
+    var actorHeading = svgContainer.append("g");
+    this.container = actorHeading.append("g");
+    
+    actorHeading.append("text")
+      .attr("x", this.x+actorWidth/2)
+      .attr("y", this.y+actorHeight/2)
+      .attr("font-size","20px")
+      .attr("text-anchor", "middle")
+      .text(this.activity.name);    
 
-  getContainer() {
-    return this.container;
+    actorHeading.append("rect")
+      .attr("x", this.x)
+      .attr("y", this.y)
+      .attr("rx", 5)
+      .attr("height", actorHeight)
+      .attr("width", actorWidth)
+      .style("fill", this.color)
+      .style("opacity", opacity)
+      .on("click", function(){
+        actor.changeVisibility();
+      });
   }
 }
 
 // A turn happens every time an actor processes a message.
 // Turns store their incoming message and each outgoing message
 class TurnNode {
-  count:          number;
-  x:              number;
-  y:              number;
+  actor:          ActorHeading;
   incoming:       EmptyMessage;
   outgoing:       Message[];
-  actor:          ActorHeading;
+  count:          number; 
+  x:              number;
+  y:              number;
   visualization:  d3.Selection<SVGElement>;
 
   constructor(actor: ActorHeading, message: EmptyMessage) {
-    this.count = actor.addTurn(this);
     this.actor = actor;
-    this.x = actor.x + (actorWidth / 2);
-    this.y = actorStart + actorHeight + this.count * turnSpacing;
     this.incoming = message; //possible no message
     this.outgoing = [];
-    this.visualization = drawTurn(this);
+    this.count = this.actor.addTurn(this);
+    this.x = actor.x + (actorWidth / 2);
+    this.y = actorStart + actorHeight + this.count * turnSpacing;
+    this.visualization = this.draw();
   }
 
   addMessage(message: Message) {
     this.outgoing.push(message);
     return this.outgoing.length;
   }
+
+  getContainer() {
+    return this.actor.getContainer();
+  }
+
+  getColor() {
+    return this.actor.getColor();
+  }
+
+  //-----------visualization------------
 
   // highlight this turn. 
   //  make the circle border bigger and black
@@ -161,9 +203,12 @@ class TurnNode {
   // enlarge this turn
   //   every message receives own exit point from this turn
   //   shift other turns downwards to prevent overlap
-  enlarge(yShift: number) {
-    this.actor.transpose(this.count, yShift);
-    //this.visualization.style("fill", "none");
+  enlarge() {
+    var growSize = this.outgoing.length * messageSpacing;
+    this.visualization.attr("ry", turnRadius + growSize / 2);
+    this.visualization.attr("cy", this.y + growSize / 2);
+  
+    this.actor.transpose(this.count, growSize);
     for (const message of this.outgoing) {
       message.enlarge();
     }
@@ -172,8 +217,9 @@ class TurnNode {
   // shrink this turn
   //   every message starts from the center of the node
   shrink() {
+    this.visualization.attr("ry", turnRadius);
+    this.visualization.attr("cy", this.y);
     this.actor.transpose(this.count, 0);
-    //this.visualization.style("fill", this.getColor());
     for (const message of this.outgoing) {
       message.shrink();
     }
@@ -181,27 +227,41 @@ class TurnNode {
 
   // move this turn with the give yShift vertically
   transpose(yShift: number) {
-    transposeTurn(this.visualization, yShift);
+    this.visualization.attr("transform", "translate(0," + yShift + ")")
     this.incoming.shiftAtTarget(yShift);
     for (const message of this.outgoing) {
       message.shiftAtSender(yShift);
     }
   }
 
-  getColor() {
-    return this.actor.getColor();
-  }
+  draw() {
+    var turn = this;
+    var text = this.getContainer().append("text")
+      .attr("x", this.x)
+      .attr("y", this.y)
+      .attr("font-size","20px")
+      .attr("text-anchor", "middle")
+      .style("opacity", 0)
+      .text(this.incoming.getText());   
 
-  getContainer() {
-    return this.actor.getContainer();
-  }
-
-  getMessageCount() {
-    return this.outgoing.length;
-  }
-
-  getText() {
-    return this.incoming.getText();
+    return this.getContainer().append("ellipse")
+      .attr("cx", this.x)
+      .attr("cy", this.y)
+      .attr("rx", turnRadius)
+      .attr("ry", turnRadius)
+      .style("fill", this.actor.getColor())
+      .style("opacity", opacity)
+      .style("stroke-width", noHighlightWidth)
+      .style("stroke", this.actor.getColor())
+      .on("click", function(){
+        ProtocolOverview.changeHighlight(turn);
+      })
+      .on("mouseover", function(){
+        text.style("opacity", 1);
+      })
+      .on("mouseout", function(){
+        text.style("opacity", 0);
+      });
   }
 }
 
@@ -224,36 +284,47 @@ class EmptyMessage {
 class Message extends EmptyMessage {
   static messageCount:  number = 0;
   id:            number;
+  text:          string;
   sender:        TurnNode;
   target:        TurnNode;
+  messageToSelf: boolean; // is both the sender and receiver the same object
+  
+  order:         number;  // indicates order of message sends inside tur
   senderShift:   number;  
   targetShift:   number;
-  text:          string; 
-  order:         number;  // indicates order of message sends inside turn
-  visualization: d3.Selection<SVGElement>;
-  anchor:         d3.Selection<SVGElement>;
   visibility:    string;
-  messageToSelf: boolean; // is both the sender and receiver the same object
+  visualization: d3.Selection<SVGElement>;
+  anchor:        d3.Selection<SVGElement>;
 
+  
   constructor(senderActor: ActorHeading, targetActor: ActorHeading, text: string) {
     super();
     this.id = Message.messageCount++;
     this.text = text;
     this.sender = senderActor.getLastTurn();
-    this.senderShift = 0;
-    this.order = this.sender.addMessage(this);
     this.target = new TurnNode(targetActor, this);
+    
+    this.messageToSelf = senderActor === targetActor;    
+    this.order = this.sender.addMessage(this);
+    this.senderShift = 0;
     this.targetShift = 0; 
-    this.messageToSelf = senderActor === targetActor;
     this.visibility = "inherit";
     this.draw(); 
   }
 
+  getText(){
+    return this.text;
+  }
+
+  getColor(){
+    return this.sender.getColor();
+  }
+
   private draw(){
     if(this.messageToSelf){
-        this.visualization = drawMessageToSelf(this, this.visibility);
+        this.drawMessageToSelf();
       } else {  
-        this.visualization = drawMessage(this, this.visibility);
+        this.drawMessageToOther();
       }
   }
 
@@ -289,7 +360,7 @@ class Message extends EmptyMessage {
 
   enlarge() {
     this.senderShift = this.order * messageSpacing;
-    this.anchor = createMessageAnchor(this, this.visibility);
+    this.anchor = this.createMessageAnchor();
     this.redraw();
   }
 
@@ -310,16 +381,67 @@ class Message extends EmptyMessage {
     this.redraw();
   }
 
-  getSender(){
-    return this.sender;
+
+  createMessageArrow(){
+  var lineData: [number, number][] = 
+    [[0, 0],
+     [markerSize, markerSize/2],
+     [0, markerSize]];
+  defs.append("marker")
+    .attr("id", "arrowMarker"+this.id)
+    .attr("refX", markerSize+turnRadius) // shift allong path (place arrow on path outside turn)
+    .attr("refY", markerSize/2) // shift ortogonal of path (place arrow on middle of path)
+    .attr("markerWidth", markerSize)
+    .attr("markerHeight", markerSize)
+    .attr("orient", "auto")
+    .attr("markerUnits", "userSpaceOnUse")
+    .style("fill", this.getColor())
+    .append("path")
+    .attr("d", lineGenerator(lineData))
+    .attr("class","arrowHead");
   }
 
-  getText() {
-    return this.text;
+  createMessageAnchor(){
+    return this.sender.getContainer().append("rect")
+      .attr("x", this.sender.x-markerSize/2)
+      .attr("y", this.sender.y+this.senderShift-markerSize/2)
+      .attr("height", markerSize)
+      .attr("width", markerSize)
+      .style("fill", this.target.getColor())
+      .style("stroke", "black")
+      .style("visibility", this.visibility)
+      .on("click", function(){
+        dbgLog("clicked marker");
+      });
   }
 
-  getTarget(){
-    return this.target;
+  drawMessageToSelf(){
+    this.createMessageArrow();
+    var lineData: [number, number][] = [
+      [ this.sender.x , this.sender.y + this.senderShift],
+      [ this.sender.x+turnRadius*1.5 , this.sender.y + this.senderShift],
+      [ this.target.x+turnRadius*1.5 , this.target.y + this.targetShift], 
+      [ this.target.x , this.target.y + this.targetShift]];
+    this.visualization =
+      this.sender.getContainer().append("path")
+        .attr("d", lineGenerator(lineData))
+        .attr("marker-end", "url(#arrowMarker"+this.id+")")
+        .style("fill", "none")
+        .style("stroke", this.getColor())
+        .style("visibility", this.visibility);
+  }
+
+  drawMessageToOther(){
+    this.createMessageArrow();
+    this.visualization =
+      this.sender.getContainer().append("line")
+        .attr("x1", this.sender.x)
+        .attr("y1", this.sender.y + this.senderShift)
+        .attr("x2", this.target.x)
+        .attr("y2", this.target.y + this.targetShift)
+        .attr("marker-end", "url(#arrowMarker"+this.id+")")
+        .style("stroke", this.sender.getColor())
+        .style("visibility", this.visibility);
   }
 }
 
@@ -346,192 +468,38 @@ export class ProtocolOverview {
       console.assert(senderActor != undefined);
       console.assert(targetActor != undefined);
       var message = this.data.getName(newMessage.symbol);
-      dbgLog("new message: " + message + " id: " + newMessage.id + " from: " + senderActor.name + " to: " + targetActor.name);
       new Message(senderActor, targetActor, message);
     }
   }
 
   public constructor(data: HistoryData) {
-    displayProtocolOverview();
-    ActorHeading.actorCount = 0;
-    this.actors = {};
-    this.data = data;
+    const canvas = $("#protocol-canvas");
+    canvas.empty(); // after every restart the canvas needs to be redrawn in case a different program is running on the backend
+
+    svgContainer = d3.select("#protocol-canvas")
+      .append("svg")
+      .attr("width", 1000)
+      .attr("height", 1000)
+      .attr("style", "background: none;");
+
+    defs = svgContainer.append("defs");
+      ActorHeading.actorCount = 0;
+      this.actors = {};
+      this.data = data;
   }
 
   // ensure only one node chain can be highlighted at the same time
   static changeHighlight(turn: TurnNode) {
     if(ProtocolOverview.highlighted){
       ProtocolOverview.highlighted.highlightOff();
-      shrinkTurn(ProtocolOverview.highlighted, ProtocolOverview.highlighted.visualization);
+      ProtocolOverview.highlighted.shrink();
     }
     if(turn == ProtocolOverview.highlighted){
       ProtocolOverview.highlighted = null;
     } else {
       turn.highlightOn();
-      enlargeTurn(turn, turn.visualization);
+      turn.enlarge();
       ProtocolOverview.highlighted = turn;
     }
   }
-}
-
-function displayProtocolOverview() {
-  const canvas = $("#protocol-canvas");
-  canvas.empty(); // after every restart the canvas needs to be redrawn in case a different program is running on the backend
-
-  svgContainer = d3.select("#protocol-canvas")
-    .append("svg")
-    .attr("width", 1000)
-    .attr("height", 1000)
-    .attr("style", "background: none;");
-
-  defs = svgContainer.append("defs");
-}
-
-//------------------------------------------------------------------------
-//-                            visualizations                            -
-//------------------------------------------------------------------------
-
-
-function drawActor(actor: ActorHeading){
-  var actorHeading = svgContainer.append("g");
-  var actorGroup = actorHeading.append("g");
-  actor.container = actorGroup;
-  
-  actorHeading.append("text")
-    .attr("x", actor.x+actorWidth/2)
-    .attr("y", actor.y+actorHeight/2)
-    .attr("font-size","20px")
-    .attr("text-anchor", "middle")
-    .text(actor.name);    
-
-  actorHeading.append("rect")
-    .attr("x", actor.x)
-    .attr("y", actor.y)
-    .attr("rx", 5)
-    .attr("height", actorHeight)
-    .attr("width", actorWidth)
-    .style("fill", actor.color)
-    .style("opacity", opacity)
-    .on("click", function(){
-      actor.changeVisibility();
-    });
-}
-
-function drawTurn(turn: TurnNode) {
-  var text = turn.getContainer().append("text")
-    .attr("x", turn.x)
-    .attr("y", turn.y)
-    .attr("font-size","20px")
-    .attr("text-anchor", "middle")
-    .style("opacity", 0)
-    .text(turn.getText());   
-
-  return turn.getContainer().append("ellipse")
-      .attr("cx", turn.x)
-      .attr("cy", turn.y)
-      .attr("rx", turnRadius)
-      .attr("ry", turnRadius)
-      .style("fill", turn.getColor())
-      .style("opacity", opacity)
-      .style("stroke-width", noHighlightWidth)
-      .style("stroke", turn.getColor())
-      .on("click", function(){
-        ProtocolOverview.changeHighlight(turn);
-      })
-      .on("mouseover", function(){
-        text.style("opacity", 1);
-      })
-      .on("mouseout", function(){
-        text.style("opacity", 0);
-      });
-}
-
-function enlargeTurn(turn: TurnNode, visualization: d3.Selection<SVGElement>) {
-  var growSize = turn.getMessageCount() * messageSpacing;
-  turn.enlarge(growSize);
-  visualization.attr("ry", turnRadius + growSize / 2);
-  visualization.attr("cy", turn.y + growSize / 2);
-}
-
-function shrinkTurn(turn: TurnNode, visualization: d3.Selection<SVGElement>) {
-  turn.shrink();
-  visualization.attr("ry", turnRadius);
-  visualization.attr("cy", turn.y);
-}
-
-function transposeTurn(visualization: d3.Selection<SVGElement>, yShift: number){
-  visualization.attr("transform", "translate(0," + yShift + ")")
-}
-
-function drawMessage(message: Message, visibility: string){
-  var sender = message.sender;
-  var target = message.target;
-  createMessageArrow(sender.getColor(), message.id);
-  return sender.getContainer().append("line")
-    .attr("x1", sender.x)
-    .attr("y1", sender.y + message.senderShift)
-    .attr("x2", target.x)
-    .attr("y2", target.y + message.targetShift)
-    .attr("marker-end", "url(#arrowMarker"+message.id+")")
-    .style("stroke", sender.getColor())
-    .style("visibility", visibility);
-}
-
-const lineGenerator: any = 
-  d3.svg.line()
-    .x(function(d) { return d[0]; })
-    .y(function(d) { return d[1]; })
-    .interpolate("linear");
-
-function drawMessageToSelf(message: Message, visibility: string){
-  var sender = message.sender;
-  var target = message.target;
-  createMessageArrow(sender.getColor(), message.id);
-  var lineData: [number, number][] = [
-    [ sender.x , sender.y + message.senderShift],
-    [ sender.x+turnRadius*1.5 , sender.y + message.senderShift],
-    [ target.x+turnRadius*1.5 , target.y + message.targetShift], 
-    [ target.x , target.y + message.targetShift]];
-  return sender.getContainer().append("path")
-    .attr("d", lineGenerator(lineData))
-    .attr("marker-end", "url(#arrowMarker"+message.id+")")
-    .style("fill", "none")
-    .style("stroke", sender.getColor())
-    .style("visibility", visibility);
-}
-
-function createMessageArrow(color: string, id: number){
-  var lineData: [number, number][] = 
-    [[0, 0],
-     [markerSize, markerSize/2],
-     [0, markerSize]];
-  defs.append("marker")
-    .attr("id", "arrowMarker"+id)
-    .attr("refX", markerSize+turnRadius) // shift allong path (place arrow on path outside turn)
-    .attr("refY", markerSize/2) // shift ortogonal of path (place arrow on middle of path)
-    .attr("markerWidth", markerSize)
-    .attr("markerHeight", markerSize)
-    .attr("orient", "auto")
-    .attr("markerUnits", "userSpaceOnUse")
-    .style("fill", color)
-    .append("path")
-    .attr("d", lineGenerator(lineData))
-    .attr("class","arrowHead");
-}
-
-function createMessageAnchor(message: Message, visibility: string){
-  var sender = message.sender;
-  var target = message.target;
-  
-  return sender.getContainer().append("rect")
-    .attr("x", sender.x-markerSize/2)
-    .attr("y", sender.y+message.senderShift-markerSize/2)
-    .attr("height", markerSize)
-    .attr("width", markerSize)
-    .style("fill", target.getColor())
-    .style("stroke", "black")
-    .style("visibility", visibility)
-    .on("click", function(){
-      dbgLog("clicked marker");
-    });
 }
