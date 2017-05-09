@@ -46,6 +46,7 @@ public class VmSettings {
     MEMORY_TRACING = getBool("som.memoryTracing",   false);
     REPLAY = getBool("som.replay", false);
     DISABLE_TRACE_FILE = getBool("som.disableTraceFile", false) || REPLAY;
+    TIME_TRAVELLING = getBool("som.time_travel", false);
 
     String atConfig = System.getProperty("som.actorTracingCfg", "");
     List<String> al = Arrays.asList(atConfig.split(":"));
@@ -56,10 +57,9 @@ public class VmSettings {
     PROMISE_RESOLUTION    = PROMISE_CREATION && (!al.contains("pr")) && filter;
     PROMISE_RESOLVED_WITH = !al.contains("prw") && filter;
 
+
     ACTOR_TRACING = TRUFFLE_DEBUGGER_ENABLED || getBool("som.actorTracing", false) ||
-                    REPLAY || MESSAGE_PARAMETERS || PROMISE_CREATION;
-	
-    TIME_TRAVELLING = ACTOR_TRACING;
+                    REPLAY || MESSAGE_PARAMETERS || PROMISE_CREATION || TIME_TRAVELLING;
 
     boolean dm = getBool("som.dynamicMetrics", false);
     DYNAMIC_METRICS = dm;

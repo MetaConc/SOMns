@@ -83,6 +83,8 @@ tools.add_argument('-r', '--replay', help='execution of the programm is guided b
                     dest='replay', action='store_true', default=False)
 tools.add_argument('--coverage', help='determine code coverage and store in given file',
                    dest='coverage', default=None)
+tools.add_argument('-tt', '--time_travel', help='store events to enable time-traveling debugging',
+                   dest='time_travel', action='store_true', default=False)
 
 
 parser.add_argument('-o', '--only', help='only compile give methods, comma separated list',
@@ -264,6 +266,8 @@ if args.disable_trace_file:
     flags += ['-Dsom.disableTraceFile=true']
 if args.replay:
     flags += ['-Dsom.replay=true']
+if args.time_travel:
+    flags += ['-Dsom.time_travel=true']
 
 if (args.truffle_profile or args.web_debugger or
     args.dynamic_metrics or args.coverage):
