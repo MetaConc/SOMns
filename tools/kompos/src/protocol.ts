@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import {Activity, IdMap} from "./messages";
 import {HistoryData} from "./history-data"
 import {dbgLog} from "./source";
+import {getActivityId} from "./view";
 
 const actorStart = 20;      // height at which actor headings are created
 const actorHeight = 30;     // height of actor headings
@@ -91,6 +92,10 @@ class ActorHeading {
 
   getName() {
     return this.activity.name;
+  }
+
+  getActivityId() {
+    return this.activity.id;
   }
 
   //-----------visualization------------
@@ -204,6 +209,7 @@ class TurnNode {
   //   every message receives own exit point from this turn
   //   shift other turns downwards to prevent overlap
   enlarge() {
+    ctrl.toggleHighlightMethod(getActivityId(this.actor.getActivityId()), this.incoming.getText(), true);
     var growSize = this.outgoing.length * messageSpacing;
     this.visualization.attr("ry", turnRadius + growSize / 2);
     this.visualization.attr("cy", this.y + growSize / 2);
@@ -217,6 +223,7 @@ class TurnNode {
   // shrink this turn
   //   every message starts from the center of the node
   shrink() {
+    ctrl.toggleHighlightMethod(getActivityId(this.actor.getActivityId()), this.incoming.getText(), false);
     this.visualization.attr("ry", turnRadius);
     this.visualization.attr("cy", this.y);
     this.actor.transpose(this.count, 0);
@@ -494,7 +501,7 @@ export class ProtocolOverview {
       ProtocolOverview.highlighted.highlightOff();
       ProtocolOverview.highlighted.shrink();
     }
-    if(turn == ProtocolOverview.highlighted){
+    if(turn === ProtocolOverview.highlighted){
       ProtocolOverview.highlighted = null;
     } else {
       turn.highlightOn();

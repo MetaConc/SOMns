@@ -80,7 +80,6 @@ export class UiController extends Controller {
 
   public toggleCodePane(actId: string) {
     const expanded = this.view.isCodePaneExpanded(actId);
-
     if (expanded) {
       this.view.markCodePaneClosed(actId);
     } else {

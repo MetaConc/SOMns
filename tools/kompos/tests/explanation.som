@@ -12,14 +12,14 @@ class Explanation usingPlatform: platform = Value (
       public load = (
         ^ A)
       public read = (
-        ^ broll read
+        ^ broll load
       )
   )
 
   class Broll new: X = (
     |D|
     D := X.)(
-    public read = (
+    public load = (
       ^ D)
   )
 
