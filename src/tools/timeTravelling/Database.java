@@ -51,6 +51,13 @@ public final class Database {
     }
   }
 
+  private enum ConcreteValueType {
+    primitive,
+    ObjectWithSlots,
+    Nil;
+
+  }
+
   public Session startSession() {
     return driver.session();
   }
@@ -65,6 +72,22 @@ public final class Database {
 
   public void endSession(final Session session) {
     session.close();
+  }
+
+  public void createConstructor(final Transaction transaction, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
+    // create checkpoint header, root node to which all information of one turn becomes connected.
+    StatementResult result = transaction.run("MATCH (actor: Actor {actorId: {actorId}}) "
+        + "CREATE (turn: Turn {messageId: {id}, messageName: {messageName}}) "
+        + "CREATE (turn)-[:TURN]->(actor)"
+        + "return ID(turn)"
+        , parameters("actorId", actorId, "id", messageId, "messageName", msg.getSelector().getString()));
+
+    Record record = result.single();
+    long argumentId = record.get("ID(turn)").asLong();
+    Object[] args = msg.getArgs();
+    for (int i = 1; i < args.length; i++){
+      writeArgument(transaction, argumentId, i, args[i]);
+    }
   }
 
   // the arguments of the message are already stored in the log.
@@ -84,7 +107,7 @@ public final class Database {
     long targetId = record.get("ID(target)").asLong();
     HashMap<SlotDefinition, StorageLocation> locations = target.getObjectLayout().getStorageLocations();
     for (Entry<SlotDefinition, StorageLocation> entry : locations.entrySet()) {
-      writeObject(transaction, targetId, entry.getKey(), entry.getValue().read(target));
+      writeSlot(transaction, targetId, entry.getKey(), entry.getValue().read(target));
     }
 
     // write all arguments to db
@@ -95,77 +118,76 @@ public final class Database {
     }
   }
 
-  private void writeArgument(final Transaction transaction, final long parentId, final int argCount, final Object argValue) {
-    Object value = null;
-    if (argValue instanceof SFarReference) {
-      writeArgument(transaction, parentId, argCount, ((SFarReference) argValue).getValue());
-    } else if (argValue instanceof SPromise) {
-      value = ((SPromise) argValue).getPromiseId();
-    } else if (argValue instanceof SResolver) {
-      value = ((SResolver) argValue).getPromise().getPromiseId();
-    } else if (argValue instanceof SAbstractObject) {
-      if(argValue instanceof SMutableObject){
-        writeSObject(transaction, parentId, argCount, (SMutableObject) argValue);
-        return;
-      }  else if (valueIsNil(argValue)) { // is it useful to store null values? can't we use closed world assumption?
-        return;
+  // unbox the abstract somvalue and store the object needed to id the object in result, return the type of boxed value
+  private ConcreteValueType getConcreteValue(final Object value, Object result) {
+    if (value instanceof SFarReference) {
+      getConcreteValue(((SFarReference) value).getValue(), result);
+    } else if (value instanceof SPromise) {
+      result = ((SPromise) value).getPromiseId();
+    } else if (value instanceof SResolver) {
+      result = ((SResolver) value).getPromise().getPromiseId();
+    } else if (value instanceof SAbstractObject) {
+      if(value instanceof SMutableObject){
+        return ConcreteValueType.ObjectWithSlots;
+      }  else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
+        return ConcreteValueType.Nil;
       } else {
-        throw new RuntimeException("unexpected Sabstract argument type: " + argValue.getClass());
+        throw new RuntimeException("unexpected Sabstract type: " + value.getClass());
       }
-    } else if (argValue instanceof Long||argValue instanceof Double||argValue instanceof Boolean||argValue instanceof String) {
-      value = argValue;
+    } else if (value instanceof Long||value instanceof Double||value instanceof Boolean||value instanceof String) {
+      result = value;
     } else {
       throw new RuntimeException("unexpected argument type");
     }
-    transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:ARGUMENT]-(argument {argIdx: {argIdx}, value: {argValue}})",
-        parameters("parentId", parentId, "argIdx", argCount, "argValue", value));
+    return ConcreteValueType.primitive;
   }
 
-  private void writeObject(final Transaction transaction, final long parentId, final SlotDefinition slotDef, final Object slotValue) {
+  private void writeSlot(final Transaction transaction, final long parentId, final SlotDefinition slotDef, final Object slotValue) {
     Object value = null;
-    if (slotValue instanceof SFarReference) {
-      writeObject(transaction, parentId, slotDef, ((SFarReference) slotValue).getValue());
-    } else if (slotValue instanceof SPromise) {
-      value = ((SPromise) slotValue).getPromiseId();
-    } else if (slotValue instanceof SResolver) {
-      value = ((SResolver) slotValue).getPromise().getPromiseId();
-    } else if (slotValue instanceof SAbstractObject) {
-      if(slotValue instanceof SMutableObject){
-        writeSObject(transaction, parentId, slotDef, (SMutableObject) slotValue);
-        return;
-      } else if (valueIsNil(slotValue)) { // is it useful to store null values? can't we use closed world assumption?
-        return;
-      } else {
-        throw new RuntimeException("unexpected Sabstract type: " + slotValue.getClass());
-      }
-    } else if (slotValue instanceof Long||slotValue instanceof Double||slotValue instanceof Boolean||slotValue instanceof String) {
-      value = slotValue;
-    } else {
-      throw new RuntimeException("unexpected slot type");
+    switch(getConcreteValue(slotValue, value)){
+      case primitive:
+        transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:SLOT]-(slot {slotId: {slotId}, slotName: {slotName}, value: {slotValue}})",
+            parameters("parentId", parentId, "slotId", slotDef.getName().getSymbolId(), "slotName", slotDef.getName().getString(), "slotValue", value));
+        break;
+      case Nil:
+        break;
+      case ObjectWithSlots:
+        writeSObjectAsSlot(transaction, parentId, slotDef, (SMutableObject) slotValue);
     }
-    transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:SLOT]-(slot {slotId: {slotId}, slotName: {slotName}, value: {slotValue}})",
-        parameters("parentId", parentId, "slotId", slotDef.getName().getSymbolId(), "slotName", slotDef.getName().getString(), "slotValue", value));
   }
 
-  // Sobject is passed as argument or is stored in object, store it in db and return id of object
-  private void writeSObject(final Transaction transaction, final Long parentId, final SlotDefinition slotDef, final SMutableObject slotValue){
+  // Sobject is a slot of an object, store it db
+  private void writeSObjectAsSlot(final Transaction transaction, final Long parentId, final SlotDefinition slotDef, final SMutableObject slotValue){
     StatementResult result = transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:SLOT]-(slot {slotId: {slotId}, slotName: {slotName}, type: {SObjectType}}) return ID(slot)"
         , parameters("parentId", parentId, "slotId", slotValue.getSOMClass().getName().getSymbolId(), "slotName", slotValue.getSOMClass().getName().getString(), "SObjectType", SObjectTypes.SMutable.id()));
     long slotId = getIdFromStatementResult(result,"slot");
-    HashMap<SlotDefinition, StorageLocation> locations = slotValue.getObjectLayout().getStorageLocations();
-    for (Entry<SlotDefinition, StorageLocation> entry : locations.entrySet()) {
-      writeObject(transaction, slotId, entry.getKey(), entry.getValue().read(slotValue));
+    for (Entry<SlotDefinition, StorageLocation> entry : slotValue.getObjectLayout().getStorageLocations().entrySet()) {
+      writeSlot(transaction, slotId, entry.getKey(), entry.getValue().read(slotValue));
     }
   }
 
-  // Sobject is passed as argument or is stored in object, store it in db and return id of object
-  private void writeSObject(final Transaction transaction, final Long parentId, final int argCount, final SMutableObject argValue){
+  private void writeArgument(final Transaction transaction, final long parentId, final int argCount, final Object argValue) {
+    Object value = null;
+    switch(getConcreteValue(argValue, value)){
+      case primitive:
+        transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:ARGUMENT]-(argument {argIdx: {argIdx}, value: {argValue}})",
+            parameters("parentId", parentId, "argIdx", argCount, "argValue", value));
+        break;
+      case Nil:
+        break;
+      case ObjectWithSlots:
+        writeSObjectAsArgument(transaction, parentId, argCount, (SMutableObject) argValue);
+        break;
+    }
+  }
+
+  // Sobject is passed as argument, store it in db
+  private void writeSObjectAsArgument(final Transaction transaction, final Long parentId, final int argCount, final SMutableObject argValue){
     StatementResult result = transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:ARGUMENT]-(argument {argIdx: {argIdx}, type: {SObjectType}}) return ID(argument)",
         parameters("parentId", parentId, "argIdx", argCount, "SObjectType", SObjectTypes.SMutable.id()));
     long argumentId = getIdFromStatementResult(result,"argument");
-    HashMap<SlotDefinition, StorageLocation> locations = argValue.getObjectLayout().getStorageLocations();
-    for (Entry<SlotDefinition, StorageLocation> entry : locations.entrySet()) {
-      writeObject(transaction, argumentId, entry.getKey(), entry.getValue().read(argValue));
+    for (Entry<SlotDefinition, StorageLocation> entry : argValue.getObjectLayout().getStorageLocations().entrySet()) {
+      writeSlot(transaction, argumentId, entry.getKey(), entry.getValue().read(argValue));
     }
   }
 
@@ -177,21 +199,5 @@ public final class Database {
   public void createActor(final Transaction transaction, final Actor actor) {
     transaction.run("CREATE (a:Actor {actorId: {id}})",
         parameters("id", actor.getId()));
-  }
-
-  public void createConstructor(final Transaction transaction, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
-    // create checkpoint header, root node to which all information of one turn becomes connected.
-    StatementResult result = transaction.run("MATCH (actor: Actor {actorId: {actorId}}) "
-        + "CREATE (turn: Turn {messageId: {id}, messageName: {messageName}}) "
-        + "CREATE (turn)-[:TURN]->(actor)"
-         + "return ID(turn)"
-        , parameters("actorId", actorId, "id", messageId, "messageName", msg.getSelector().getString()));
-
-    Record record = result.single();
-    long argumentId = record.get("ID(turn)").asLong();
-    Object[] args = msg.getArgs();
-    for (int i = 1; i < args.length; i++){
-      writeArgument(transaction, argumentId, i, args[i]);
-    }
   }
 }
