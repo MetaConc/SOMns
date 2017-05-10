@@ -17,10 +17,12 @@ import org.neo4j.driver.v1.Transaction;
 import som.compiler.MixinDefinition.SlotDefinition;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
+import som.interpreter.actors.SFarReference;
 import som.interpreter.actors.SPromise;
 import som.interpreter.actors.SPromise.SResolver;
 import som.interpreter.objectstorage.StorageLocation;
 import som.vmobjects.SAbstractObject;
+import som.vmobjects.SClass;
 import som.vmobjects.SObject.SMutableObject;
 
 public final class Database {
@@ -73,42 +75,47 @@ public final class Database {
         + "CREATE (turn)-[:TURN]->(actor)"
         + "CREATE (target:Object) "
         + "CREATE (target)-[:TARGETOF]->(turn) "
-        + "CREATE (arguments:Arguments) "
-        + "CREATE (arguments)-[:ARGSOF]->(turn) "
-        + "return ID(target), ID(arguments)"
+        + "return ID(target), ID(turn)"
         , parameters("actorId", actorId, "id", messageId, "messageName", msg.getSelector().getString()));
 
     Record record = result.single();
+
+    // write all slots to db
     long targetId = record.get("ID(target)").asLong();
     HashMap<SlotDefinition, StorageLocation> locations = target.getObjectLayout().getStorageLocations();
     for (Entry<SlotDefinition, StorageLocation> entry : locations.entrySet()) {
       writeObject(transaction, targetId, entry.getKey(), entry.getValue().read(target));
     }
 
-    long argumentId = record.get("ID(arguments)").asLong();
+    // write all arguments to db
+    long argumentId = record.get("ID(turn)").asLong();
     Object[] args = msg.getArgs();
     for (int i = 1; i < args.length; i++){
-      writeObject(transaction, argumentId, i, args[i]);
+      writeArgument(transaction, argumentId, i, args[i]);
     }
   }
 
-  //if slot is primitive value, create primitive node
-  private void writeObject(final Transaction transaction, final long parentId, final int argCount, final Object argValue) {
+  private void writeArgument(final Transaction transaction, final long parentId, final int argCount, final Object argValue) {
     Object value = null;
-    if (argValue instanceof SPromise) {
+    if (argValue instanceof SFarReference) {
+      writeArgument(transaction, parentId, argCount, ((SFarReference) argValue).getValue());
+    } else if (argValue instanceof SPromise) {
       value = ((SPromise) argValue).getPromiseId();
     } else if (argValue instanceof SResolver) {
       value = ((SResolver) argValue).getPromise().getPromiseId();
     } else if (argValue instanceof SAbstractObject) {
-      System.out.println("SAbstractObject: " + argCount + " " + argValue.getClass());
       if(argValue instanceof SMutableObject){
         writeSObject(transaction, parentId, argCount, (SMutableObject) argValue);
         return;
+      }  else if (valueIsNil(argValue)) { // is it useful to store null values? can't we use closed world assumption?
+        return;
+      } else {
+        throw new RuntimeException("unexpected Sabstract argument type: " + argValue.getClass());
       }
     } else if (argValue instanceof Long||argValue instanceof Double||argValue instanceof Boolean||argValue instanceof String) {
       value = argValue;
     } else {
-      throw new RuntimeException("unexpected slot type");
+      throw new RuntimeException("unexpected argument type");
     }
     transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:ARGUMENT]-(argument {argIdx: {argIdx}, value: {argValue}})",
         parameters("parentId", parentId, "argIdx", argCount, "argValue", value));
@@ -116,17 +123,20 @@ public final class Database {
 
   private void writeObject(final Transaction transaction, final long parentId, final SlotDefinition slotDef, final Object slotValue) {
     Object value = null;
-    if (slotValue instanceof SPromise) {
+    if (slotValue instanceof SFarReference) {
+      writeObject(transaction, parentId, slotDef, ((SFarReference) slotValue).getValue());
+    } else if (slotValue instanceof SPromise) {
       value = ((SPromise) slotValue).getPromiseId();
     } else if (slotValue instanceof SResolver) {
       value = ((SResolver) slotValue).getPromise().getPromiseId();
     } else if (slotValue instanceof SAbstractObject) {
-      System.out.println("SAbstractObject: " + slotDef.getName().getString() + " " + slotValue.getClass());
       if(slotValue instanceof SMutableObject){
         writeSObject(transaction, parentId, slotDef, (SMutableObject) slotValue);
         return;
       } else if (valueIsNil(slotValue)) { // is it useful to store null values? can't we use closed world assumption?
-        System.out.println("sabstract is nill");
+        return;
+      } else {
+        throw new RuntimeException("unexpected Sabstract type: " + slotValue.getClass());
       }
     } else if (slotValue instanceof Long||slotValue instanceof Double||slotValue instanceof Boolean||slotValue instanceof String) {
       value = slotValue;
@@ -167,5 +177,21 @@ public final class Database {
   public void createActor(final Transaction transaction, final Actor actor) {
     transaction.run("CREATE (a:Actor {actorId: {id}})",
         parameters("id", actor.getId()));
+  }
+
+  public void createConstructor(final Transaction transaction, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
+    // create checkpoint header, root node to which all information of one turn becomes connected.
+    StatementResult result = transaction.run("MATCH (actor: Actor {actorId: {actorId}}) "
+        + "CREATE (turn: Turn {messageId: {id}, messageName: {messageName}}) "
+        + "CREATE (turn)-[:TURN]->(actor)"
+         + "return ID(turn)"
+        , parameters("actorId", actorId, "id", messageId, "messageName", msg.getSelector().getString()));
+
+    Record record = result.single();
+    long argumentId = record.get("ID(turn)").asLong();
+    Object[] args = msg.getArgs();
+    for (int i = 1; i < args.length; i++){
+      writeArgument(transaction, argumentId, i, args[i]);
+    }
   }
 }
