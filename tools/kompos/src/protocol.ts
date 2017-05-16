@@ -1,3 +1,6 @@
+/*  This file gives an overview of the messages send between different actors. 
+    This file focusses on the visualization and will serve as the visual aid for time travelling.
+*/
 import * as d3 from "d3";
 import {Activity, IdMap} from "./messages";
 import {HistoryData} from "./history-data"

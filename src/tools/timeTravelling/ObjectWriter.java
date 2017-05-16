@@ -10,10 +10,9 @@ import som.interpreter.actors.EventualMessage;
 import som.vmobjects.SClass;
 import som.vmobjects.SObject.SMutableObject;
 
-//this class allows the state of a root node to be written and read to/from file or database
 public  class ObjectWriter {
 
-  public static synchronized void writeTargetArgument(final Long messageId, final EventualMessage msg, final Object t) {
+  public static synchronized void writeMessage(final Long messageId, final EventualMessage msg, final Object t) {
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
@@ -34,6 +33,7 @@ public  class ObjectWriter {
 
         database.commitTransaction(transaction);
         database.endSession(session);
+
       } else if (t instanceof SClass) {
         // method is either a constructor or static method, no target object, only store arguments
         SClass target = (SClass) t;

@@ -1,6 +1,6 @@
 package som.interpreter.actors;
 
-import static tools.timeTravelling.ObjectWriter.writeTargetArgument;
+import static tools.timeTravelling.ObjectWriter.writeMessage;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Map;
@@ -278,7 +278,7 @@ public class Actor implements Activity {
               msg.getTargetSourceSection());
         }
 		if (VmSettings.TIME_TRAVELLING) {
-          writeTargetArgument(currentThread.currentMessageId, msg, msg.getArgs()[0]);
+          writeMessage(currentThread.currentMessageId, msg, msg.getArgs()[0]);
         }
         msg.execute();
       } finally {

@@ -14,6 +14,7 @@ import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.StatementResult;
 import org.neo4j.driver.v1.Transaction;
 
+import som.VM;
 import som.compiler.MixinDefinition.SlotDefinition;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
@@ -24,12 +25,25 @@ import som.interpreter.objectstorage.StorageLocation;
 import som.vmobjects.SAbstractObject;
 import som.vmobjects.SClass;
 import som.vmobjects.SObject.SMutableObject;
+import tools.concurrency.ActorExecutionTrace;
 
 public final class Database {
   private static Database singleton;
   private Driver driver = GraphDatabase.driver("bolt://localhost:7687", AuthTokens.basic("neo4j", "timetraveling"));
+  private static long sessionId;
 
   private Database() {
+    Session session = startSession();
+    Transaction transaction = startTransaction(session);
+    StatementResult result = transaction.run("CREATE (session: SessionId) return ID(session)");
+    sessionId = getIdFromStatementResult(result,"session");
+    String[] args = VM.getArguments();
+    for(int argCount = 0; argCount<args.length; argCount++){
+      writeArgument(transaction, sessionId, argCount, args[argCount]);
+    }
+    commitTransaction(transaction);
+    endSession(session);
+    ActorExecutionTrace.SessionCreated(sessionId);
   }
 
   // singleton design pattern
@@ -51,11 +65,20 @@ public final class Database {
     }
   }
 
+  private class SRawValue {
+    public ConcreteValueType type;
+    public Object value;
+
+    SRawValue(final ConcreteValueType type, final Object value){
+      this.type = type;
+      this.value = value;
+    }
+  }
+
   private enum ConcreteValueType {
     primitive,
     ObjectWithSlots,
     Nil;
-
   }
 
   public Session startSession() {
@@ -74,13 +97,16 @@ public final class Database {
     session.close();
   }
 
+  public void createActor(final Transaction transaction, final Actor actor) {
+    transaction.run(matchSession + " CREATE (a:Actor {actorId: {actorId}}) - [:BELONGS_TO] -> (session)",
+        parameters("actorId", actor.getId(), "sessionId", sessionId));
+  }
+
   public void createConstructor(final Transaction transaction, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
     // create checkpoint header, root node to which all information of one turn becomes connected.
-    StatementResult result = transaction.run("MATCH (actor: Actor {actorId: {actorId}}) "
-        + "CREATE (turn: Turn {messageId: {id}, messageName: {messageName}}) "
-        + "CREATE (turn)-[:TURN]->(actor)"
-        + "return ID(turn)"
-        , parameters("actorId", actorId, "id", messageId, "messageName", msg.getSelector().getString()));
+    StatementResult result = transaction.run(matchActor + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TURN]-> (actor)"
+        + " return ID(turn)"
+        , parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString(), "sessionId", sessionId));
 
     Record record = result.single();
     long argumentId = record.get("ID(turn)").asLong();
@@ -93,13 +119,10 @@ public final class Database {
   // the arguments of the message are already stored in the log.
   public void createCheckpoint(final Transaction transaction, final Long messageId, final EventualMessage msg, final Long actorId, final SMutableObject target) {
     // create checkpoint header, root node to which all information of one turn becomes connected.
-    StatementResult result = transaction.run("MATCH (actor: Actor {actorId: {actorId}}) "
-        + "CREATE (turn: Turn {messageId: {id}, messageName: {messageName}}) "
-        + "CREATE (turn)-[:TURN]->(actor)"
-        + "CREATE (target:Object) "
-        + "CREATE (target)-[:TARGETOF]->(turn) "
-        + "return ID(target), ID(turn)"
-        , parameters("actorId", actorId, "id", messageId, "messageName", msg.getSelector().getString()));
+    StatementResult result = transaction.run(matchActor + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TURN] -> (actor)"
+        + " CREATE (target:Object) -[:TARGETOF]->(turn) "
+        + " return ID(target), ID(turn)"
+        , parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString(), "sessionId", sessionId));
 
     Record record = result.single();
 
@@ -119,46 +142,46 @@ public final class Database {
   }
 
   // unbox the abstract somvalue and store the object needed to id the object in result, return the type of boxed value
-  private ConcreteValueType getConcreteValue(final Object value, Object result) {
+  private SRawValue getConcreteValue(final Object value) {
     if (value instanceof SFarReference) {
-      getConcreteValue(((SFarReference) value).getValue(), result);
+      return getConcreteValue(((SFarReference) value).getValue());
     } else if (value instanceof SPromise) {
-      result = ((SPromise) value).getPromiseId();
+      return new SRawValue(ConcreteValueType.primitive, ((SPromise) value).getPromiseId());
     } else if (value instanceof SResolver) {
-      result = ((SResolver) value).getPromise().getPromiseId();
+      return new SRawValue(ConcreteValueType.primitive, ((SResolver) value).getPromise().getPromiseId());
     } else if (value instanceof SAbstractObject) {
       if(value instanceof SMutableObject){
-        return ConcreteValueType.ObjectWithSlots;
+        return new SRawValue(ConcreteValueType.ObjectWithSlots, null);
       }  else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
-        return ConcreteValueType.Nil;
+        return new SRawValue(ConcreteValueType.Nil, null);
       } else {
         throw new RuntimeException("unexpected Sabstract type: " + value.getClass());
       }
     } else if (value instanceof Long||value instanceof Double||value instanceof Boolean||value instanceof String) {
-      result = value;
+      return new SRawValue(ConcreteValueType.primitive, value);
     } else {
       throw new RuntimeException("unexpected argument type");
     }
-    return ConcreteValueType.primitive;
   }
 
   private void writeSlot(final Transaction transaction, final long parentId, final SlotDefinition slotDef, final Object slotValue) {
-    Object value = null;
-    switch(getConcreteValue(slotValue, value)){
+    SRawValue value = getConcreteValue(slotValue);
+    switch(value.type){
       case primitive:
-        transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:SLOT]-(slot {slotId: {slotId}, slotName: {slotName}, value: {slotValue}})",
-            parameters("parentId", parentId, "slotId", slotDef.getName().getSymbolId(), "slotName", slotDef.getName().getString(), "slotValue", value));
+        transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (slot {slotId: {slotId}, slotName: {slotName}, value: {slotValue}}) - [:SLOT] -> (parent)",
+            parameters("parentId", parentId, "slotId", slotDef.getName().getSymbolId(), "slotName", slotDef.getName().getString(), "slotValue", value.value));
         break;
       case Nil:
         break;
       case ObjectWithSlots:
         writeSObjectAsSlot(transaction, parentId, slotDef, (SMutableObject) slotValue);
+        break;
     }
   }
 
   // Sobject is a slot of an object, store it db
   private void writeSObjectAsSlot(final Transaction transaction, final Long parentId, final SlotDefinition slotDef, final SMutableObject slotValue){
-    StatementResult result = transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:SLOT]-(slot {slotId: {slotId}, slotName: {slotName}, type: {SObjectType}}) return ID(slot)"
+    StatementResult result = transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (slot {slotId: {slotId}, slotName: {slotName}, type: {SObjectType}}) - [:SLOT] -> (parent) return ID(slot)"
         , parameters("parentId", parentId, "slotId", slotValue.getSOMClass().getName().getSymbolId(), "slotName", slotValue.getSOMClass().getName().getString(), "SObjectType", SObjectTypes.SMutable.id()));
     long slotId = getIdFromStatementResult(result,"slot");
     for (Entry<SlotDefinition, StorageLocation> entry : slotValue.getObjectLayout().getStorageLocations().entrySet()) {
@@ -167,11 +190,11 @@ public final class Database {
   }
 
   private void writeArgument(final Transaction transaction, final long parentId, final int argCount, final Object argValue) {
-    Object value = null;
-    switch(getConcreteValue(argValue, value)){
+    SRawValue value = getConcreteValue(argValue);
+    switch(value.type){
       case primitive:
-        transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:ARGUMENT]-(argument {argIdx: {argIdx}, value: {argValue}})",
-            parameters("parentId", parentId, "argIdx", argCount, "argValue", value));
+        transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (argument {argIdx: {argIdx}, value: {argValue}}) - [:ARGUMENT] -> (parent)",
+            parameters("argIdx", argCount, "argValue", value.value, "parentId", parentId));
         break;
       case Nil:
         break;
@@ -183,8 +206,8 @@ public final class Database {
 
   // Sobject is passed as argument, store it in db
   private void writeSObjectAsArgument(final Transaction transaction, final Long parentId, final int argCount, final SMutableObject argValue){
-    StatementResult result = transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (parent)<-[:ARGUMENT]-(argument {argIdx: {argIdx}, type: {SObjectType}}) return ID(argument)",
-        parameters("parentId", parentId, "argIdx", argCount, "SObjectType", SObjectTypes.SMutable.id()));
+    StatementResult result = transaction.run("MATCH (parent) where ID(parent)={parentId} CREATE (argument {argIdx: {argIdx}, type: {SObjectType}}) - [:ARGUMENT] -> (parent) return ID(argument)",
+        parameters("argIdx", argCount, "parentId", parentId, "SObjectType", SObjectTypes.SMutable.id()));
     long argumentId = getIdFromStatementResult(result,"argument");
     for (Entry<SlotDefinition, StorageLocation> entry : argValue.getObjectLayout().getStorageLocations().entrySet()) {
       writeSlot(transaction, argumentId, entry.getKey(), entry.getValue().read(argValue));
@@ -195,9 +218,6 @@ public final class Database {
     return result.single().get("ID(" + name+")").asLong();
   }
 
-
-  public void createActor(final Transaction transaction, final Actor actor) {
-    transaction.run("CREATE (a:Actor {actorId: {id}})",
-        parameters("id", actor.getId()));
-  }
+  private String matchSession = "MATCH (session) where ID(session) = {sessionId}";
+  private String matchActor = matchSession + "MATCH (actor: Actor {actorId: {actorId}}) - [:BELONGS_TO] -> (session)";
 }
