@@ -5,7 +5,8 @@ import * as d3 from "d3";
 import {Activity, IdMap} from "./messages";
 import {HistoryData} from "./history-data"
 import {dbgLog} from "./source";
-import {getActivityId} from "./view";
+import {getActivityId, nodeFromTemplate} from "./view";
+import {timeTravelling} from "./time-travelling";
 
 const actorStart = 20;      // height at which actor headings are created
 const actorHeight = 30;     // height of actor headings
@@ -159,6 +160,7 @@ class TurnNode {
   x:              number;
   y:              number;
   visualization:  d3.Selection<SVGElement>;
+  popover:        JQuery;
 
   constructor(actor: ActorHeading, message: EmptyMessage) {
     this.actor = actor;
@@ -181,6 +183,10 @@ class TurnNode {
 
   getColor() {
     return this.actor.getColor();
+  }
+
+  getId() {
+    return "turn" + this.actor.getActivityId() + "-" + this.count;
   }
 
   //-----------visualization------------
@@ -212,26 +218,28 @@ class TurnNode {
   //   every message receives own exit point from this turn
   //   shift other turns downwards to prevent overlap
   enlarge() {
-    ctrl.toggleHighlightMethod(getActivityId(this.actor.getActivityId()), this.incoming.getText(), true);
+    this.highlightOn();
+    ctrl.toggleHighlightMethod(getActivityId(this.actor.getActivityId()), this.incoming.getText(), true); //  hight source section
     var growSize = this.outgoing.length * messageSpacing;
     this.visualization.attr("ry", turnRadius + growSize / 2);
     this.visualization.attr("cy", this.y + growSize / 2);
   
-    this.actor.transpose(this.count, growSize);
+    this.actor.transpose(this.count, growSize); //  move all turns below this turn down by growSize
     for (const message of this.outgoing) {
-      message.enlarge();
+      message.enlarge(); // create seperate point of origins for all outgoing messages
     }
   }
 
   // shrink this turn
   //   every message starts from the center of the node
   shrink() {
+    this.highlightOff();
     ctrl.toggleHighlightMethod(getActivityId(this.actor.getActivityId()), this.incoming.getText(), false);
     this.visualization.attr("ry", turnRadius);
     this.visualization.attr("cy", this.y);
-    this.actor.transpose(this.count, 0);
+    this.actor.transpose(this.count, 0); // move all turns below this turn back to original location
     for (const message of this.outgoing) {
-      message.shrink();
+      message.shrink(); // remove seperate point of origins for all outgoing messages
     }
   }
 
@@ -244,17 +252,18 @@ class TurnNode {
     }
   }
 
-  draw() {
-    var turn = this;
-    var text = this.getContainer().append("text")
-      .attr("x", this.x)
-      .attr("y", this.y)
-      .attr("font-size","20px")
-      .attr("text-anchor", "middle")
-      .style("opacity", 0)
-      .text(this.incoming.getText());   
+  // only one node can be highlighted at a time. 
+  // If the user highlights another node, remove the popover of the previously highlted node
+  hidePopup(){
+    this.popover.popover('hide');
+  }
 
-    return this.getContainer().append("ellipse")
+  draw() {
+    const turn = this;
+    
+    //draw the svg circle
+    const circle = this.getContainer().append("ellipse")
+      .attr("id", this.getId())
       .attr("cx", this.x)
       .attr("cy", this.y)
       .attr("rx", turnRadius)
@@ -265,13 +274,40 @@ class TurnNode {
       .style("stroke", this.actor.getColor())
       .on("click", function(){
         ProtocolOverview.changeHighlight(turn);
-      })
-      .on("mouseover", function(){
-        text.style("opacity", 1);
-      })
-      .on("mouseout", function(){
-        text.style("opacity", 0);
       });
+
+    /*add popover, a on hover/click menu with the name of the message causing the turn and two buttons
+        one to do minimal restore
+        one to do full restore
+    */
+    circle.attr({
+      "data-toggle"   : "popover",
+      "data-trigger"  : "click",
+      "title"         : this.incoming.getText(),
+      "animation"     : "false",
+      "data-html"     : "true",
+      "data-animation": "false",
+      "data-placement": "top" })
+
+    circle.attr("data-content", function () {
+        let content = nodeFromTemplate("protocol-timetravel-menu");
+        return $(content).html();
+    });
+
+    //popover is a css element and has a different dom then svg, popover requires jQuery select to pass typechecking
+    this.popover = $("#"+ this.getId());
+    this.popover.popover();
+
+    $(document).on("click", ".timetravel-minimal", function (e) {
+      e.stopImmediatePropagation();
+      timeTravelling.minimalReplay(this.actorHeading.activity, this.incoming.data);
+    });
+
+    $(document).on("click", ".timetravel-full", function (e) {
+      e.stopImmediatePropagation();
+      timeTravelling.fullReplay(this.actorHeading.activity, this.incoming.data);
+    });        
+    return circle;
   }
 }
 
@@ -292,12 +328,11 @@ class EmptyMessage {
 // when undoing a shift the original shift is unknown, so we shift back to the old position
 // message can be shifted at both sender and receiver 
 class Message extends EmptyMessage {
-  static messageCount:  number = 0;
-  id:            number;
   text:          string;
   sender:        TurnNode;
   target:        TurnNode;
   messageToSelf: boolean; // is both the sender and receiver the same object
+  data:          messageEvent;
   
   order:         number;  // indicates order of message sends inside tur
   senderShift:   number;  
@@ -307,12 +342,12 @@ class Message extends EmptyMessage {
   anchor:        d3.Selection<SVGElement>;
 
   
-  constructor(senderActor: ActorHeading, targetActor: ActorHeading, text: string) {
+  constructor(senderActor: ActorHeading, targetActor: ActorHeading, text: string, data: messageEvent) {
     super();
-    this.id = Message.messageCount++;
     this.text = text;
     this.sender = senderActor.getLastTurn();
     this.target = new TurnNode(targetActor, this);
+    this.data = data;
     
     this.messageToSelf = senderActor === targetActor;    
     this.order = this.sender.addMessage(this);
@@ -341,7 +376,7 @@ class Message extends EmptyMessage {
   // remove the visualization and create a new one
   // if the anchor where not defined yet the remove doesn't do anything
   private redraw(){
-    d3.select("#arrowMarker"+this.id).remove(); //todo is this necessairy?
+    d3.select("#arrowMarker"+this.data.id).remove(); //todo is this necessairy?
     this.visualization.remove();
     this.draw();
   }
@@ -398,7 +433,7 @@ class Message extends EmptyMessage {
      [markerSize, markerSize/2],
      [0, markerSize]];
   defs.append("marker")
-    .attr("id", "arrowMarker"+this.id)
+    .attr("id", "arrowMarker"+this.data.id)
     .attr("refX", markerSize+turnRadius) // shift allong path (place arrow on path outside turn)
     .attr("refY", markerSize/2) // shift ortogonal of path (place arrow on middle of path)
     .attr("markerWidth", markerSize)
@@ -435,7 +470,7 @@ class Message extends EmptyMessage {
     this.visualization =
       this.sender.getContainer().append("path")
         .attr("d", lineGenerator(lineData))
-        .attr("marker-end", "url(#arrowMarker"+this.id+")")
+        .attr("marker-end", "url(#arrowMarker"+this.data.id+")")
         .style("fill", "none")
         .style("stroke", this.getColor())
         .style("visibility", this.visibility);
@@ -449,7 +484,7 @@ class Message extends EmptyMessage {
         .attr("y1", this.sender.y + this.senderShift)
         .attr("x2", this.target.x)
         .attr("y2", this.target.y + this.targetShift)
-        .attr("marker-end", "url(#arrowMarker"+this.id+")")
+        .attr("marker-end", "url(#arrowMarker"+this.data.id+")")
         .style("stroke", this.sender.getColor())
         .style("visibility", this.visibility);
   }
@@ -478,7 +513,7 @@ export class ProtocolOverview {
       console.assert(senderActor != undefined);
       console.assert(targetActor != undefined);
       var message = this.data.getName(newMessage.symbol);
-      new Message(senderActor, targetActor, message);
+      new Message(senderActor, targetActor, message, newMessage);
     }
   }
 
@@ -501,15 +536,15 @@ export class ProtocolOverview {
   // ensure only one node chain can be highlighted at the same time
   static changeHighlight(turn: TurnNode) {
     if(ProtocolOverview.highlighted){
-      ProtocolOverview.highlighted.highlightOff();
       ProtocolOverview.highlighted.shrink();
-    }
-    if(turn === ProtocolOverview.highlighted){
-      ProtocolOverview.highlighted = null;
-    } else {
-      turn.highlightOn();
-      turn.enlarge();
-      ProtocolOverview.highlighted = turn;
-    }
+      if(turn === ProtocolOverview.highlighted){
+        ProtocolOverview.highlighted = null;
+        return;
+      } else {
+        ProtocolOverview.highlighted.hidePopup();
+      }
+    } 
+    turn.enlarge();
+    ProtocolOverview.highlighted = turn;
   }
 }
