@@ -214,7 +214,7 @@ export class SystemView {
     forceLayout.start();
 
     // execute enough steps that the graph looks static
-    for (let i = 0; i < 10 ; i++) {
+    for (let i = 0; i < 0 ; i++) {
       forceLayout.tick();
     }
     forceLayout.stop();

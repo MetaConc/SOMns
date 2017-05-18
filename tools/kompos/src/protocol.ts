@@ -260,6 +260,11 @@ class TurnNode {
 
   draw() {
     const turn = this;
+    var sander;
+    if(this.incoming.data){
+      sander = this.incoming.data.id;
+    }
+    dbgLog("why: " + sander);
     
     //draw the svg circle
     const circle = this.getContainer().append("ellipse")
@@ -300,18 +305,24 @@ class TurnNode {
 
     $(document).on("click", ".timetravel-minimal", function (e) {
       e.stopImmediatePropagation();
-      timeTravelling.minimalReplay(this.actorHeading.activity, this.incoming.data);
+      dbgLog("test: " + turn.incoming.getText() + " " + sander);
+      timeTravelling.minimalReplay(turn.actor.activity, turn.incoming.data);
     });
-
+    if(turn.incoming.data){
+      dbgLog(turn.incoming.getText());
+      dbgLog("logging data outside " + turn.incoming.data.id);
+    }
+    
     $(document).on("click", ".timetravel-full", function (e) {
       e.stopImmediatePropagation();
-      timeTravelling.fullReplay(this.actorHeading.activity, this.incoming.data);
+      timeTravelling.fullReplay(turn.actor.activity, turn.incoming.data);
     });        
     return circle;
   }
 }
 
 class EmptyMessage {
+  data:             messageEvent;
   constructor (){};
   highlightOn(){};
   highlightOff(){};
@@ -332,7 +343,6 @@ class Message extends EmptyMessage {
   sender:        TurnNode;
   target:        TurnNode;
   messageToSelf: boolean; // is both the sender and receiver the same object
-  data:          messageEvent;
   
   order:         number;  // indicates order of message sends inside tur
   senderShift:   number;  
@@ -345,9 +355,9 @@ class Message extends EmptyMessage {
   constructor(senderActor: ActorHeading, targetActor: ActorHeading, text: string, data: messageEvent) {
     super();
     this.text = text;
+    this.data = data;
     this.sender = senderActor.getLastTurn();
     this.target = new TurnNode(targetActor, this);
-    this.data = data;
     
     this.messageToSelf = senderActor === targetActor;    
     this.order = this.sender.addMessage(this);
@@ -376,7 +386,6 @@ class Message extends EmptyMessage {
   // remove the visualization and create a new one
   // if the anchor where not defined yet the remove doesn't do anything
   private redraw(){
-    d3.select("#arrowMarker"+this.data.id).remove(); //todo is this necessairy?
     this.visualization.remove();
     this.draw();
   }
@@ -433,7 +442,6 @@ class Message extends EmptyMessage {
      [markerSize, markerSize/2],
      [0, markerSize]];
   defs.append("marker")
-    .attr("id", "arrowMarker"+this.data.id)
     .attr("refX", markerSize+turnRadius) // shift allong path (place arrow on path outside turn)
     .attr("refY", markerSize/2) // shift ortogonal of path (place arrow on middle of path)
     .attr("markerWidth", markerSize)
@@ -470,7 +478,6 @@ class Message extends EmptyMessage {
     this.visualization =
       this.sender.getContainer().append("path")
         .attr("d", lineGenerator(lineData))
-        .attr("marker-end", "url(#arrowMarker"+this.data.id+")")
         .style("fill", "none")
         .style("stroke", this.getColor())
         .style("visibility", this.visibility);
@@ -484,7 +491,6 @@ class Message extends EmptyMessage {
         .attr("y1", this.sender.y + this.senderShift)
         .attr("x2", this.target.x)
         .attr("y2", this.target.y + this.targetShift)
-        .attr("marker-end", "url(#arrowMarker"+this.data.id+")")
         .style("stroke", this.sender.getColor())
         .style("visibility", this.visibility);
   }

@@ -10,11 +10,15 @@ export class timeTravelling {
 		dbgLog("sessionId: " + sessionId);
 	}
 
-	static minimalReplay(_activity: Activity, _message: messageEvent){
-		dbgLog("minimalReplay");
+	static minimalReplay(activity: Activity, message: messageEvent){
+		const actId = activity.id;
+		const mesId = message.id;
+		
+		ctrl.tctrl.timeTravel(actId, mesId, timeTravelling.sessionId, false);
+		
 	}
 
-	static fullReplay(_activity: Activity, _message: messageEvent){
-		dbgLog("fullReplay");
+	static fullReplay(activity: Activity, message: messageEvent){
+		ctrl.timeTravel(activity.id, message.id, timeTravelling.sessionId, true);
 	}
 }

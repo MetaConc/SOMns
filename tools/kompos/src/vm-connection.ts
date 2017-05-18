@@ -177,6 +177,16 @@ export class VmConnection {
     });
   }
 
+  public sendTimeTravel(actorId: number, messageId: number, sessionId: number, full: boolean) {
+    this.send({
+      action: "timeTravel",
+      session: sessionId,
+      actor: actorId,
+      message: messageId,
+      full: full
+    });
+  }
+
   private send(respond: Respond) {
     this.socket.send(JSON.stringify(respond));
   }

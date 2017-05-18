@@ -265,4 +265,8 @@ export class UiController extends Controller {
     this.vmConnection.sendDebuggerAction(step, act);
     this.view.onContinueExecution(act);
   }
+
+  public timeTravel(actorId: number, messageId: number, sessionId: number, full: boolean){
+    this.vmConnection.sendTimeTravel(actorId, messageId, sessionId, full);
+  }
 }
