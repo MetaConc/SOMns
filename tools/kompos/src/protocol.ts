@@ -259,12 +259,7 @@ class TurnNode {
   }
 
   draw() {
-    const turn = this;
-    var sander;
-    if(this.incoming.data){
-      sander = this.incoming.data.id;
-    }
-    dbgLog("why: " + sander);
+    var turn = this;  
     
     //draw the svg circle
     const circle = this.getContainer().append("ellipse")
@@ -296,6 +291,9 @@ class TurnNode {
 
     circle.attr("data-content", function () {
         let content = nodeFromTemplate("protocol-timetravel-menu");
+        $(content).find("button")
+            .attr("data-actor-id", turn.actor.getActivityId())
+            .attr("data-message-id", turn.incoming.data.id);
         return $(content).html();
     });
 
@@ -305,17 +303,18 @@ class TurnNode {
 
     $(document).on("click", ".timetravel-minimal", function (e) {
       e.stopImmediatePropagation();
-      dbgLog("test: " + turn.incoming.getText() + " " + sander);
-      timeTravelling.minimalReplay(turn.actor.activity, turn.incoming.data);
+      timeTravelling.timeTravel(
+        e.currentTarget.attributes["data-actor-id"].value, 
+        e.currentTarget.attributes["data-message-id"].value,
+        false);
     });
-    if(turn.incoming.data){
-      dbgLog(turn.incoming.getText());
-      dbgLog("logging data outside " + turn.incoming.data.id);
-    }
     
     $(document).on("click", ".timetravel-full", function (e) {
       e.stopImmediatePropagation();
-      timeTravelling.fullReplay(turn.actor.activity, turn.incoming.data);
+      timeTravelling.timeTravel(
+        e.currentTarget.attributes["data-actor-id"].value, 
+        e.currentTarget.attributes["data-message-id"].value,
+        true);
     });        
     return circle;
   }
@@ -323,13 +322,20 @@ class TurnNode {
 
 class EmptyMessage {
   data:             messageEvent;
-  constructor (){};
   highlightOn(){};
   highlightOff(){};
   changeVisibility(_visible: boolean){};
   getText(){return "42"};
   shiftAtSender(_yShift: number){};
   shiftAtTarget(_yShift: number){};
+
+  constructor (){
+    this.data = {id: -1, 
+                 sender: -1, 
+                 receiver:  0, 
+                 symbol:    -1, 
+                 parameters: []};
+  }
 }
 
 // message represent a message send between two actors
@@ -507,6 +513,7 @@ export class ProtocolOverview {
     for(const act of newActivities){
       if(act.type === "Actor"){
         var actor = new ActorHeading(act);
+        dbgLog("new activity: " + act.id + " " + act.name);
         this.actors[act.id] = actor;
       }
     }

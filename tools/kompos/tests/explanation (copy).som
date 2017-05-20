@@ -27,7 +27,11 @@ class Explanation usingPlatform: platform = Value (
   public main: args = (
     |ping1 ping2 promise|
     ping1 := (actors createActorFromValue: Ping) <-: new.
+    ping2 := (actors createActorFromValue: Ping) <-: new.
     ping1 <-: store: 1.
-    ^ 0
+    ping1 <-: load.
+    ping2 <-: store: 2.
+    promise := ping1 <-: read.
+    ^ promise whenResolved: [ :val | val println. 0].
   )
 )
