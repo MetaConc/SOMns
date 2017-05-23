@@ -48,6 +48,7 @@ import tools.debugger.session.BreakpointInfo;
 import tools.debugger.session.Breakpoints;
 import tools.debugger.session.LineBreakpoint;
 import tools.debugger.session.SectionBreakpoint;
+import tools.timeTravelling.TimeTravelMessage;
 
 
 /**
@@ -197,6 +198,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     inMsgAF.register(VariablesRequest.class);
     inMsgAF.register(ProgramInfoRequest.class);
     inMsgAF.register(TraceDataRequest.class);
+	inMsgAF.register("timeTravel", TimeTravelMessage.class);
 
 
     ClassHierarchyAdapterFactory<BreakpointInfo> breakpointAF = new ClassHierarchyAdapterFactory<>(BreakpointInfo.class, "type");

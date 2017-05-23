@@ -49,7 +49,7 @@ import tools.debugger.entities.DynamicScopeType;
  *    - and sequentially executes all messages
  */
 public class Actor implements Activity {
-  private boolean inDatabase = false;
+  public boolean inDatabase;
 
   public void addedToDatabase() {
     inDatabase = true;

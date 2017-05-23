@@ -12,7 +12,7 @@ import som.vmobjects.SObject.SMutableObject;
 
 public  class ObjectWriter {
 
-  public static synchronized void writeMessage(final Long messageId, final EventualMessage msg, final Object t) {
+  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) {
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
@@ -24,9 +24,8 @@ public  class ObjectWriter {
 
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-        if (!targetActor.inDatabase()) {
+        if (!targetActor.inDatabase) {
           database.createActor(transaction, targetActor);
-          targetActor.addedToDatabase();
         }
 
         database.createCheckpoint(transaction, messageId, msg, targetActor.getId(), target);
@@ -44,9 +43,8 @@ public  class ObjectWriter {
 
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-        if (!targetActor.inDatabase()) {
+        if (!targetActor.inDatabase) { // can one create an actor of a class instance instead of a class
           database.createActor(transaction, targetActor);
-          targetActor.addedToDatabase();
         }
 
         database.createConstructor(transaction, messageId, msg, targetActor.getId(), target);

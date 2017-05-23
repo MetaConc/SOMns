@@ -41,11 +41,15 @@ import som.interpreter.objectstorage.ObjectLayout;
 import som.interpreter.objectstorage.StorageLocation;
 import som.interpreter.objectstorage.StorageLocation.AbstractObjectStorageLocation;
 import som.vm.constants.Nil;
+import tools.timeTravelling.Database.databaseState;
 
 public abstract class SObject extends SObjectWithClass {
 
   public static final int NUM_PRIMITIVE_FIELDS = 5;
   public static final int NUM_OBJECT_FIELDS    = 5;
+
+  public databaseState dbState = databaseState.not_stored;
+  private long dbRef;
 
   // TODO: when we got the possibility that we can hint to the compiler that a
   //       read is from a final field, we should remove this
@@ -109,7 +113,7 @@ public abstract class SObject extends SObjectWithClass {
     }
   }
 
-  public static final class SMutableObject extends SObject {
+  public static class SMutableObject extends SObject {
     private long   primField1;
     private long   primField2;
     private long   primField3;
@@ -497,6 +501,7 @@ public abstract class SObject extends SObjectWithClass {
 
   public final void writeSlot(final SlotDefinition slot, final Object value) {
     CompilerAsserts.neverPartOfCompilation("setField");
+    this.dbState = databaseState.outdated;
     StorageLocation location = getLocation(slot);
     location.write(this, value);
   }
@@ -504,7 +509,7 @@ public abstract class SObject extends SObjectWithClass {
   private void setFieldAfterLayoutChange(final SlotDefinition slot,
       final Object value) {
     CompilerAsserts.neverPartOfCompilation("SObject.setFieldAfterLayoutChange(..)");
-
+    this.dbState = databaseState.outdated;
     StorageLocation location = getLocation(slot);
     location.write(this, value);
   }
@@ -562,5 +567,14 @@ public abstract class SObject extends SObjectWithClass {
     final Field firstField  = SMutableObject.class.getDeclaredField(field1);
     final Field secondField = SMutableObject.class.getDeclaredField(field2);
     return StorageLocation.getFieldOffset(secondField) - StorageLocation.getFieldOffset(firstField);
+  }
+
+  public long getRef() {
+    return this.dbRef;
+  }
+
+  public void setRef(final long ref) {
+    this.dbState = databaseState.valid;
+    this.dbRef = ref;
   }
 }
