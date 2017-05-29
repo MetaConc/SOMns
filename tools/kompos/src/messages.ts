@@ -238,9 +238,9 @@ export interface TraceDataRequest {
 
 export interface TimeTravel {
   action: "timeTravel",
-  session: number,
-  actor: number,
-  message: number,
+  sessionId: number,
+  actorId: number,
+  messageId: number,
   full: boolean
 }
 

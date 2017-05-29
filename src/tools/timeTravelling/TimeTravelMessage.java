@@ -13,6 +13,8 @@ public class TimeTravelMessage extends IncommingMessage {
   private boolean full;
 
   public TimeTravelMessage(final long session, final long actorId, final long messageId, final boolean full){
+    System.out.println("message session: " + sessionId + " actorId: " + actorId + " messageId: " + messageId);
+
     this.sessionId = session;
     this.actorId = actorId;
     this.messageId = messageId;
@@ -37,6 +39,10 @@ public class TimeTravelMessage extends IncommingMessage {
 
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
-    System.out.println("received timetravel request");
+
+    long res = ObjectReader.readMessage(sessionId, actorId, messageId);
+    System.out.println("received timetravel request for: " + res);
+
+
   }
 }

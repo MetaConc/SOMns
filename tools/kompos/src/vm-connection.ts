@@ -180,9 +180,9 @@ export class VmConnection {
   public sendTimeTravel(actorId: number, messageId: number, sessionId: number, full: boolean) {
     this.send({
       action: "timeTravel",
-      session: sessionId,
-      actor: actorId,
-      message: messageId,
+      sessionId: sessionId,
+      actorId: actorId,
+      messageId: messageId,
       full: full
     });
   }

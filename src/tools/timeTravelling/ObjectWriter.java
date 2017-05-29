@@ -2,9 +2,12 @@ package tools.timeTravelling;
 
 import static tools.timeTravelling.Database.getDatabaseInstance;
 
+import java.io.IOException;
+
 import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.Transaction;
 
+import som.VM;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.vmobjects.SClass;
@@ -12,7 +15,7 @@ import som.vmobjects.SObject.SMutableObject;
 
 public  class ObjectWriter {
 
-  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) {
+  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) throws IOException {
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
@@ -29,7 +32,6 @@ public  class ObjectWriter {
         }
 
         database.createCheckpoint(transaction, messageId, msg, targetActor.getId(), target);
-
         database.commitTransaction(transaction);
         database.endSession(session);
 
@@ -53,10 +55,10 @@ public  class ObjectWriter {
         database.endSession(session);
 
       } else {
-        System.out.println("ignored: " + t.getClass() + " " + t.toString());
+        VM.println("ignored: " + t.getClass() + " " + t.toString());
       }
-    } catch (Exception e) {
-      e.printStackTrace();
+    } finally {
+
     }
   }
 }
