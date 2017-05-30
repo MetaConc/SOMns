@@ -34,6 +34,7 @@ import som.interpreter.actors.Actor.ActorProcessingThreadFactory;
 import som.interpreter.actors.SFarReference;
 import som.interpreter.actors.SPromise;
 import som.interpreter.actors.SPromise.SResolver;
+import som.interpreter.objectstorage.ClassFactory;
 import som.primitives.processes.ChannelPrimitives;
 import som.primitives.processes.ChannelPrimitives.ProcessThreadFactory;
 import som.primitives.threading.TaskThreads.ForkJoinThreadFactory;
@@ -51,6 +52,7 @@ import tools.debugger.WebDebugger;
 import tools.debugger.session.Breakpoints;
 import tools.dym.DynamicMetrics;
 import tools.language.StructuralProbe;
+import tools.timeTravelling.TimeTravellingDebugger;
 
 
 public final class VM {
@@ -59,6 +61,7 @@ public final class VM {
 
   @CompilationFinal private StructuralProbe structuralProbe;
   @CompilationFinal private WebDebugger webDebugger;
+  @CompilationFinal private static TimeTravellingDebugger timetravellingDebugger;
   @CompilationFinal private Profiler truffleProfiler;
 
   private final ForkJoinPool actorPool;
@@ -407,6 +410,9 @@ public final class VM {
       Instrument webDebuggerInst = instruments.get(WebDebugger.ID);
       webDebuggerInst.setEnabled(true);
 
+      if (VmSettings.TIME_TRAVELLING) {
+        timetravellingDebugger = new TimeTravellingDebugger();
+      }
       webDebugger = webDebuggerInst.lookup(WebDebugger.class);
       webDebugger.startServer(debugger, this);
     }
@@ -463,5 +469,15 @@ public final class VM {
     ChannelPrimitives.resetClassReferences();
 
     KernelObj.indexOutOfBoundsClass = null;
+  }
+
+  public static TimeTravellingDebugger getTimeTravellingDebugger(){
+    return timetravellingDebugger;
+  }
+
+  public static void reportClassFactory(final ClassFactory classFactory) {
+    if(timetravellingDebugger != null) {
+      timetravellingDebugger.reportClassFactory(classFactory);
+    }
   }
 }

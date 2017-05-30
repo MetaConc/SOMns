@@ -82,6 +82,8 @@ public final class ClassFactory {
     this.instanceLayout = (instanceSlots == null) ? null : new ObjectLayout(instanceSlots, this, isTransferObject);
 
     this.classClassFactory = classClassFactory;
+
+    VM.reportClassFactory(this);
   }
 
   public boolean isDeclaredAsValue() {

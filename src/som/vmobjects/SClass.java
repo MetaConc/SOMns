@@ -48,20 +48,27 @@ import som.vm.constants.Classes;
 //       ClassFactory?
 public final class SClass extends SObjectWithClass {
 
-  @CompilationFinal private SClass superclass;
-  @CompilationFinal private SSymbol name;
+  @CompilationFinal private transient SClass superclass;
+  @CompilationFinal private transient SSymbol name;
 
-  @CompilationFinal private HashMap<SSymbol, Dispatchable> dispatchables;
-  @CompilationFinal private HashSet<SlotDefinition> slots; // includes slots of super classes and mixins
+  @CompilationFinal private transient HashMap<SSymbol, Dispatchable> dispatchables;
+  @CompilationFinal private transient HashSet<SlotDefinition> slots; // includes slots of super classes and mixins
 
-  @CompilationFinal private MixinDefinition mixinDef;
-  @CompilationFinal private boolean declaredAsValue;
-  @CompilationFinal private boolean isTransferObject; // is a kind of TransferObject (subclass or TObj directly)
-  @CompilationFinal private boolean isArray; // is a subclass of Array
+  @CompilationFinal private transient MixinDefinition mixinDef;
+  @CompilationFinal private transient boolean declaredAsValue;
+  @CompilationFinal private transient boolean isTransferObject; // is a kind of TransferObject (subclass or TObj directly)
+  @CompilationFinal private transient boolean isArray; // is a subclass of Array
 
   @CompilationFinal private ClassFactory instanceClassGroup; // the factory for this object
 
   protected final SObjectWithClass enclosingObject;
+  private Long databaseRef;
+
+  /*
+   * enclosingObject
+   * superclass -> ref to superClass object
+   * classFactory -> ref to classFactory
+   */
 
   public SClass(final SObjectWithClass enclosing) {
     this.enclosingObject = enclosing;
@@ -261,5 +268,27 @@ public final class SClass extends SObjectWithClass {
   @Override
   public String toString() {
     return "Class(" + getName().getString() + ")";
+  }
+
+  //TODO remove
+  private String printEclosingObjectIter() {
+    if (this == Classes.nilClass){
+      return "nil";
+    } else {
+      return name.getString() + " " + enclosingObject.getSOMClass().printEclosingObjectIter();
+    }
+  }
+
+//TODO remove
+  public void printEnclosingObject() {
+    System.out.println(printEclosingObjectIter());
+  }
+
+  public void setDatabaseRef(final long ref) {
+    this.databaseRef = ref;
+  }
+
+  public Long getDatabaseRef() {
+    return this.databaseRef;
   }
 }

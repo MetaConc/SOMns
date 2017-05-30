@@ -24,7 +24,20 @@ public  class ObjectWriter {
         Database database = getDatabaseInstance();
         Session session = database.startSession();
         Transaction transaction = database.startTransaction(session);
+        /*
+        SClass targetClass = target.getSOMClass();
 
+        targetClass.printEnclosingObject();
+
+        SObjectWithClass enclosingObject = targetClass.getEnclosingObject();
+        String classFactoryName = targetClass.getName().getString();
+
+        SClass recreatedClass = new SClass(enclosingObject);
+        ClassFactory factory = VM.getTimeTravellingDebugger().getFactory(classFactoryName);
+        factory.initializeClass(recreatedClass);
+
+        System.out.println(recreatedClass.canUnderstand(msg.getSelector()));
+         */
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
         if (!targetActor.inDatabase) {

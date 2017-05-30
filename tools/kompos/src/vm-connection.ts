@@ -177,10 +177,9 @@ export class VmConnection {
     });
   }
 
-  public sendTimeTravel(actorId: number, messageId: number, sessionId: number, full: boolean) {
+  public sendTimeTravel(actorId: number, messageId: number, full: boolean) {
     this.send({
       action: "timeTravel",
-      sessionId: sessionId,
       actorId: actorId,
       messageId: messageId,
       full: full
