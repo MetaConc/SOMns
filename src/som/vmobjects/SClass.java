@@ -270,20 +270,6 @@ public final class SClass extends SObjectWithClass {
     return "Class(" + getName().getString() + ")";
   }
 
-  //TODO remove
-  private String printEclosingObjectIter() {
-    if (this == Classes.nilClass){
-      return "nil";
-    } else {
-      return name.getString() + " " + enclosingObject.getSOMClass().printEclosingObjectIter();
-    }
-  }
-
-//TODO remove
-  public void printEnclosingObject() {
-    System.out.println(printEclosingObjectIter());
-  }
-
   public void setDatabaseRef(final long ref) {
     this.databaseRef = ref;
   }

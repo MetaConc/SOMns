@@ -102,4 +102,17 @@ public abstract class NewObjectPrim extends UnaryExpressionNode implements ISpec
       return doClassWithoutFields(receiver, receiver.getInstanceFactory());
     }
   }
+
+  public static SAbstractObject createEmptySObject(final SClass sclass) {
+    ClassFactory factory = sclass.getInstanceFactory();
+    if (factory.hasSlots()) {
+      if (factory.hasOnlyImmutableFields()) {
+        return new SImmutableObject(sclass, factory, sclass.getInstanceFactory().getInstanceLayout());
+      } else {
+        return new SMutableObject(sclass, sclass.getInstanceFactory(), sclass.getInstanceFactory().getInstanceLayout());
+      }
+    } else {
+      return new SObjectWithoutFields(sclass, sclass.getInstanceFactory());
+    }
+  }
 }

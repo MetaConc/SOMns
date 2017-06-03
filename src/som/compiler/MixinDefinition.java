@@ -467,9 +467,9 @@ public final class MixinDefinition {
   //       perhaps move some of the responsibilities to SlotAccessNode???
   public static class SlotDefinition implements Dispatchable {
     private final SSymbol name;
-    protected final AccessModifier modifier;
-    private final boolean immutable;
-    protected final SourceSection source;
+    protected transient final AccessModifier modifier;
+    private transient final boolean immutable;
+    protected transient final  SourceSection source;
 
     @CompilationFinal
     protected CallTarget genericAccessTarget;

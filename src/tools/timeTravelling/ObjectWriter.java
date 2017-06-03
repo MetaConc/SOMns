@@ -11,6 +11,7 @@ import som.VM;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.vmobjects.SClass;
+import som.vmobjects.SObject;
 import som.vmobjects.SObject.SMutableObject;
 
 public  class ObjectWriter {
@@ -19,25 +20,12 @@ public  class ObjectWriter {
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
-        SMutableObject target = (SMutableObject) t;
+        SObject target = (SObject) t;
 
         Database database = getDatabaseInstance();
         Session session = database.startSession();
         Transaction transaction = database.startTransaction(session);
-        /*
-        SClass targetClass = target.getSOMClass();
 
-        targetClass.printEnclosingObject();
-
-        SObjectWithClass enclosingObject = targetClass.getEnclosingObject();
-        String classFactoryName = targetClass.getName().getString();
-
-        SClass recreatedClass = new SClass(enclosingObject);
-        ClassFactory factory = VM.getTimeTravellingDebugger().getFactory(classFactoryName);
-        factory.initializeClass(recreatedClass);
-
-        System.out.println(recreatedClass.canUnderstand(msg.getSelector()));
-         */
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
         if (!targetActor.inDatabase) {

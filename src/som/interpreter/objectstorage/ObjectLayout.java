@@ -202,4 +202,10 @@ public final class ObjectLayout {
   public HashMap<SlotDefinition, Class<?>> getStorageTypes() {
     return storageTypes;
   }
+
+  public void printSlots(){
+    for (SlotDefinition slotDef : storageLocations.keySet()) {
+      System.out.println(slotDef.getName().getString());
+    }
+  }
 }
