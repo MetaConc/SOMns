@@ -5,7 +5,6 @@ import static tools.timeTravelling.Database.getDatabaseInstance;
 import java.io.IOException;
 
 import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.Transaction;
 
 import som.VM;
 import som.interpreter.actors.Actor;
@@ -17,7 +16,6 @@ import som.vmobjects.SObject.SMutableObject;
 public  class ObjectWriter {
 
   public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) throws IOException {
-    //System.out.println("starting write");
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
@@ -25,16 +23,14 @@ public  class ObjectWriter {
 
         Database database = getDatabaseInstance();
         Session session = database.startSession();
-        Transaction transaction = database.startTransaction(session);
 
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-        if (!targetActor.inDatabase) {
-          database.createActor(transaction, targetActor);
+        if (!targetActor.inDatabase) { // not a race condition as actors only process one message at a time
+          database.createActor(session, targetActor);
         }
 
-        database.createCheckpoint(transaction, messageId, msg, targetActor.getId(), target);
-        database.commitTransaction(transaction);
+        database.createCheckpoint(session, messageId, msg, targetActor.getId(), target);
         database.endSession(session);
 
       } else if (t instanceof SClass) {
@@ -43,17 +39,15 @@ public  class ObjectWriter {
 
         Database database = getDatabaseInstance();
         Session session = database.startSession();
-        Transaction transaction = database.startTransaction(session);
 
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-        if (!targetActor.inDatabase) { // can one create an actor of a class instance instead of a class
-          database.createActor(transaction, targetActor);
+        if (!targetActor.inDatabase) { // can one create an actor of a SObject instance instead of of a class
+          database.createActor(session, targetActor);
         }
 
-        database.createConstructor(transaction, messageId, msg, targetActor.getId(), target);
+        database.createConstructor(session, messageId, msg, targetActor.getId(), target);
 
-        database.commitTransaction(transaction);
         database.endSession(session);
 
       } else {
@@ -62,6 +56,5 @@ public  class ObjectWriter {
     } finally {
 
     }
-    //System.out.println("finished write");
   }
 }

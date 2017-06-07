@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
@@ -63,6 +65,7 @@ public final class SClass extends SObjectWithClass {
 
   protected final SObjectWithClass enclosingObject;
   private Long databaseRef;
+  private Lock databaseLock; // lock used by time travelling database to ensure no two copies of same SClass are created
 
   /*
    * enclosingObject
@@ -276,5 +279,16 @@ public final class SClass extends SObjectWithClass {
 
   public Long getDatabaseRef() {
     return this.databaseRef;
+  }
+
+  public synchronized void getLock() {
+    if(databaseLock == null){
+      databaseLock = new ReentrantLock();
+    }
+    databaseLock.lock();
+  }
+
+  public void releaseLock() {
+    databaseLock.unlock();
   }
 }
