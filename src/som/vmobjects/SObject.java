@@ -40,12 +40,16 @@ import som.interpreter.objectstorage.ClassFactory;
 import som.interpreter.objectstorage.ObjectLayout;
 import som.interpreter.objectstorage.StorageLocation;
 import som.interpreter.objectstorage.StorageLocation.AbstractObjectStorageLocation;
+import som.vm.VmSettings;
 import som.vm.constants.Nil;
+import tools.timeTravelling.DatabaseInfo;
 
 public abstract class SObject extends SObjectWithClass {
 
   public static final int NUM_PRIMITIVE_FIELDS = 5;
   public static final int NUM_OBJECT_FIELDS    = 5;
+
+  private DatabaseInfo databaseState = new DatabaseInfo();
 
   // TODO: when we got the possibility that we can hint to the compiler that a
   //       read is from a final field, we should remove this
@@ -105,7 +109,7 @@ public abstract class SObject extends SObjectWithClass {
     @Override
     public SObject cloneBasics() {
       assert !isValue : "There should not be any need to clone a value";
-      return new SImmutableObject(this);
+    return new SImmutableObject(this);
     }
   }
 
@@ -496,6 +500,9 @@ public abstract class SObject extends SObjectWithClass {
 
   public final void writeSlot(final SlotDefinition slot, final Object value) {
     CompilerAsserts.neverPartOfCompilation("setField");
+    if(VmSettings.TIME_TRAVELLING) {
+      databaseState.write(value);
+    }
     StorageLocation location = getLocation(slot);
     location.write(this, value);
   }
@@ -503,6 +510,9 @@ public abstract class SObject extends SObjectWithClass {
   private void setFieldAfterLayoutChange(final SlotDefinition slot,
       final Object value) {
     CompilerAsserts.neverPartOfCompilation("SObject.setFieldAfterLayoutChange(..)");
+    if(VmSettings.TIME_TRAVELLING) {
+      databaseState.write(value);
+    }
     StorageLocation location = getLocation(slot);
     location.write(this, value);
   }
@@ -556,9 +566,22 @@ public abstract class SObject extends SObjectWithClass {
   }
 
   private static long getFieldDistance(final String field1, final String field2) throws NoSuchFieldException,
-      IllegalAccessException {
+  IllegalAccessException {
     final Field firstField  = SMutableObject.class.getDeclaredField(field1);
     final Field secondField = SMutableObject.class.getDeclaredField(field2);
     return StorageLocation.getFieldOffset(secondField) - StorageLocation.getFieldOffset(firstField);
+  }
+
+  public long getRef() {
+    return databaseState.getRef();
+  }
+
+  public void updateRef (final long newRef) {
+    databaseState.update(newRef);
+  }
+
+  // do I want to allow outside object to get this state?
+  public DatabaseInfo getDatabaseInfo() {
+    return databaseState;
   }
 }

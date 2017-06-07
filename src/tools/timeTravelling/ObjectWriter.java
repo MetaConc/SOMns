@@ -17,6 +17,7 @@ import som.vmobjects.SObject.SMutableObject;
 public  class ObjectWriter {
 
   public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) throws IOException {
+    //System.out.println("starting write");
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
@@ -61,5 +62,6 @@ public  class ObjectWriter {
     } finally {
 
     }
+    //System.out.println("finished write");
   }
 }

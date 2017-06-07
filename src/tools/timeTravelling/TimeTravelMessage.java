@@ -35,9 +35,6 @@ public class TimeTravelMessage extends IncommingMessage {
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
 
-    long res = ObjectReader.readMessage(actorId, messageId);
-    System.out.println("received timetravel request for: " + res);
-
-
+    ObjectReader.readMessage(actorId, messageId);
   }
 }

@@ -34,6 +34,7 @@ import som.vmobjects.SObject;
 import som.vmobjects.SObject.SImmutableObject;
 import som.vmobjects.SObject.SMutableObject;
 import som.vmobjects.SSymbol;
+import tools.timeTravelling.DatabaseInfo.databaseState;
 
 public final class Database {
   private static Database singleton;
@@ -82,20 +83,9 @@ public final class Database {
     String;
   }
 
-  public enum databaseState {
-    not_stored,
-    valid,
-    outdated;
-  }
-
   private long getIdFromStatementResult(final StatementResult result, final String name){
     return result.single().get("ID(" + name+")").asLong();
   }
-
-  private String matchActor = "MATCH (actor: Actor {actorId: {actorId}})";
-  private String matchSObject = "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}";
-  private String matchSClass = "MATCH (SClass: SClass) where ID(SClass) = {SClassId}";
-
 
   /* --------------------------------------- */
   /* -                 Writing             - */
@@ -109,9 +99,11 @@ public final class Database {
 
   public void createConstructor(final Transaction transaction, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
     // create checkpoint header, root node to which all information of one turn becomes connected.
-    StatementResult result = transaction.run(matchActor + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TURN]-> (actor)"
-        + " return ID(turn)"
-        , parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString()));
+    StatementResult result = transaction.run(
+        "MATCH (actor: Actor {actorId: {actorId}})"
+            + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TURN]-> (actor)"
+            + " return ID(turn)"
+            , parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString()));
 
     Record record = result.single();
     long argumentId = record.get("ID(turn)").asLong();
@@ -123,14 +115,14 @@ public final class Database {
 
   // the arguments of the message are already stored in the log.
   public void createCheckpoint(final Transaction transaction, final Long messageId, final EventualMessage msg, final Long actorId, final SObject target) {
-    final long ref = writeSObject(transaction, target);
+    final DatabaseInfo.databaseState old = writeSObject(transaction, target);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = transaction.run(
-        matchSObject + " " + matchActor
-        + " CREATE (SObject) - [:IN] -> (actor)"
-        + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TARGET] -> (SObject)"
-        + " return ID(turn)"
-        , parameters("actorId", actorId, "SObjectId", ref, "messageId", messageId, "messageName", msg.getSelector().getString()));
+        "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
+            + (old == databaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
+            + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TARGET] -> (SObject)"
+            + " return ID(turn)"
+            , parameters("actorId", actorId, "SObjectId", target.getRef(), "messageId", messageId, "messageName", msg.getSelector().getString()));
 
     // write all arguments to db
     long argumentId = getIdFromStatementResult(result, "turn");
@@ -146,28 +138,48 @@ public final class Database {
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
       findOrCreateSClass(transaction, enclosing);
       StatementResult result = transaction.run(
-          matchSClass
-          + "CREATE (Child: SClass {factoryName: {factoryName}}) - [:ENCLOSED_BY]-> (SClass)"
-          + " return ID(Child)",
-          parameters("SClassId", enclosing.getDatabaseRef(), "factoryName", sClass.getName().getString()));
+          "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
+              + " CREATE (Child: SClass {factoryName: {factoryName}}) - [:ENCLOSED_BY]-> (SClass)"
+              + " return ID(Child)",
+              parameters("SClassId", enclosing.getDatabaseRef(), "factoryName", sClass.getName().getString()));
       final long ref = getIdFromStatementResult(result, "Child");
       sClass.setDatabaseRef(ref);
     }
   }
 
-  private long writeSObject(final Transaction transaction, final SObject object){
-    SClass sClass = object.getSOMClass();
-    findOrCreateSClass(transaction, sClass);
-    StatementResult result = transaction.run(
-        matchSClass
-        + " CREATE (SObject: SObject) - [:HAS_CLASS] -> (SClass)"
-        + " return ID(SObject)",
-        parameters("SClassId", sClass.getDatabaseRef()));
-    Long ref = getIdFromStatementResult(result, "SObject");
-    for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
-      writeSlot(transaction, ref, entry.getKey(), entry.getValue().read(object));
+  private DatabaseInfo.databaseState writeSObject(final Transaction transaction, final SObject object) {
+    DatabaseInfo info = object.getDatabaseInfo();
+    StatementResult result;
+    //System.out.println(info.getState().name());
+    DatabaseInfo.databaseState old = info.getState();
+    switch(old) {
+      case not_stored:
+        SClass sClass = object.getSOMClass();
+        findOrCreateSClass(transaction, sClass);
+        result = transaction.run(
+            "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
+                + " CREATE (SObject: SObject) - [:HAS_CLASS] -> (SClass)"
+                + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
+                + " return ID(SObject)",
+                parameters("SClassId", sClass.getDatabaseRef()));
+        object.updateRef(getIdFromStatementResult(result, "SObject"));
+        writeSlots(transaction, object);
+        break;
+      case valid:
+        // break; // dirtying updated value is broken, for now always create copy if object was stored
+      case outdated:
+        result = transaction.run(
+            "MATCH (old: SObject) where ID(old) = {oldRef}"
+                + " MATCH (old) - [:HAS_ROOT] -> (root:SObject)"
+                + " CREATE (SObject: SObject) - [:UPDATE] -> (old)"
+                + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
+                + " return ID(SObject)"
+                , parameters("oldRef", object.getRef()));
+        object.updateRef(getIdFromStatementResult(result, "SObject"));
+        writeSlots(transaction, object);
+        break;
     }
-    return ref;
+    return old;
   }
 
   private Long writeFarReference(final Transaction transaction,
@@ -185,14 +197,17 @@ public final class Database {
     return null;
   }
 
-  private void writeSlot(final Transaction transaction, final long parentId, final SlotDefinition slotDef, final Object slotValue) {
-    Long ref = writeValue(transaction, slotValue);
-    if(ref != null){
-      transaction.run(
-          "MATCH (parent) where ID(parent)={parentId}"
-              + " MATCH (slot) where ID(slot) = {slotRef}"
-              + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
-              parameters("parentId", parentId, "slotRef", ref, "slotName", slotDef.getName().getString()));
+  private void writeSlots(final Transaction transaction, final SObject object) {
+    final long parentRef = object.getRef();
+    for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
+      Long ref = writeValue(transaction, entry.getValue().read(object));
+      if(ref != null){
+        transaction.run(
+            "MATCH (parent) where ID(parent)={parentId}"
+                + " MATCH (slot) where ID(slot) = {slotRef}"
+                + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
+                parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
+      }
     }
   }
 
@@ -216,7 +231,9 @@ public final class Database {
     } else if (value instanceof SResolver) {
       throw new RuntimeException("not yet implemented");
     } else if (value instanceof SMutableObject || value instanceof SImmutableObject){
-      return writeSObject(transaction, (SObject) value);
+      SObject object = (SObject) value;
+      writeSObject(transaction, object);
+      return object.getRef();
     } else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
       return null;
     } else if (value instanceof Long){
@@ -238,7 +255,7 @@ public final class Database {
   /* --------------------------------------- */
 
   public SSymbol readMessageName(final Session session, final long actorId, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) - [:IN] -> (actor: Actor {actorId: {actorId}}) RETURN turn.messageName"
+    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) - [:HAS_ROOT] -> (root: SObject) - [:IN] -> (actor: Actor {actorId: {actorId}}) RETURN turn.messageName"
         , parameters("actorId", actorId, "messageId", causalMessageId));
 
     return Symbols.symbolFor(result.single().get("turn.messageName").asString());
@@ -281,7 +298,7 @@ public final class Database {
     SAbstractObject sObject = NewObjectPrim.createEmptySObject(sClass);
 
     if(sObject instanceof SObject) { // not a SObjectWithoutFields
-   // fill the slots
+      // fill the slots
       fillSlots(session, objectId, (SObject) sObject);
     }
     return sObject;
@@ -290,8 +307,9 @@ public final class Database {
   private SClass getClassOfSObject(final Session session, final long objectId){
     StatementResult result= session.run(
         "MATCH (SObject: SObject) where ID(SObject)={objectId}"
-            + "MATCH (top: SClass {name: \"nil\"})"
-            + " MATCH path = (SObject) - [:HAS_CLASS] -> (class) - [:ENCLOSED_BY*]->(top)"
+            + " MATCH (root: SObject) <- [:HAS_ROOT]-(SObject)"
+            + " MATCH (top: SClass {name: \"nil\"})"
+            + " MATCH path = (root) - [:HAS_CLASS] -> (class) - [:ENCLOSED_BY*]->(top)"
             + " RETURN NODES(path)"
             , parameters("objectId", objectId));
     Value value = result.single().get("NODES(path)");
