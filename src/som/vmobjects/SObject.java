@@ -40,7 +40,6 @@ import som.interpreter.objectstorage.ClassFactory;
 import som.interpreter.objectstorage.ObjectLayout;
 import som.interpreter.objectstorage.StorageLocation;
 import som.interpreter.objectstorage.StorageLocation.AbstractObjectStorageLocation;
-import som.vm.VmSettings;
 import som.vm.constants.Nil;
 import tools.timeTravelling.DatabaseInfo;
 
@@ -500,9 +499,6 @@ public abstract class SObject extends SObjectWithClass {
 
   public final void writeSlot(final SlotDefinition slot, final Object value) {
     CompilerAsserts.neverPartOfCompilation("setField");
-    if(VmSettings.TIME_TRAVELLING) {
-      databaseState.write(value);
-    }
     StorageLocation location = getLocation(slot);
     location.write(this, value);
   }
@@ -510,9 +506,6 @@ public abstract class SObject extends SObjectWithClass {
   private void setFieldAfterLayoutChange(final SlotDefinition slot,
       final Object value) {
     CompilerAsserts.neverPartOfCompilation("SObject.setFieldAfterLayoutChange(..)");
-    if(VmSettings.TIME_TRAVELLING) {
-      databaseState.write(value);
-    }
     StorageLocation location = getLocation(slot);
     location.write(this, value);
   }
@@ -576,12 +569,16 @@ public abstract class SObject extends SObjectWithClass {
     return databaseState.getRef();
   }
 
-  public void updateRef (final long newRef) {
+  public void updateRef(final long newRef) {
     databaseState.update(newRef);
   }
 
   // do I want to allow outside object to get this state?
   public DatabaseInfo getDatabaseInfo() {
     return databaseState;
+  }
+
+  public void performedWrite() {
+    databaseState.performedWrite();
   }
 }

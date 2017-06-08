@@ -2,8 +2,6 @@ package tools.timeTravelling;
 
 import static tools.timeTravelling.Database.getDatabaseInstance;
 
-import java.io.IOException;
-
 import org.neo4j.driver.v1.Session;
 
 import som.VM;
@@ -15,7 +13,7 @@ import som.vmobjects.SObject.SMutableObject;
 
 public  class ObjectWriter {
 
-  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) throws IOException {
+  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) {
     try {
       if (t instanceof SMutableObject) {
         // TODO ensure the platform is the only possible immutable top level object
@@ -53,7 +51,8 @@ public  class ObjectWriter {
       } else {
         VM.println("ignored: " + t.getClass() + " " + t.toString());
       }
-    } finally {
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
 
     }
   }

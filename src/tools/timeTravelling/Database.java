@@ -143,7 +143,6 @@ public final class Database {
   private DatabaseInfo.databaseState writeSObject(final Session session, final SObject object) {
     DatabaseInfo info = object.getDatabaseInfo();
     StatementResult result;
-    //System.out.println(info.getState().name());
     DatabaseInfo.databaseState old = info.getState();
     switch(old) {
       case not_stored:
@@ -159,7 +158,7 @@ public final class Database {
         writeSlots(session, object);
         break;
       case valid:
-        // break; // dirtying updated value is broken, for now always create copy if object was stored
+          break; // dirtying updated value is broken, for now always create copy if object was stored
       case outdated:
         result = session.run(
             "MATCH (old: SObject) where ID(old) = {oldRef}"
@@ -167,7 +166,7 @@ public final class Database {
                 + " CREATE (SObject: SObject) - [:UPDATE] -> (old)"
                 + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
                 + " return ID(SObject)"
-                , parameters("oldRef", object.getRef()));
+                ,parameters("oldRef", object.getRef()));
         object.updateRef(getIdFromStatementResult(result, "SObject"));
         writeSlots(session, object);
         break;

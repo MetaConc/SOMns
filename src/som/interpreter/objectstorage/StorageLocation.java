@@ -124,6 +124,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       CompilerAsserts.neverPartOfCompilation("StorageLocation");
+      obj.performedWrite();
       ObjectTransitionSafepoint.INSTANCE.writeUninitializedSlot(obj, slot, value);
     }
 
@@ -172,6 +173,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
+      obj.performedWrite();
       unsafe.putObject(obj, fieldOffset, value);
     }
   }
@@ -199,6 +201,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
+      obj.performedWrite();
       Object[] arr = obj.getExtensionObjFields();
       arr[extensionIndex] = value;
     }
@@ -284,6 +287,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
+      obj.performedWrite();
       if (value instanceof Double) {
         writeDoubleSet(obj, (double) value);
         markAsSet(obj);
@@ -335,6 +339,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
+      obj.performedWrite();
       if (value instanceof Long) {
         writeLongSet(obj, (long) value);
         markAsSet(obj);
@@ -404,6 +409,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
+      obj.performedWrite();
       if (value instanceof Long) {
         writeLongSet(obj, (long) value);
         markAsSet(obj);
@@ -458,6 +464,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
+      obj.performedWrite();
       if (value instanceof Double) {
         writeDoubleSet(obj, (double) value);
         markAsSet(obj);

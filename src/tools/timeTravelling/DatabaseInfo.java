@@ -1,6 +1,5 @@
 package tools.timeTravelling;
 
-
 public class DatabaseInfo {
   private databaseState state;
   private Long databaseRef;
@@ -30,8 +29,7 @@ public class DatabaseInfo {
     return state;
   }
 
-  public void write(final Object value) {
-    //System.out.println(state + " " + value);
+  public void performedWrite() {
     if(state == databaseState.valid) {
       state = databaseState.outdated;
     }
