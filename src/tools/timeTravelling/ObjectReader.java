@@ -2,6 +2,9 @@ package tools.timeTravelling;
 
 import static tools.timeTravelling.Database.getDatabaseInstance;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.neo4j.driver.v1.Session;
 
 import som.VM;
@@ -9,6 +12,12 @@ import som.vmobjects.SAbstractObject;
 import som.vmobjects.SSymbol;
 
 public  class ObjectReader {
+/*
+ * map keeps track of revived SObject
+ * This is necessary as we want to preserve the object state
+ * Two objects pointing to the same third object should again point to the same object
+ */
+  private static Map<Object, SAbstractObject> revivedObjects = new HashMap<Object, SAbstractObject>();
 
   public static void readMessage(final long actorId, final long causalMessageId) {
     try {
@@ -27,5 +36,14 @@ public  class ObjectReader {
       VM.errorPrint(e.getMessage());
       e.printStackTrace();
     }
+  }
+
+
+  public static synchronized void reportSAbstractObject(final Object dbRef, final SAbstractObject object) {
+    revivedObjects.put(dbRef, object);
+  }
+
+  public static synchronized SAbstractObject getSAbstractObject(final Object dbRef) {
+    return revivedObjects.get(dbRef);
   }
 }

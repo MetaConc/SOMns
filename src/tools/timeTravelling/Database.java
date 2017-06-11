@@ -278,13 +278,15 @@ public final class Database {
   }
 
   private SAbstractObject readSObject(final Session session, final Object objectId) {
+    SAbstractObject sObject = ObjectReader.getSAbstractObject(objectId);
 
-    // create the SClass object
-    SClass sClass = getClassOfSObject(session, objectId);
+    if(sObject == null) {
+      // create the SClass object
+      SClass sClass = getClassOfSObject(session, objectId);
 
-    // create the SObject
-    SAbstractObject sObject = NewObjectPrim.createEmptySObject(sClass);
-
+      // create the SObject
+      sObject = NewObjectPrim.createEmptySObject(sClass);
+    }
     if (sObject instanceof SObject) { // not a SObjectWithoutFields
       // fill the slots
       fillSlots(session, objectId, (SObject) sObject);
