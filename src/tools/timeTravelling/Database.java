@@ -33,7 +33,7 @@ import som.vmobjects.SObject;
 import som.vmobjects.SObject.SImmutableObject;
 import som.vmobjects.SObject.SMutableObject;
 import som.vmobjects.SSymbol;
-import tools.timeTravelling.DatabaseInfo.databaseState;
+import tools.timeTravelling.DatabaseInfo.DatabaseState;
 
 public final class Database {
   private static Database singleton;
@@ -42,8 +42,8 @@ public final class Database {
   private Database() {
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
-    StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return ID(nil)");
-    Classes.nilClass.setDatabaseRef(getIdFromStatementResult(result, "nil"));
+    StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
+    Classes.nilClass.setDatabaseRef(getIdFromStatementResult(result.single().get("nil")));
     endSession(session);
   }
 
@@ -74,8 +74,8 @@ public final class Database {
     String;
   }
 
-  private long getIdFromStatementResult(final StatementResult result, final String name){
-    return result.single().get("ID(" + name+")").asLong();
+  private Object getIdFromStatementResult(final Value value) {
+    return value.asNode().id();
   }
 
   /* --------------------------------------- */
@@ -85,7 +85,7 @@ public final class Database {
   public void createActor(final Session session, final Actor actor) {
     session.run(" CREATE (actor:Actor {actorId: {actorId}})",
         parameters("actorId", actor.getId()));
-    actor.inDatabase=true;
+    actor.inDatabase = true;
   }
 
   public void createConstructor(final Session session, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
@@ -93,107 +93,107 @@ public final class Database {
     StatementResult result = session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
             + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TURN]-> (actor)"
-            + " return ID(turn)"
-            , parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString()));
+            + " return turn",
+            parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString()));
 
     Record record = result.single();
-    long argumentId = record.get("ID(turn)").asLong();
+    Object argumentId = record.get("turn").asNode().id();
     Object[] args = msg.getArgs();
-    for (int i = 1; i < args.length; i++){
+    for (int i = 1; i < args.length; i++) {
       writeArgument(session, argumentId, i, args[i]);
     }
   }
 
   // the arguments of the message are already stored in the log.
   public void createCheckpoint(final Session session, final Long messageId, final EventualMessage msg, final Long actorId, final SObject target) {
-    final DatabaseInfo.databaseState old = writeSObject(session, target);
+    final DatabaseInfo.DatabaseState old = writeSObject(session, target);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
-            + (old == databaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
+            + (old == DatabaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
             + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TARGET] -> (SObject)"
-            + " return ID(turn)"
-            , parameters("actorId", actorId, "SObjectId", target.getRef(), "messageId", messageId, "messageName", msg.getSelector().getString()));
+            + " return turn",
+            parameters("actorId", actorId, "SObjectId", target.getRef(), "messageId", messageId, "messageName", msg.getSelector().getString()));
 
     // write all arguments to db
-    long argumentId = getIdFromStatementResult(result, "turn");
+    Object argumentId = getIdFromStatementResult(result.single().get("turn"));
     Object[] args = msg.getArgs();
-    for (int i = 1; i < args.length; i++){
+    for (int i = 1; i < args.length; i++) {
       writeArgument(session, argumentId, i, args[i]);
     }
   }
 
-  private void findOrCreateSClass(final Session session, final SClass sClass){
+  private void findOrCreateSClass(final Session session, final SClass sClass) {
     sClass.getLock();
-    if(sClass.getDatabaseRef()==null){
+    if (sClass.getDatabaseRef() == null) {
 
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
       findOrCreateSClass(session, enclosing);
       StatementResult result = session.run(
           "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
               + " CREATE (Child: SClass {factoryName: {factoryName}}) - [:ENCLOSED_BY]-> (SClass)"
-              + " return ID(Child)",
+              + " return Child",
               parameters("SClassId", enclosing.getDatabaseRef(), "factoryName", sClass.getName().getString()));
-      final long ref = getIdFromStatementResult(result, "Child");
+      final Object ref = getIdFromStatementResult(result.single().get("Child"));
       sClass.setDatabaseRef(ref);
     }
     sClass.releaseLock();
   }
 
-  private DatabaseInfo.databaseState writeSObject(final Session session, final SObject object) {
+  private DatabaseInfo.DatabaseState writeSObject(final Session session, final SObject object) {
     DatabaseInfo info = object.getDatabaseInfo();
     StatementResult result;
-    DatabaseInfo.databaseState old = info.getState();
+    DatabaseInfo.DatabaseState old = info.getState();
     switch(old) {
       case not_stored:
         SClass sClass = object.getSOMClass();
         findOrCreateSClass(session, sClass);
         result = session.run(
             "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
-                + " CREATE (SObject: SObject) - [:HAS_CLASS] -> (SClass)"
+                + " CREATE (SObject: SObject {type: {type}}) - [:HAS_CLASS] -> (SClass)"
                 + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
-                + " return ID(SObject)",
-                parameters("SClassId", sClass.getDatabaseRef()));
-        object.updateRef(getIdFromStatementResult(result, "SObject"));
+                + " return SObject",
+                parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name()));
+        object.updateRef(getIdFromStatementResult(result.single().get("SObject")));
         writeSlots(session, object);
         break;
       case valid:
-          break; // dirtying updated value is broken, for now always create copy if object was stored
+        break; // dirtying updated value is broken, for now always create copy if object was stored
       case outdated:
         result = session.run(
             "MATCH (old: SObject) where ID(old) = {oldRef}"
                 + " MATCH (old) - [:HAS_ROOT] -> (root:SObject)"
-                + " CREATE (SObject: SObject) - [:UPDATE] -> (old)"
+                + " CREATE (SObject: SObject {type: {type}}) - [:UPDATE] -> (old)"
                 + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
-                + " return ID(SObject)"
-                ,parameters("oldRef", object.getRef()));
-        object.updateRef(getIdFromStatementResult(result, "SObject"));
+                + " return SObject",
+                parameters("oldRef", object.getRef(), "type", SomValueType.SAbstractObject.name()));
+        object.updateRef(getIdFromStatementResult(result.single().get("SObject")));
         writeSlots(session, object);
         break;
     }
     return old;
   }
 
-  private Long writeFarReference(final Session session,
+  private Object writeFarReference(final Session session,
       final SFarReference farRef) {
 
-    final Long ref = writeValue(session, farRef.getValue());
-    if(ref != null){
+    final Object ref = writeValue(session, farRef.getValue());
+    if (ref != null) {
       StatementResult result = session.run(
           "MATCH (target) where ID(target)={targetId}"
               + " CREATE (value: FarRef) - [:POINTS_TO]->target"
-              + " return ID(value)"
-              , parameters("targetId", ref));
-      return getIdFromStatementResult(result, "value");
+              + " return value",
+              parameters("targetId", ref));
+      return getIdFromStatementResult(result.single().get("value"));
     }
     return null;
   }
 
   private void writeSlots(final Session session, final SObject object) {
-    final long parentRef = object.getRef();
+    final Object parentRef = object.getRef();
     for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
-      Long ref = writeValue(session, entry.getValue().read(object));
-      if(ref != null){
+      Object ref = writeValue(session, entry.getValue().read(object));
+      if (ref != null) {
         session.run(
             "MATCH (parent) where ID(parent)={parentId}"
                 + " MATCH (slot) where ID(slot) = {slotRef}"
@@ -203,9 +203,9 @@ public final class Database {
     }
   }
 
-  private void writeArgument(final Session session, final long parentId, final int argIdx, final Object argValue) {
-    Long ref = writeValue(session, argValue);
-    if(ref != null){
+  private void writeArgument(final Session session, final Object parentId, final int argIdx, final Object argValue) {
+    Object ref = writeValue(session, argValue);
+    if (ref != null) {
       session.run(
           "MATCH (parent) where ID(parent)={parentId}"
               + " MATCH (argument) where ID(argument) = {argRef}"
@@ -214,7 +214,7 @@ public final class Database {
     }
   }
 
-  private Long writeValue(final Session session, final Object value) {
+  private Object writeValue(final Session session, final Object value) {
     StatementResult result;
     if (value instanceof SFarReference) {
       return writeFarReference(session, (SFarReference) value);
@@ -222,24 +222,24 @@ public final class Database {
       throw new RuntimeException("not yet implemented");
     } else if (value instanceof SResolver) {
       throw new RuntimeException("not yet implemented");
-    } else if (value instanceof SMutableObject || value instanceof SImmutableObject){
+    } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
       SObject object = (SObject) value;
       writeSObject(session, object);
       return object.getRef();
     } else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
       return null;
-    } else if (value instanceof Long){
-      result = session.run("CREATE (value {value: {value}, type: {type}}) return ID(value)", parameters("value", value, "type", SomValueType.Long.name()));
-    } else if (value instanceof Double){
-      result = session.run("CREATE (value {value: {value}, type: {type}}) return ID(value)", parameters("value", value, "type", SomValueType.Double.name()));
-    } else if (value instanceof Boolean){
-      result = session.run("CREATE (value {value: {value}, type: {type}}) return ID(value)", parameters("value", value, "type", SomValueType.Boolean.name()));
-    } else if (value instanceof String){
-      result = session.run("CREATE (value {value: {value}, type: {type}}) return ID(value)", parameters("value", value, "type", SomValueType.String.name()));
+    } else if (value instanceof Long) {
+      result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Long.name()));
+    } else if (value instanceof Double) {
+      result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Double.name()));
+    } else if (value instanceof Boolean) {
+      result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Boolean.name()));
+    } else if (value instanceof String) {
+      result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.String.name()));
     } else {
       throw new RuntimeException("unexpected argument type " + value.getClass());
     }
-    return getIdFromStatementResult(result, "value");
+    return getIdFromStatementResult(result.single().get("value"));
   }
 
   /* --------------------------------------- */
@@ -247,41 +247,37 @@ public final class Database {
   /* --------------------------------------- */
 
   public SSymbol readMessageName(final Session session, final long actorId, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) - [:HAS_ROOT] -> (root: SObject) - [:IN] -> (actor: Actor {actorId: {actorId}}) RETURN turn.messageName"
-        , parameters("actorId", actorId, "messageId", causalMessageId));
+    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - "
+        + "[:TARGET] -> (SObject: SObject) - [:HAS_ROOT] -> (root: SObject) - [:IN] -> (actor: Actor {actorId: {actorId}}) "
+        + "RETURN turn.messageName",
+        parameters("actorId", actorId, "messageId", causalMessageId));
 
     return Symbols.symbolFor(result.single().get("turn.messageName").asString());
   }
 
   // expect the actor check to be done in readMessage name
   public Object[] readMessageArguments(final Session session, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) RETURN ID(SObject)"
-        , parameters("messageId", causalMessageId));
-
-    final SAbstractObject target = readSObject(session, getIdFromStatementResult(result, "SObject"));
-    Object[] arguments = readArguments(session, causalMessageId);
-    arguments[0] = target;
-    return arguments;
-  }
-
-
-
-  private Object[] readArguments(final Session session, final long messageId) {
     StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}})"
         + " MATCH (argument) - [idx:ARGUMENT] -> (turn)"
         + " return argument, idx",
-        parameters("messageId", messageId));
+        parameters("messageId", causalMessageId));
     List<Record> recordList = result.list();
-    Object[] args = new Object[recordList.size()+1]; // reserve one space for the target of message
-    for(Record record : recordList) {
-      Object argument = readValue(record.get("argument"));
+    Object[] args = new Object[recordList.size() + 1]; // reserve space for target
+    for (Record record : recordList) {
+      Object argument = readValue(session, record.get("argument"));
       int argIdx = record.get("idx").get("argIdx").asInt();
       args[argIdx] = argument;
     }
     return args;
   }
 
-  private SAbstractObject readSObject(final Session session, final long objectId) {
+  public SAbstractObject readTarget(final Session session, final long causalMessageId) {
+    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) RETURN SObject",
+        parameters("messageId", causalMessageId));
+    return readSObject(session, getIdFromStatementResult(result.single().get("SObject")));
+  }
+
+  private SAbstractObject readSObject(final Session session, final Object objectId) {
 
     // create the SClass object
     SClass sClass = getClassOfSObject(session, objectId);
@@ -289,26 +285,26 @@ public final class Database {
     // create the SObject
     SAbstractObject sObject = NewObjectPrim.createEmptySObject(sClass);
 
-    if(sObject instanceof SObject) { // not a SObjectWithoutFields
+    if (sObject instanceof SObject) { // not a SObjectWithoutFields
       // fill the slots
       fillSlots(session, objectId, (SObject) sObject);
     }
     return sObject;
   }
 
-  private SClass getClassOfSObject(final Session session, final long objectId){
-    StatementResult result= session.run(
+  private SClass getClassOfSObject(final Session session, final Object objectId) {
+    StatementResult result = session.run(
         "MATCH (SObject: SObject) where ID(SObject)={objectId}"
             + " MATCH (root: SObject) <- [:HAS_ROOT]-(SObject)"
             + " MATCH (top: SClass {name: \"nil\"})"
             + " MATCH path = (root) - [:HAS_CLASS] -> (class) - [:ENCLOSED_BY*]->(top)"
-            + " RETURN NODES(path)"
-            , parameters("objectId", objectId));
+            + " RETURN NODES(path)",
+            parameters("objectId", objectId));
     Value value = result.single().get("NODES(path)");
     List<Object> nodes = value.asList(); // single because the path to nil class should be unique
     SClass sClass = Classes.nilClass;
 
-    for(int i = nodes.size()-2; i >= 1; i--){ // first node is the turn, last node is nil
+    for (int i = nodes.size()-2; i >= 1; i--) { // first node is the turn, last node is nil
       Node node = (Node) nodes.get(i);
       SSymbol factoryName = Symbols.symbolFor(node.get("factoryName").asString());
       SClass recreatedClass = ClassInstantiationNode.instantiate(sClass, VM.getTimeTravellingDebugger().getFactory(factoryName));
@@ -317,20 +313,21 @@ public final class Database {
     return sClass;
   }
 
-  private void fillSlots(final Session session, final long objectId, final SObject sObject) {
-    for(Entry<SlotDefinition, StorageLocation> entry : sObject.getObjectLayout().getStorageLocations().entrySet()){
+  private void fillSlots(final Session session, final Object objectId, final SObject sObject) {
+    for (Entry<SlotDefinition, StorageLocation> entry : sObject.getObjectLayout().getStorageLocations().entrySet()) {
       String slotName = entry.getKey().getName().getString();
       StatementResult result = session.run("MATCH (SObject: SObject) where ID(SObject)={objectId} MATCH (slot) - [r:SLOT {slotName: {slotName}}]-> (SObject) return slot",
           parameters("objectId", objectId, "slotName", slotName));
-      if(result.hasNext()) { // nils are not stored in the db
-        Object slotValue = readValue(result.single().get("slot"));
+      if (result.hasNext()) { // nils are not stored in the db
+        Object slotValue = readValue(session, result.single().get("slot"));
         entry.getValue().write(sObject, slotValue);
       }
     }
   }
 
-  private Object readValue(final Value value) {
-    SomValueType type = SomValueType.valueOf(value.get("type").asString());
+  private Object readValue(final Session session, final Value value) {
+    String rawType = value.get("type").asString();
+    SomValueType type = SomValueType.valueOf(rawType);
     switch(type){
       case SFarReference:
         throw new RuntimeException("not yet implemented");
@@ -342,8 +339,7 @@ public final class Database {
         throw new RuntimeException("not yet implemented");
 
       case SAbstractObject:
-        throw new RuntimeException("not yet implemented");
-
+        return readSObject(session, value.asNode().id());
       case Long:
         return value.get("value").asLong();
       case Double:

@@ -52,8 +52,7 @@ public  class ObjectWriter {
         VM.println("ignored: " + t.getClass() + " " + t.toString());
       }
     } catch (Exception e) {
-      System.out.println(e.getMessage());
-
+      VM.errorPrint(e.getMessage());
     }
   }
 }

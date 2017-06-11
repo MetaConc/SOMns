@@ -300,6 +300,7 @@ public abstract class StorageLocation {
 
     @Override
     public void writeDoubleSet(final SObject obj, final double value) {
+      obj.performedWrite();
       unsafe.putDouble(obj, offset, value);
     }
   }
@@ -351,6 +352,7 @@ public abstract class StorageLocation {
 
     @Override
     public void writeLongSet(final SObject obj, final long value) {
+      obj.performedWrite();
       unsafe.putLong(obj, offset, value);
     }
   }
@@ -422,6 +424,7 @@ public abstract class StorageLocation {
 
     @Override
     public void writeLongSet(final SObject obj, final long value) {
+      obj.performedWrite();
       obj.getExtendedPrimFields()[extensionIndex] = value;
     }
   }
@@ -477,6 +480,7 @@ public abstract class StorageLocation {
 
     @Override
     public void writeDoubleSet(final SObject obj, final double value) {
+      obj.performedWrite();
       final long[] arr = obj.getExtendedPrimFields();
       unsafe.putDouble(arr,
           (long) Unsafe.ARRAY_DOUBLE_BASE_OFFSET + Unsafe.ARRAY_DOUBLE_INDEX_SCALE * this.extensionIndex,

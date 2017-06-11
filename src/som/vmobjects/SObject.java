@@ -565,11 +565,11 @@ public abstract class SObject extends SObjectWithClass {
     return StorageLocation.getFieldOffset(secondField) - StorageLocation.getFieldOffset(firstField);
   }
 
-  public long getRef() {
+  public Object getRef() {
     return databaseState.getRef();
   }
 
-  public void updateRef(final long newRef) {
+  public void updateRef(final Object newRef) {
     databaseState.update(newRef);
   }
 

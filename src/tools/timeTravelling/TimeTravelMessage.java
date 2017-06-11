@@ -11,7 +11,7 @@ public class TimeTravelMessage extends IncommingMessage {
   private long messageId;
   private boolean full;
 
-  public TimeTravelMessage(final long actorId, final long messageId, final boolean full){
+  public TimeTravelMessage(final long actorId, final long messageId, final boolean full) {
 
     this.actorId = actorId;
     this.messageId = messageId;
@@ -20,21 +20,20 @@ public class TimeTravelMessage extends IncommingMessage {
 
 
 
-  public long getActorId(){
+  public long getActorId() {
     return actorId;
   }
 
-  public long getMessageId(){
+  public long getMessageId() {
     return messageId;
   }
 
-  public boolean isFullReplay(){
+  public boolean isFullReplay() {
     return full;
   }
 
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
-
     ObjectReader.readMessage(actorId, messageId);
   }
 }

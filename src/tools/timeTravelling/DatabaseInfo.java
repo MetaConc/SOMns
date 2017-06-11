@@ -1,23 +1,23 @@
 package tools.timeTravelling;
 
 public class DatabaseInfo {
-  private databaseState state;
-  private Long databaseRef;
+  private DatabaseState state;
+  private Object databaseRef;
   private int version;
 
-  public enum databaseState {
+  public enum DatabaseState {
     not_stored,
     valid,
     outdated;
   }
 
-  public DatabaseInfo () {
-    state = databaseState.not_stored;
+  public DatabaseInfo() {
+    state = DatabaseState.not_stored;
     databaseRef = null;
     version = 0;
   }
 
-  public long getRef() {
+  public Object getRef() {
     return databaseRef;
   }
 
@@ -25,19 +25,19 @@ public class DatabaseInfo {
     return version;
   }
 
-  public databaseState getState () {
+  public DatabaseState getState() {
     return state;
   }
 
   public void performedWrite() {
-    if(state == databaseState.valid) {
-      state = databaseState.outdated;
+    if (state == DatabaseState.valid) {
+      state = DatabaseState.outdated;
     }
   }
 
-  public void update(final long newRef) {
+  public void update(final Object newRef) {
     version++;
     databaseRef = newRef;
-    state = databaseState.valid;
+    state = DatabaseState.valid;
   }
 }
