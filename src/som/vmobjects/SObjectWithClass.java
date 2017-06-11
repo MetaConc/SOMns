@@ -7,11 +7,14 @@ import com.oracle.truffle.api.interop.TruffleObject;
 
 import som.interop.SObjectInteropMessageResolutionForeign;
 import som.interpreter.objectstorage.ClassFactory;
+import som.vm.ObjectSystem;
+import tools.timeTravelling.DatabaseInfo;
 
 
 public abstract class SObjectWithClass extends SAbstractObject implements TruffleObject {
   @CompilationFinal protected SClass       clazz;
   @CompilationFinal protected ClassFactory classGroup; // the factory by which clazz was created
+  protected DatabaseInfo databaseState = new DatabaseInfo();
 
   public SObjectWithClass(final SClass clazz, final ClassFactory classGroup) {
     this.clazz      = clazz;
@@ -53,6 +56,22 @@ public abstract class SObjectWithClass extends SAbstractObject implements Truffl
   @Override
   public ForeignAccess getForeignAccess() {
     return SObjectInteropMessageResolutionForeign.ACCESS;
+  }
+
+  public Object getDatabaseRef() {
+    return databaseState.getRef();
+  }
+
+  public void updateDatabaseRef(final Object newRef) {
+    databaseState.update(newRef);
+  }
+
+  public DatabaseInfo getDatabaseInfo() {
+    return databaseState;
+  }
+
+  public void performedWrite() {
+    databaseState.performedWrite();
   }
 
   public static final class SObjectWithoutFields extends SObjectWithClass {

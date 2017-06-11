@@ -9,6 +9,7 @@ import org.neo4j.driver.v1.Session;
 
 import som.VM;
 import som.vmobjects.SAbstractObject;
+import som.vmobjects.SClass;
 import som.vmobjects.SSymbol;
 
 public  class ObjectReader {
@@ -18,6 +19,7 @@ public  class ObjectReader {
  * Two objects pointing to the same third object should again point to the same object
  */
   private static Map<Object, SAbstractObject> revivedObjects = new HashMap<Object, SAbstractObject>();
+  private static Map<SSymbol, SClass> revivedClasses = new HashMap<SSymbol, SClass>();
 
   public static void readMessage(final long actorId, final long causalMessageId) {
     try {
@@ -45,5 +47,15 @@ public  class ObjectReader {
 
   public static synchronized SAbstractObject getSAbstractObject(final Object dbRef) {
     return revivedObjects.get(dbRef);
+  }
+
+
+  public static SClass getSClass(final SSymbol factoryName) {
+    return revivedClasses.get(factoryName);
+  }
+
+
+  public static void reportSClass(final SSymbol factoryName, final SClass revivedClass) {
+    revivedClasses.put(factoryName, revivedClass);
   }
 }

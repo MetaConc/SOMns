@@ -471,12 +471,12 @@ public final class VM {
     KernelObj.indexOutOfBoundsClass = null;
   }
 
-  public static TimeTravellingDebugger getTimeTravellingDebugger(){
+  public static TimeTravellingDebugger getTimeTravellingDebugger() {
     return timetravellingDebugger;
   }
 
   public static void reportClassFactory(final ClassFactory classFactory) {
-    if(timetravellingDebugger != null) {
+    if (timetravellingDebugger != null) {
       timetravellingDebugger.reportClassFactory(classFactory);
     }
   }

@@ -41,14 +41,11 @@ import som.interpreter.objectstorage.ObjectLayout;
 import som.interpreter.objectstorage.StorageLocation;
 import som.interpreter.objectstorage.StorageLocation.AbstractObjectStorageLocation;
 import som.vm.constants.Nil;
-import tools.timeTravelling.DatabaseInfo;
 
 public abstract class SObject extends SObjectWithClass {
 
   public static final int NUM_PRIMITIVE_FIELDS = 5;
   public static final int NUM_OBJECT_FIELDS    = 5;
-
-  private DatabaseInfo databaseState = new DatabaseInfo();
 
   // TODO: when we got the possibility that we can hint to the compiler that a
   //       read is from a final field, we should remove this
@@ -563,22 +560,5 @@ public abstract class SObject extends SObjectWithClass {
     final Field firstField  = SMutableObject.class.getDeclaredField(field1);
     final Field secondField = SMutableObject.class.getDeclaredField(field2);
     return StorageLocation.getFieldOffset(secondField) - StorageLocation.getFieldOffset(firstField);
-  }
-
-  public Object getRef() {
-    return databaseState.getRef();
-  }
-
-  public void updateRef(final Object newRef) {
-    databaseState.update(newRef);
-  }
-
-  // do I want to allow outside object to get this state?
-  public DatabaseInfo getDatabaseInfo() {
-    return databaseState;
-  }
-
-  public void performedWrite() {
-    databaseState.performedWrite();
   }
 }

@@ -20,11 +20,6 @@ public class DatabaseInfo {
   public Object getRef() {
     return databaseRef;
   }
-
-  public int getVersion() {
-    return version;
-  }
-
   public DatabaseState getState() {
     return state;
   }
@@ -39,5 +34,19 @@ public class DatabaseInfo {
     version++;
     databaseRef = newRef;
     state = DatabaseState.valid;
+  }
+
+  public int getVersion() {
+    return version;
+  }
+
+  public boolean hasVersion(final int version) {
+    return((state==DatabaseState.valid)&&(this.version==version));
+  }
+
+  public void setVersion(final int version) {
+   this.version = version;
+   this.state = DatabaseState.valid;
+
   }
 }

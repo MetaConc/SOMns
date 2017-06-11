@@ -64,7 +64,6 @@ public final class SClass extends SObjectWithClass {
   @CompilationFinal private ClassFactory instanceClassGroup; // the factory for this object
 
   protected final SObjectWithClass enclosingObject;
-  private Object databaseRef;
   private Lock databaseLock; // lock used by time travelling database to ensure no two copies of same SClass are created
 
   /*
@@ -271,14 +270,6 @@ public final class SClass extends SObjectWithClass {
   @Override
   public String toString() {
     return "Class(" + getName().getString() + ")";
-  }
-
-  public void setDatabaseRef(final Object ref) {
-    this.databaseRef = ref;
-  }
-
-  public Object getDatabaseRef() {
-    return this.databaseRef;
   }
 
   public synchronized void getLock() {

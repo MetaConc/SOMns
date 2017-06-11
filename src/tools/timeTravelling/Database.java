@@ -43,7 +43,7 @@ public final class Database {
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
     StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
-    Classes.nilClass.setDatabaseRef(getIdFromStatementResult(result.single().get("nil")));
+    Classes.nilClass.updateDatabaseRef(getIdFromStatementResult(result.single().get("nil")));
     endSession(session);
   }
 
@@ -113,7 +113,7 @@ public final class Database {
             + (old == DatabaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
             + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TARGET] -> (SObject)"
             + " return turn",
-            parameters("actorId", actorId, "SObjectId", target.getRef(), "messageId", messageId, "messageName", msg.getSelector().getString()));
+            parameters("actorId", actorId, "SObjectId", target.getDatabaseRef(), "messageId", messageId, "messageName", msg.getSelector().getString()));
 
     // write all arguments to db
     Object argumentId = getIdFromStatementResult(result.single().get("turn"));
@@ -135,7 +135,7 @@ public final class Database {
               + " return Child",
               parameters("SClassId", enclosing.getDatabaseRef(), "factoryName", sClass.getName().getString()));
       final Object ref = getIdFromStatementResult(result.single().get("Child"));
-      sClass.setDatabaseRef(ref);
+      sClass.updateDatabaseRef(ref);
     }
     sClass.releaseLock();
   }
@@ -150,11 +150,11 @@ public final class Database {
         findOrCreateSClass(session, sClass);
         result = session.run(
             "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
-                + " CREATE (SObject: SObject {type: {type}}) - [:HAS_CLASS] -> (SClass)"
+                + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:HAS_CLASS] -> (SClass)"
                 + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
                 + " return SObject",
-                parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name()));
-        object.updateRef(getIdFromStatementResult(result.single().get("SObject")));
+                parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
+        object.updateDatabaseRef(getIdFromStatementResult(result.single().get("SObject")));
         writeSlots(session, object);
         break;
       case valid:
@@ -163,11 +163,11 @@ public final class Database {
         result = session.run(
             "MATCH (old: SObject) where ID(old) = {oldRef}"
                 + " MATCH (old) - [:HAS_ROOT] -> (root:SObject)"
-                + " CREATE (SObject: SObject {type: {type}}) - [:UPDATE] -> (old)"
+                + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:UPDATE] -> (old)"
                 + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
                 + " return SObject",
-                parameters("oldRef", object.getRef(), "type", SomValueType.SAbstractObject.name()));
-        object.updateRef(getIdFromStatementResult(result.single().get("SObject")));
+                parameters("oldRef", object.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
+        object.updateDatabaseRef(getIdFromStatementResult(result.single().get("SObject")));
         writeSlots(session, object);
         break;
     }
@@ -190,7 +190,7 @@ public final class Database {
   }
 
   private void writeSlots(final Session session, final SObject object) {
-    final Object parentRef = object.getRef();
+    final Object parentRef = object.getDatabaseRef();
     for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
       Object ref = writeValue(session, entry.getValue().read(object));
       if (ref != null) {
@@ -225,7 +225,7 @@ public final class Database {
     } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
       SObject object = (SObject) value;
       writeSObject(session, object);
-      return object.getRef();
+      return object.getDatabaseRef();
     } else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
       return null;
     } else if (value instanceof Long) {
@@ -274,22 +274,28 @@ public final class Database {
   public SAbstractObject readTarget(final Session session, final long causalMessageId) {
     StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) RETURN SObject",
         parameters("messageId", causalMessageId));
-    return readSObject(session, getIdFromStatementResult(result.single().get("SObject")));
+    return readSObject(session, result.single().get("SObject").asNode());
   }
 
-  private SAbstractObject readSObject(final Session session, final Object objectId) {
-    SAbstractObject sObject = ObjectReader.getSAbstractObject(objectId);
+  private SAbstractObject readSObject(final Session session, final Node Object) {
+    SAbstractObject sObject = ObjectReader.getSAbstractObject(Object.id());
 
     if(sObject == null) {
       // create the SClass object
-      SClass sClass = getClassOfSObject(session, objectId);
+      SClass sClass = getClassOfSObject(session, Object.id());
 
       // create the SObject
       sObject = NewObjectPrim.createEmptySObject(sClass);
+      ObjectReader.reportSAbstractObject(Object.id(), sObject);
     }
     if (sObject instanceof SObject) { // not a SObjectWithoutFields
-      // fill the slots
-      fillSlots(session, objectId, (SObject) sObject);
+      DatabaseInfo info = ((SObject) sObject).getDatabaseInfo();
+      int targetVersion = Object.get("version").asInt();
+      if(!info.hasVersion(targetVersion)) {
+        // if the version is different fill the slots
+        fillSlots(session, Object.id(), (SObject) sObject);
+        info.setVersion(targetVersion);
+      }
     }
     return sObject;
   }
@@ -304,15 +310,23 @@ public final class Database {
             parameters("objectId", objectId));
     Value value = result.single().get("NODES(path)");
     List<Object> nodes = value.asList(); // single because the path to nil class should be unique
-    SClass sClass = Classes.nilClass;
+    return reviveClass(nodes, 1);
+  }
 
-    for (int i = nodes.size()-2; i >= 1; i--) { // first node is the turn, last node is nil
-      Node node = (Node) nodes.get(i);
-      SSymbol factoryName = Symbols.symbolFor(node.get("factoryName").asString());
-      SClass recreatedClass = ClassInstantiationNode.instantiate(sClass, VM.getTimeTravellingDebugger().getFactory(factoryName));
-      sClass = recreatedClass;
+  private SClass reviveClass(final List<Object> factoryNames, final int idx) {
+    Node node = (Node) factoryNames.get(idx);
+    SSymbol factoryName = Symbols.symbolFor(node.get("factoryName").asString());
+    SClass revivedClass = ObjectReader.getSClass(factoryName);
+
+    if(revivedClass == null){
+      if (idx == factoryNames.size() - 1) {
+        return Classes.nilClass;
+      }
+      SClass outer = reviveClass(factoryNames, idx+1);
+      revivedClass = ClassInstantiationNode.instantiate(outer, VM.getTimeTravellingDebugger().getFactory(factoryName));
+      ObjectReader.reportSClass(factoryName, revivedClass);
     }
-    return sClass;
+    return revivedClass;
   }
 
   private void fillSlots(final Session session, final Object objectId, final SObject sObject) {
@@ -341,7 +355,7 @@ public final class Database {
         throw new RuntimeException("not yet implemented");
 
       case SAbstractObject:
-        return readSObject(session, value.asNode().id());
+        return readSObject(session, value.asNode());
       case Long:
         return value.get("value").asLong();
       case Double:
