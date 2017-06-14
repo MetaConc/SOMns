@@ -237,11 +237,11 @@ public final class Database {
   private Object storeValue(final Session session, final Object value) {
     StatementResult result;
     if (value instanceof SFarReference) {
-      return storeFarReference(session, (SFarReference) value);
+      throw new RuntimeException("not yet implemented: store SFarReference");
     } else if (value instanceof SPromise) {
-      throw new RuntimeException("not yet implemented: SPromise");
+      throw new RuntimeException("not yet implemented: store SPromise");
     } else if (value instanceof SResolver) {
-      throw new RuntimeException("not yet implemented: SResolver");
+      throw new RuntimeException("not yet implemented: store SResolver");
     } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
       SObject object = (SObject) value;
       storeSObject(session, object);
@@ -257,7 +257,7 @@ public final class Database {
     } else if (value instanceof String) {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.String.name()));
     } else {
-      throw new RuntimeException("unexpected argument type " + value.getClass());
+      throw new RuntimeException("unexpected argument type while storing " + value.getClass());
     }
     return getIdFromStatementResult(result.single().get("value"));
   }
@@ -306,8 +306,7 @@ public final class Database {
 
   // expect the actor check to be done in readMessage name
   public Object[] readMessageArguments(final Session session, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}})" // TODO match
-        + " MATCH (argument) - [idx:ARGUMENT] -> (turn)"
+    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) <- [idx:ARGUMENT]- (argument)"
         + " return argument, idx",
         parameters("messageId", causalMessageId));
     List<Record> recordList = result.list();
@@ -406,13 +405,13 @@ public final class Database {
     SomValueType type = SomValueType.valueOf(value.get("type").asString());
     switch(type){
       case SFarReference:
-        throw new RuntimeException("not yet implemented");
+        throw new RuntimeException("not yet implemented: read SFarRefernce");
 
       case SPromise:
-        throw new RuntimeException("not yet implemented");
+        throw new RuntimeException("not yet implemented: read SPromise");
 
       case SResolver:
-        throw new RuntimeException("not yet implemented");
+        throw new RuntimeException("not yet implemented: read SResolver");
 
       case SAbstractObject:
         return readSObject(session, value.asNode());
@@ -425,7 +424,7 @@ public final class Database {
       case String:
         return value.get("value").asString();
       default:
-        throw new RuntimeException("unexpected value type: " + type.name());
+        throw new RuntimeException("unexpected value typ;e while reading: " + type.name());
     }
   }
 }
