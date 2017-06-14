@@ -34,6 +34,6 @@ public class TimeTravelMessage extends IncommingMessage {
 
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
-    ObjectReader.readMessage(actorId, messageId);
+    Database.prepareForTimeTravel(actorId, messageId);
   }
 }
