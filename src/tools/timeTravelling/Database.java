@@ -83,7 +83,7 @@ public final class Database {
   /* -                 Writing             - */
   /* --------------------------------------- */
 
-  public void createActor(final Session session, final Actor actor) {
+  public void storeActor(final Session session, final Actor actor) {
     if(!actor.inDatabase) {
       session.run(" CREATE (actor:Actor {actorId: {actorId}})",
           parameters("actorId", actor.getId()));
@@ -92,7 +92,8 @@ public final class Database {
   }
 
   public void storeFactoryMethod(final Session session, final Long messageId, final EventualMessage msg, final Actor actor, final SClass target, final int messageCount) {
-    createActor(session, actor);
+    storeActor(session, actor);
+    storeSClass(session, target);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
@@ -104,15 +105,15 @@ public final class Database {
     Object argumentId = record.get("turn").asNode().id();
     Object[] args = msg.getArgs();
     for (int i = 1; i < args.length; i++) {
-      writeArgument(session, argumentId, i, args[i]);
+      storeArgument(session, argumentId, i, args[i]);
     }
   }
 
   // the arguments of the message are already stored in the log.
-  public void createCheckpoint(final Session session, final Long messageId, final EventualMessage msg,
+  public void storeCheckpoint(final Session session, final Long messageId, final EventualMessage msg,
       final Actor actor, final SObjectWithClass target, final int messageCount) {
     assert(actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
-    final DatabaseInfo.DatabaseState old = writeSObject(session, target);
+    final DatabaseInfo.DatabaseState old = storeSObject(session, target);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
@@ -126,16 +127,16 @@ public final class Database {
     Object argumentId = getIdFromStatementResult(result.single().get("turn"));
     Object[] args = msg.getArgs();
     for (int i = 1; i < args.length; i++) {
-      writeArgument(session, argumentId, i, args[i]);
+      storeArgument(session, argumentId, i, args[i]);
     }
   }
 
-  private void findOrCreateSClass(final Session session, final SClass sClass) {
+  private void storeSClass(final Session session, final SClass sClass) {
     sClass.getLock();
     if (sClass.getDatabaseRef() == null) {
 
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
-      findOrCreateSClass(session, enclosing);
+      storeSClass(session, enclosing);
       StatementResult result = session.run(
           "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
               + " CREATE (Child: SClass {factoryName: {factoryName}}) - [:ENCLOSED_BY]-> (SClass)"
@@ -147,14 +148,14 @@ public final class Database {
     sClass.releaseLock();
   }
 
-  private DatabaseInfo.DatabaseState writeSObject(final Session session, final SObjectWithClass object) {
+  private DatabaseInfo.DatabaseState storeSObject(final Session session, final SObjectWithClass object) {
     DatabaseInfo info = object.getDatabaseInfo();
     StatementResult result;
     DatabaseInfo.DatabaseState old = info.getState();
     switch(old) {
       case not_stored:
         SClass sClass = object.getSOMClass();
-        findOrCreateSClass(session, sClass);
+        storeSClass(session, sClass);
         result = session.run(
             "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
                 + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:HAS_CLASS] -> (SClass)"
@@ -162,7 +163,7 @@ public final class Database {
                 + " return SObject",
                 parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
         object.updateDatabaseRef(getIdFromStatementResult(result.single().get("SObject")));
-        writeSlots(session, object);
+        storeSlots(session, object);
         break;
       case valid:
         break; // dirtying updated value is broken, for now always create copy if object was stored
@@ -175,16 +176,16 @@ public final class Database {
                 + " return SObject",
                 parameters("oldRef", object.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
         object.updateDatabaseRef(getIdFromStatementResult(result.single().get("SObject")));
-        writeSlots(session, object);
+        storeSlots(session, object);
         break;
     }
     return old;
   }
 
-  private Object writeFarReference(final Session session,
+  private Object storeFarReference(final Session session,
       final SFarReference farRef) {
 
-    final Object ref = writeValue(session, farRef.getValue());
+    final Object ref = storeValue(session, farRef.getValue());
     if (ref != null) {
       StatementResult result = session.run(
           "MATCH (target) where ID(target)={targetId}"
@@ -196,12 +197,12 @@ public final class Database {
     return null;
   }
 
-  private void writeSlots(final Session session, final SObjectWithClass o) {
+  private void storeSlots(final Session session, final SObjectWithClass o) {
     if(o instanceof SObject){
       final SObject object = (SObject) o;
       final Object parentRef = object.getDatabaseRef();
       for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
-        Object ref = writeValue(session, entry.getValue().read(object));
+        Object ref = storeValue(session, entry.getValue().read(object));
         if (ref != null) {
           session.run(
               "MATCH (parent) where ID(parent)={parentId}"
@@ -213,8 +214,8 @@ public final class Database {
     }
   }
 
-  private void writeArgument(final Session session, final Object parentId, final int argIdx, final Object argValue) {
-    Object ref = writeValue(session, argValue);
+  private void storeArgument(final Session session, final Object parentId, final int argIdx, final Object argValue) {
+    Object ref = storeValue(session, argValue);
     if (ref != null) {
       session.run(
           "MATCH (parent) where ID(parent)={parentId}"
@@ -224,17 +225,17 @@ public final class Database {
     }
   }
 
-  private Object writeValue(final Session session, final Object value) {
+  private Object storeValue(final Session session, final Object value) {
     StatementResult result;
     if (value instanceof SFarReference) {
-      return writeFarReference(session, (SFarReference) value);
+      return storeFarReference(session, (SFarReference) value);
     } else if (value instanceof SPromise) {
       throw new RuntimeException("not yet implemented: SPromise");
     } else if (value instanceof SResolver) {
       throw new RuntimeException("not yet implemented: SResolver");
     } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
       SObject object = (SObject) value;
-      writeSObject(session, object);
+      storeSObject(session, object);
       return object.getDatabaseRef();
     } else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
       return null;

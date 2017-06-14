@@ -44,6 +44,7 @@ import som.vm.Primitives;
 import som.vm.VmOptions;
 import som.vm.VmSettings;
 import som.vm.constants.KernelObj;
+import som.vmobjects.SObjectWithClass;
 import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import tools.concurrency.ActorExecutionTrace;
 import tools.concurrency.TracingActors;
@@ -479,5 +480,9 @@ public final class VM {
     if (timetravellingDebugger != null) {
       timetravellingDebugger.reportClassFactory(classFactory);
     }
+  }
+
+  public static boolean isPlatformObject(final SObjectWithClass t) {
+    return t.getSOMClass() == vm.objectSystem.getPlatformClass();
   }
 }

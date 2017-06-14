@@ -28,7 +28,7 @@ public  class ObjectWriter {
 
           Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-          database.createCheckpoint(session, messageId, msg, targetActor, target, messageCount);
+          database.storeCheckpoint(session, messageId, msg, targetActor, target, messageCount);
           database.endSession(session);
         }
       } else if (t instanceof SClass) {
