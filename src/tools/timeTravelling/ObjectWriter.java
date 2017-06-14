@@ -9,28 +9,28 @@ import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.vmobjects.SClass;
 import som.vmobjects.SObject;
-import som.vmobjects.SObject.SMutableObject;
 
 public  class ObjectWriter {
 
-  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t) {
+  // messageId  = id of message currently being executed
+  // msg        = message currently being executed
+  // t          = targe tof message
+  // messageCount = number of message in actor message queue, includes current message.
+  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t, final int messageCount) {
     try {
-      if (t instanceof SMutableObject) {
-        // TODO ensure the platform is the only possible immutable top level object
+      if (t instanceof SObject) {
         SObject target = (SObject) t;
+        if (VM.isPlatformObject(target)) {
+          System.out.println("is platform object"); // what information do we need from the platform object / actor?
+        } else {
+          Database database = getDatabaseInstance();
+          Session session = database.startSession();
 
-        Database database = getDatabaseInstance();
-        Session session = database.startSession();
+          Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-
-        if (!targetActor.inDatabase) { // not a race condition as actors only process one message at a time
-          database.createActor(session, targetActor);
+          database.createCheckpoint(session, messageId, msg, targetActor, target, messageCount);
+          database.endSession(session);
         }
-
-        database.createCheckpoint(session, messageId, msg, targetActor.getId(), target);
-        database.endSession(session);
-
       } else if (t instanceof SClass) {
         // method is either a constructor or static method, no target object, only store arguments
         SClass target = (SClass) t;
@@ -40,11 +40,7 @@ public  class ObjectWriter {
 
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-        if (!targetActor.inDatabase) { // can one create an actor of a SObject instance instead of of a class
-          database.createActor(session, targetActor);
-        }
-
-        database.createConstructor(session, messageId, msg, targetActor.getId(), target);
+        database.storeFactoryMethod(session, messageId, msg, targetActor, target, messageCount);
 
         database.endSession(session);
 
@@ -52,7 +48,7 @@ public  class ObjectWriter {
         VM.println("ignored: " + t.getClass() + " " + t.toString());
       }
     } catch (Exception e) {
-      VM.errorPrint(e.getMessage());
+      VM.errorPrintln(e.getMessage());
     }
   }
 }

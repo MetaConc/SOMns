@@ -32,6 +32,7 @@ import som.vmobjects.SClass;
 import som.vmobjects.SObject;
 import som.vmobjects.SObject.SImmutableObject;
 import som.vmobjects.SObject.SMutableObject;
+import som.vmobjects.SObjectWithClass;
 import som.vmobjects.SSymbol;
 import tools.timeTravelling.DatabaseInfo.DatabaseState;
 
@@ -83,18 +84,21 @@ public final class Database {
   /* --------------------------------------- */
 
   public void createActor(final Session session, final Actor actor) {
-    session.run(" CREATE (actor:Actor {actorId: {actorId}})",
-        parameters("actorId", actor.getId()));
-    actor.inDatabase = true;
+    if(!actor.inDatabase) {
+      session.run(" CREATE (actor:Actor {actorId: {actorId}})",
+          parameters("actorId", actor.getId()));
+      actor.inDatabase = true;
+    }
   }
 
-  public void createConstructor(final Session session, final Long messageId, final EventualMessage msg, final long actorId, final SClass target) {
+  public void storeFactoryMethod(final Session session, final Long messageId, final EventualMessage msg, final Actor actor, final SClass target, final int messageCount) {
+    createActor(session, actor);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
-            + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TURN]-> (actor)"
+            + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}, messageCount: {messageCount}}) - [:TURN]-> (actor)"
             + " return turn",
-            parameters("actorId", actorId, "messageId", messageId, "messageName", msg.getSelector().getString()));
+            parameters("actorId", actor.getId(), "messageId", messageId, "messageName", msg.getSelector().getString(), "messageCount", messageCount));
 
     Record record = result.single();
     Object argumentId = record.get("turn").asNode().id();
@@ -105,15 +109,18 @@ public final class Database {
   }
 
   // the arguments of the message are already stored in the log.
-  public void createCheckpoint(final Session session, final Long messageId, final EventualMessage msg, final Long actorId, final SObject target) {
+  public void createCheckpoint(final Session session, final Long messageId, final EventualMessage msg,
+      final Actor actor, final SObjectWithClass target, final int messageCount) {
+    assert(actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
     final DatabaseInfo.DatabaseState old = writeSObject(session, target);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
             + (old == DatabaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
-            + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}}) - [:TARGET] -> (SObject)"
+            + " CREATE (turn: Turn {messageId: {messageId}, messageName: {messageName}, messageCount: {messageCount}}) - [:TARGET] -> (SObject)"
             + " return turn",
-            parameters("actorId", actorId, "SObjectId", target.getDatabaseRef(), "messageId", messageId, "messageName", msg.getSelector().getString()));
+            parameters("actorId", actor.getId(), "SObjectId", target.getDatabaseRef(), "messageId", messageId, "messageName", msg.getSelector().getString(),
+                "messageCount", messageCount));
 
     // write all arguments to db
     Object argumentId = getIdFromStatementResult(result.single().get("turn"));
@@ -140,7 +147,7 @@ public final class Database {
     sClass.releaseLock();
   }
 
-  private DatabaseInfo.DatabaseState writeSObject(final Session session, final SObject object) {
+  private DatabaseInfo.DatabaseState writeSObject(final Session session, final SObjectWithClass object) {
     DatabaseInfo info = object.getDatabaseInfo();
     StatementResult result;
     DatabaseInfo.DatabaseState old = info.getState();
@@ -189,16 +196,19 @@ public final class Database {
     return null;
   }
 
-  private void writeSlots(final Session session, final SObject object) {
-    final Object parentRef = object.getDatabaseRef();
-    for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
-      Object ref = writeValue(session, entry.getValue().read(object));
-      if (ref != null) {
-        session.run(
-            "MATCH (parent) where ID(parent)={parentId}"
-                + " MATCH (slot) where ID(slot) = {slotRef}"
-                + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
-                parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
+  private void writeSlots(final Session session, final SObjectWithClass o) {
+    if(o instanceof SObject){
+      final SObject object = (SObject) o;
+      final Object parentRef = object.getDatabaseRef();
+      for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
+        Object ref = writeValue(session, entry.getValue().read(object));
+        if (ref != null) {
+          session.run(
+              "MATCH (parent) where ID(parent)={parentId}"
+                  + " MATCH (slot) where ID(slot) = {slotRef}"
+                  + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
+                  parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
+        }
       }
     }
   }
@@ -219,9 +229,9 @@ public final class Database {
     if (value instanceof SFarReference) {
       return writeFarReference(session, (SFarReference) value);
     } else if (value instanceof SPromise) {
-      throw new RuntimeException("not yet implemented");
+      throw new RuntimeException("not yet implemented: SPromise");
     } else if (value instanceof SResolver) {
-      throw new RuntimeException("not yet implemented");
+      throw new RuntimeException("not yet implemented: SResolver");
     } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
       SObject object = (SObject) value;
       writeSObject(session, object);

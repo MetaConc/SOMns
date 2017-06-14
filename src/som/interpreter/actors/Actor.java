@@ -278,7 +278,9 @@ public class Actor implements Activity {
               msg.getTargetSourceSection());
         }
 		if (VmSettings.TIME_TRAVELLING) {
-          writeMessage(currentThread.currentMessageId, msg, msg.getArgs()[0]);
+		  // i is -1 if message is not in the mailboxExtension
+          // i goes from 0 to size - 2	
+          writeMessage(currentThread.currentMessageId, msg, msg.getArgs()[0], size-i-1);
         }
         msg.execute();
       } finally {
