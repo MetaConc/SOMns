@@ -6,6 +6,7 @@ import java.util.Map;
 import com.oracle.truffle.api.nodes.IndirectCallNode;
 
 import som.compiler.AccessModifier;
+import som.interpreter.actors.Actor;
 import som.interpreter.nodes.dispatch.Dispatchable;
 import som.interpreter.objectstorage.ClassFactory;
 import som.vmobjects.SAbstractObject;
@@ -24,6 +25,7 @@ public class TimeTravellingDebugger {
    */
     private static Map<Object, SAbstractObject> revivedObjects = new HashMap<Object, SAbstractObject>();
     private static Map<SSymbol, SClass> revivedClasses = new HashMap<SSymbol, SClass>();
+    private static Map<Long, Actor> revivedActors = new HashMap<Long, Actor>();
 
 
   /*
@@ -43,7 +45,6 @@ public class TimeTravellingDebugger {
   public static synchronized void reportSAbstractObject(final Object dbRef, final SAbstractObject object) {
     revivedObjects.put(dbRef, object);
   }
-
   public static synchronized SAbstractObject getSAbstractObject(final Object dbRef) {
     return revivedObjects.get(dbRef);
   }
@@ -52,10 +53,16 @@ public class TimeTravellingDebugger {
   public static SClass getSClass(final SSymbol factoryName) {
     return revivedClasses.get(factoryName);
   }
-
-
   public static void reportSClass(final SSymbol factoryName, final SClass revivedClass) {
     revivedClasses.put(factoryName, revivedClass);
+  }
+
+
+  public static Actor getActor(final Long actorId) {
+    return revivedActors.get(actorId);
+  }
+  public static void reportActor(final Long actorId, final Actor revivedActor) {
+    revivedActors.put(actorId, revivedActor);
   }
 
    /*

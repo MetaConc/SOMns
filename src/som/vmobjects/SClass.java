@@ -28,8 +28,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
@@ -64,7 +62,6 @@ public final class SClass extends SObjectWithClass {
   @CompilationFinal private ClassFactory instanceClassGroup; // the factory for this object
 
   protected final SObjectWithClass enclosingObject;
-  private Lock databaseLock; // lock used by time travelling database to ensure no two copies of same SClass are created
 
   /*
    * enclosingObject
@@ -270,16 +267,5 @@ public final class SClass extends SObjectWithClass {
   @Override
   public String toString() {
     return "Class(" + getName().getString() + ")";
-  }
-
-  public synchronized void getLock() {
-    if (databaseLock == null) {
-      databaseLock = new ReentrantLock();
-    }
-    databaseLock.lock();
-  }
-
-  public void releaseLock() {
-    databaseLock.unlock();
   }
 }

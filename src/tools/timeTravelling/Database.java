@@ -44,7 +44,7 @@ public final class Database {
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
     StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
-    Classes.nilClass.updateDatabaseRef(getIdFromStatementResult(result.single().get("nil")));
+    Classes.nilClass.getDatabaseInfo().setRoot(getIdFromStatementResult(result.single().get("nil")));
     endSession(session);
   }
 
@@ -99,15 +99,18 @@ public final class Database {
   public void storeFactoryMethod(final Session session, final Long messageId, final EventualMessage msg, final Actor actor, final SClass target, final int messageCount) {
     storeActor(session, actor);
     storeSClass(session, target);
+    final Object messageRef = storeEventualMessage(session, msg);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
             + " MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
-            + " CREATE (turn: Turn {type: {methodType}, messageId: {messageId}, messageName: {messageName}, messageCount: {messageCount}}) - [:TURN] -> (actor)"
+            + " MATCH (message: EventualMessage) where ID(message)={messageRef}"
+            + " CREATE (turn: Turn {type: {methodType}, messageId: {messageId}, messageCount: {messageCount}}) - [:TURN] -> (actor)"
             + " CREATE (turn) - [:TARGET] -> (SClass)"
+            + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "SClassId", target.getDatabaseRef(), "methodType", MethodType.factory.name(),
-                "messageId", messageId, "messageName", msg.getSelector().getString(), "messageCount", messageCount));
+            parameters("actorId", actor.getId(), "SClassId", target.getDatabaseInfo().getRef(), "methodType", MethodType.factory.name(),
+                "messageId", messageId, "messageRef", messageRef, "messageCount", messageCount));
 
     Record record = result.single();
     Object argumentId = record.get("turn").asNode().id();
@@ -122,26 +125,44 @@ public final class Database {
       final Actor actor, final SObjectWithClass target, final int messageCount) {
     assert(actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
     final DatabaseInfo.DatabaseState old = storeSObject(session, target);
+    final Object messageRef = storeEventualMessage(session, msg);
     // create checkpoint header, root node to which all information of one turn becomes connected.
-    StatementResult result = session.run(
+    session.run(
         "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
+            + " MATCH (message: EventualMessage) where ID(message)={messageRef}"
             + (old == DatabaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
-            + " CREATE (turn: Turn {type: {methodType}, messageId: {messageId}, messageName: {messageName}, messageCount: {messageCount}}) - [:TARGET] -> (SObject)"
+            + " CREATE (turn: Turn {type: {methodType}, messageId: {messageId}, messageCount: {messageCount}}) - [:TARGET] -> (SObject)"
+            + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "SObjectId", target.getDatabaseRef(), "messageId", messageId, "messageName", msg.getSelector().getString(),
-                "messageCount", messageCount, "methodType", MethodType.method.name()));
+            parameters("actorId", actor.getId(), "SObjectId", target.getDatabaseInfo().getRef(), "messageId", messageId,
+                "messageCount", messageCount, "methodType", MethodType.method.name(), "messageRef", messageRef));
+  }
 
-    // write all arguments to db
-    Object argumentId = getIdFromStatementResult(result.single().get("turn"));
+  // TODO refactor
+  private Object storeEventualMessage(final Session session, final EventualMessage msg) {
+    boolean hasResolver = msg.getResolver() != null;
+    Object resolverRef = null;
+    if(hasResolver){
+      resolverRef = storeSResolver(session, msg.getResolver());
+    }
+    StatementResult result = session.run(
+        (hasResolver ? "MATCH (resolver: SResolver) where ID(resolver)={resolverId}" : "")
+        + " CREATE (message: EventualMessage {messageName: {messageName}, causalId: {causalId}})"
+        + (hasResolver ? "CREATE (message)-[:WITH_RESOLVER]-> (resolver)" : "")
+        + " return message",
+        parameters("messageName", msg.getSelector().getString(), "resolverId", resolverRef, "causalId", msg.getCausalMessageId()));
+    Object messageId = result.single().get("message").asNode().id();
     Object[] args = msg.getArgs();
     for (int i = 1; i < args.length; i++) {
-      storeArgument(session, argumentId, i, args[i]);
+      storeArgument(session, messageId, i, args[i]);
     }
+    return messageId;
   }
 
   private void storeSClass(final Session session, final SClass sClass) {
-    sClass.getLock();
-    if (sClass.getDatabaseRef() == null) {
+    DatabaseInfo info = sClass.getDatabaseInfo();
+    info.getLock();
+    if (info.getRef() == null) {
 
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
       storeSClass(session, enclosing);
@@ -149,67 +170,99 @@ public final class Database {
           "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
               + " CREATE (Child: SClass {factoryName: {factoryName}}) - [:ENCLOSED_BY]-> (SClass)"
               + " return Child",
-              parameters("SClassId", enclosing.getDatabaseRef(), "factoryName", sClass.getName().getString()));
+              parameters("SClassId", enclosing.getDatabaseInfo().getRef(), "factoryName", sClass.getName().getString()));
       final Object ref = getIdFromStatementResult(result.single().get("Child"));
-      sClass.updateDatabaseRef(ref);
+      info.setRoot(ref);
     }
-    sClass.releaseLock();
+    info.releaseLock();
   }
 
   private DatabaseInfo.DatabaseState storeSObject(final Session session, final SObjectWithClass object) {
     DatabaseInfo info = object.getDatabaseInfo();
-    StatementResult result;
+    info.getLock();
     DatabaseInfo.DatabaseState old = info.getState();
     switch(old) {
       case not_stored:
-        SClass sClass = object.getSOMClass();
-        // only turns are stored in the db. If an object is created internally in a turn we might still need to store the class
-        storeSClass(session, sClass);
-        result = session.run(
-            "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
-                + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:HAS_CLASS] -> (SClass)"
-                + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
-                + " return SObject",
-                parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
-        object.updateDatabaseRef(getIdFromStatementResult(result.single().get("SObject")));
-        storeSlots(session, object);
+        storeRoot(session, object, info);
         break;
       case valid:
-        break; // dirtying updated value is broken, for now always create copy if object was stored
+        info.releaseLock();
+        break;
       case outdated:
-        result = session.run(
+        info.releaseLock();
+        StatementResult result = session.run(
             "MATCH (old: SObject) where ID(old) = {oldRef}"
                 + " MATCH (old) - [:HAS_ROOT] -> (root:SObject)"
                 + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:UPDATE] -> (old)"
                 + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
                 + " return SObject",
-                parameters("oldRef", object.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
-        object.updateDatabaseRef(getIdFromStatementResult(result.single().get("SObject")));
+                parameters("oldRef", info.getRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
+        info.update(getIdFromStatementResult(result.single().get("SObject")));
         storeSlots(session, object);
         break;
     }
     return old;
   }
 
-  private Object storeFarReference(final Session session,
-      final SFarReference farRef) {
+  private void storeRoot(final Session session, final SObjectWithClass object, final DatabaseInfo info){
+    SClass sClass = object.getSOMClass();
+    // only turns are stored in the db. If an object is created internally in a turn we might still need to store the class
+    storeSClass(session, sClass);
+    StatementResult result = session.run(
+        "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
+            + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:HAS_CLASS] -> (SClass)"
+            + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
+            + " return SObject",
+            parameters("SClassId", sClass.getDatabaseInfo().getRef(), "type", SomValueType.SAbstractObject.name(), "version", 0));
+    info.setRoot(getIdFromStatementResult(result.single().get("SObject")));
+    info.releaseLock();
+    storeSlots(session, object);
+  }
 
-    final Object ref = storeValue(session, farRef.getValue());
-    if (ref != null) {
-      StatementResult result = session.run(
-          "MATCH (target) where ID(target)={targetId}"
-              + " CREATE (value: FarRef) - [:POINTS_TO]->target"
-              + " return value",
-              parameters("targetId", ref));
-      return getIdFromStatementResult(result.single().get("value"));
+  // Far reference point to SObjects.
+  // Either the object is already in the database, in which case the far ref points to the root object
+  // Or the object is not in the database and we add it.
+  // Since far references point to objects in other actors we need locks.
+  private Object storeSFarReference(final Session session, final SFarReference farRef) {
+    final Object val = farRef.getValue();
+    assert(val instanceof SObjectWithClass);
+    SObjectWithClass value = (SObject) val;
+    DatabaseInfo info = value.getDatabaseInfo();
+    info.getLock();
+    if(info.getState()==DatabaseState.not_stored) {
+      storeRoot(session, value, info);
     }
-    return null;
+    info.releaseLock();
+    Object targetRef = info.getRoot();
+
+    StatementResult result = session.run(
+          "MATCH (target) where ID(target)={targetId}"
+              + " CREATE (farRef: SFarReference) - [:FAR_REFERENCE_TO]->target"
+              + " return farRef",
+              parameters("targetId", targetRef));
+      return getIdFromStatementResult(result.single().get("farRef"));
+  }
+
+  private Object storeSPromise(final Session session, final SPromise promise) {
+    StatementResult result = session.run("CREATE (promise: SPromise) return promise");
+    Object ref = getIdFromStatementResult(result.single().get("promise"));
+    promise.getDatabaseInfo().setRoot(ref);
+    return ref;
+  }
+
+  private Object storeSResolver(final Session session, final SResolver resolver) {
+    Object promiseRef = storeSPromise(session, resolver.getPromise());
+    StatementResult result = session.run(
+        "MATCH (promise: SPromise) where ID(promise)={promiseId}"+
+        "CREATE (resolver: SResolver)-[:RESOLVER_OF]->(promise) return resolver",
+        parameters("promiseId", promiseRef));
+    return getIdFromStatementResult(result.single().get("resolver"));
   }
 
   private void storeSlots(final Session session, final SObjectWithClass o) {
     if(o instanceof SObject){
       final SObject object = (SObject) o;
-      final Object parentRef = object.getDatabaseRef();
+      final Object parentRef = object.getDatabaseInfo().getRef();
       for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
         Object ref = storeValue(session, entry.getValue().read(object));
         if (ref != null) {
@@ -237,15 +290,15 @@ public final class Database {
   private Object storeValue(final Session session, final Object value) {
     StatementResult result;
     if (value instanceof SFarReference) {
-      throw new RuntimeException("not yet implemented: store SFarReference");
+      return storeSFarReference(session, (SFarReference) value);
     } else if (value instanceof SPromise) {
-      throw new RuntimeException("not yet implemented: store SPromise");
+      return storeSPromise(session, (SPromise) value);
     } else if (value instanceof SResolver) {
-      throw new RuntimeException("not yet implemented: store SResolver");
+      return storeSResolver(session, (SResolver) value);
     } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
       SObject object = (SObject) value;
       storeSObject(session, object);
-      return object.getDatabaseRef();
+      return object.getDatabaseInfo().getRef();
     } else if (valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
       return null;
     } else if (value instanceof Long) {
@@ -272,10 +325,13 @@ public final class Database {
       Database database = getDatabaseInstance();
       Session session = database.startSession();
 
-      Node message = database.readMessage(session, causalMessageId);
+      Record record = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message: EventualMessage) RETURN turn, message",
+          parameters("messageId", causalMessageId)).single();
+      Node turn = record.get("turn").asNode();
+      Node message = record.get("message").asNode();
       SSymbol messageName = Symbols.symbolFor(message.get("messageName").asString());
       Object[] arguments = database.readMessageArguments(session, causalMessageId);
-      MethodType methodType = MethodType.valueOf(message.get("type").asString());
+      MethodType methodType = MethodType.valueOf(turn.get("type").asString());
       switch(methodType) {
         case method: {
           SAbstractObject target = database.readTarget(session, causalMessageId);
@@ -296,12 +352,6 @@ public final class Database {
       e.printStackTrace();
     }
 
-  }
-
-  private Node readMessage(final Session session, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) RETURN turn",
-        parameters("messageId", causalMessageId));
-    return result.single().get("turn").asNode();
   }
 
   // expect the actor check to be done in readMessage name
@@ -346,6 +396,27 @@ public final class Database {
       }
     }
     return sObject;
+  }
+
+  private SFarReference readSFarReference(final Session session, final Node Object) {
+    StatementResult result = session.run("MATCH (farRef: SFarReference) where ID(farRef)={farRefId}" +
+       "MATCH (farRef) - [:FAR_REFERENCE_TO]->(target: SObject)-[:in]->(actor: Actor)" +
+       "return target, actor", parameters());
+    Record record = result.single();
+    SAbstractObject target = readSObject(session, record.get("target").asNode());
+    Actor actor = readActor(session, record.get("actor").asNode());
+
+    return new SFarReference(actor, target);
+  }
+
+  private Actor readActor(final Session session, final Node actorNode) {
+    Long actorId = actorNode.get("actorId").asLong();
+    Actor revivedActor = TimeTravellingDebugger.getActor(actorId);
+    if(revivedActor==null){
+      revivedActor = Actor.createActor();
+      TimeTravellingDebugger.reportActor(actorId, revivedActor);
+    }
+    return revivedActor;
   }
 
   private SClass getClassOfSObject(final Session session, final Object objectId) {
@@ -405,8 +476,7 @@ public final class Database {
     SomValueType type = SomValueType.valueOf(value.get("type").asString());
     switch(type){
       case SFarReference:
-        throw new RuntimeException("not yet implemented: read SFarRefernce");
-
+        return readSFarReference(session, value.asNode());
       case SPromise:
         throw new RuntimeException("not yet implemented: read SPromise");
 

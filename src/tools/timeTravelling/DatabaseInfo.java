@@ -1,9 +1,14 @@
 package tools.timeTravelling;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class DatabaseInfo {
   private DatabaseState state;
   private Object databaseRef;
+  private Object rootRef;
   private int version;
+  private Lock lock;
 
   public enum DatabaseState {
     not_stored,
@@ -13,8 +18,8 @@ public class DatabaseInfo {
 
   public DatabaseInfo() {
     state = DatabaseState.not_stored;
-    databaseRef = null;
     version = 0;
+    lock = new ReentrantLock();
   }
 
   public Object getRef() {
@@ -36,6 +41,15 @@ public class DatabaseInfo {
     state = DatabaseState.valid;
   }
 
+  public Object getRoot() {
+    return rootRef;
+  }
+
+  public void setRoot(final Object rootRef) {
+     this.rootRef = rootRef;
+     update(rootRef);
+  }
+
   public int getVersion() {
     return version;
   }
@@ -47,6 +61,13 @@ public class DatabaseInfo {
   public void setVersion(final int version) {
    this.version = version;
    this.state = DatabaseState.valid;
+  }
 
+  public void getLock() {
+    lock.lock();
+  }
+
+  public void releaseLock() {
+    lock.unlock();
   }
 }
