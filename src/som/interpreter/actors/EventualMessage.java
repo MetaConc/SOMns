@@ -2,6 +2,8 @@ package som.interpreter.actors;
 
 import java.util.Arrays;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.source.SourceSection;
 
@@ -12,6 +14,8 @@ import som.interpreter.actors.SPromise.SResolver;
 import som.vmobjects.SBlock;
 import som.vmobjects.SSymbol;
 import tools.concurrency.TracingActivityThread;
+import tools.timeTravelling.Database;
+import tools.timeTravelling.DatabaseInfo;
 
 
 public abstract class EventualMessage {
@@ -31,6 +35,8 @@ public abstract class EventualMessage {
    * (with or without resolver).
    */
   protected final boolean triggerPromiseResolverBreakpoint;
+
+  private DatabaseInfo databaseInfo = new DatabaseInfo();
 
   protected EventualMessage(final Object[] args,
       final SResolver resolver, final RootCallTarget onReceive,
@@ -342,5 +348,14 @@ public abstract class EventualMessage {
    */
   public void setIsMessageReceiverBreakpoint(final boolean triggerBreakpoint) {
     this.triggerMessageReceiverBreakpoint = triggerBreakpoint;
+  }
+
+  public void addToDb(final Database db, final Session session){
+    db.storeEventualMessage(session, this, triggerMessageReceiverBreakpoint,
+        triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint);
+  }
+
+  public DatabaseInfo getDatabaseInfo() {
+    return databaseInfo;
   }
 }

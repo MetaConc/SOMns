@@ -99,7 +99,7 @@ public final class Database {
   public void storeFactoryMethod(final Session session, final Long messageId, final EventualMessage msg, final Actor actor, final SClass target, final int messageCount) {
     storeActor(session, actor);
     storeSClass(session, target);
-    final Object messageRef = storeEventualMessage(session, msg);
+    msg.addToDb(this, session);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     StatementResult result = session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
@@ -110,7 +110,7 @@ public final class Database {
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
             parameters("actorId", actor.getId(), "SClassId", target.getDatabaseInfo().getRef(), "methodType", MethodType.factory.name(),
-                "messageId", messageId, "messageRef", messageRef, "messageCount", messageCount));
+                "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef(), "messageCount", messageCount));
 
     Record record = result.single();
     Object argumentId = record.get("turn").asNode().id();
@@ -125,7 +125,7 @@ public final class Database {
       final Actor actor, final SObjectWithClass target, final int messageCount) {
     assert(actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
     final DatabaseInfo.DatabaseState old = storeSObject(session, target);
-    final Object messageRef = storeEventualMessage(session, msg);
+    msg.addToDb(this, session);
     // create checkpoint header, root node to which all information of one turn becomes connected.
     session.run(
         "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
@@ -135,28 +135,35 @@ public final class Database {
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
             parameters("actorId", actor.getId(), "SObjectId", target.getDatabaseInfo().getRef(), "messageId", messageId,
-                "messageCount", messageCount, "methodType", MethodType.method.name(), "messageRef", messageRef));
+                "messageCount", messageCount, "methodType", MethodType.method.name(), "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
   // TODO refactor
-  private Object storeEventualMessage(final Session session, final EventualMessage msg) {
-    boolean hasResolver = msg.getResolver() != null;
-    Object resolverRef = null;
-    if(hasResolver){
-      resolverRef = storeSResolver(session, msg.getResolver());
+  public void storeEventualMessage(final Session session, final EventualMessage msg, final boolean triggerMessageReceiverBreakpoint,
+      final boolean triggerPromiseResolverBreakpoint, final boolean triggerPromiseResolutionBreakpoint) {
+    DatabaseInfo info = msg.getDatabaseInfo();
+    if(info.getState()!=DatabaseState.valid){
+      boolean hasResolver = msg.getResolver() != null;
+      Object resolverRef = null;
+      if(hasResolver){
+        resolverRef = storeSResolver(session, msg.getResolver());
+      }
+      StatementResult result = session.run(
+          (hasResolver ? "MATCH (resolver: SResolver) where ID(resolver)={resolverId}" : "")
+          + " CREATE (message: EventualMessage {messageName: {messageName}, causalId: {causalId}, msgReceiver: {msgReceiver}"
+          + ", promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
+          + (hasResolver ? "CREATE (message)-[:WITH_RESOLVER]-> (resolver)" : "")
+          + " return message",
+          parameters("messageName", msg.getSelector().getString(), "resolverId", resolverRef, "causalId", msg.getCausalMessageId(),
+              "msgReceiver", triggerMessageReceiverBreakpoint, "promiseResolver", triggerPromiseResolverBreakpoint,
+              "promiseResolution", triggerPromiseResolutionBreakpoint));
+      Object messageId = result.single().get("message").asNode().id();
+      msg.getDatabaseInfo().setRoot(messageId);
+      Object[] args = msg.getArgs();
+      for (int i = 1; i < args.length; i++) {
+        storeArgument(session, messageId, i, args[i]);
+      }
     }
-    StatementResult result = session.run(
-        (hasResolver ? "MATCH (resolver: SResolver) where ID(resolver)={resolverId}" : "")
-        + " CREATE (message: EventualMessage {messageName: {messageName}, causalId: {causalId}})"
-        + (hasResolver ? "CREATE (message)-[:WITH_RESOLVER]-> (resolver)" : "")
-        + " return message",
-        parameters("messageName", msg.getSelector().getString(), "resolverId", resolverRef, "causalId", msg.getCausalMessageId()));
-    Object messageId = result.single().get("message").asNode().id();
-    Object[] args = msg.getArgs();
-    for (int i = 1; i < args.length; i++) {
-      storeArgument(session, messageId, i, args[i]);
-    }
-    return messageId;
   }
 
   private void storeSClass(final Session session, final SClass sClass) {
