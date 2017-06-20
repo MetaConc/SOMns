@@ -36,7 +36,7 @@ public abstract class EventualMessage {
    */
   protected final boolean triggerPromiseResolverBreakpoint;
 
-  private DatabaseInfo databaseInfo = new DatabaseInfo();
+  protected DatabaseInfo databaseInfo = new DatabaseInfo();
 
   protected EventualMessage(final Object[] args,
       final SResolver resolver, final RootCallTarget onReceive,
@@ -117,6 +117,13 @@ public abstract class EventualMessage {
       return "DirectMsg(" + selector.toString() + ", "
       + Arrays.toString(args) +  ", " + t
       + ", sender: " + (sender == null ? "" : sender.toString()) + ")";
+    }
+
+    @Override
+    public void storeInDb(final Database database, final Session session) {
+      database.storeDirectMessage(session, databaseInfo, causalMessageId, target,
+          selector, args,  sender, resolver, onReceive, triggerMessageReceiverBreakpoint,
+          triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint );
     }
   }
 
@@ -238,6 +245,13 @@ public abstract class EventualMessage {
     public SPromise getPromise() {
       return originalTarget;
     }
+
+    @Override
+    public void storeInDb(final Database database, final Session session) {
+      database.storePromiseSendMessage(session, databaseInfo, causalMessageId, target, originalTarget,
+          selector, args, finalSender, resolver, onReceive, triggerMessageReceiverBreakpoint,
+          triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint );
+    }
   }
 
   /** The callback message to be send after a promise is resolved. */
@@ -289,6 +303,13 @@ public abstract class EventualMessage {
     @Override
     public SPromise getPromise() {
       return promise;
+    }
+
+    @Override
+    public void storeInDb(final Database database, final Session session) {
+      database.storePromiseCallbackMessage(session, databaseInfo, causalMessageId, originalSender,
+          (SBlock) args[0], resolver, onReceive, triggerMessageReceiverBreakpoint,
+          triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint, promise);
     }
   }
 
@@ -350,12 +371,9 @@ public abstract class EventualMessage {
     this.triggerMessageReceiverBreakpoint = triggerBreakpoint;
   }
 
-  public void addToDb(final Database db, final Session session){
-    db.storeEventualMessage(session, this, triggerMessageReceiverBreakpoint,
-        triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint);
-  }
-
   public DatabaseInfo getDatabaseInfo() {
     return databaseInfo;
   }
+
+  public abstract void storeInDb(final Database database, final Session session);
 }

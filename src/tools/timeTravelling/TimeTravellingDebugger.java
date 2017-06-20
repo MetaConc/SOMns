@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.oracle.truffle.api.nodes.IndirectCallNode;
+import com.oracle.truffle.api.nodes.RootNode;
+import com.oracle.truffle.api.source.SourceSection;
 
 import som.compiler.AccessModifier;
 import som.interpreter.actors.Actor;
@@ -17,6 +19,7 @@ import som.vmobjects.SSymbol;
 // TODO merge file with debugger after thesis is done. This allows me to separate my work from SOM
 public class TimeTravellingDebugger {
   private Map<SSymbol, ClassFactory> factories = new HashMap<SSymbol, ClassFactory>();
+  private static Map<SourceSection, RootNode> rootNodes = new HashMap<SourceSection, RootNode>();
 
   /*
    * map keeps track of revived SObject
@@ -27,16 +30,21 @@ public class TimeTravellingDebugger {
     private static Map<SSymbol, SClass> revivedClasses = new HashMap<SSymbol, SClass>();
     private static Map<Long, Actor> revivedActors = new HashMap<Long, Actor>();
 
-
   /*
    *  Runtime information kept to make serialization easier
    */
   public void reportClassFactory(final ClassFactory factory) {
     this.factories.put(factory.getClassName(), factory);
   }
-
   public ClassFactory getFactory(final SSymbol name) {
     return this.factories.get(name);
+  }
+
+  public static void reportRootNode(final RootNode rootNode) {
+    rootNodes.put(rootNode.getSourceSection(), rootNode);
+  }
+  public static RootNode getRootNode(final SourceSection source) {
+    return rootNodes.get(source);
   }
 
   /*
@@ -50,20 +58,21 @@ public class TimeTravellingDebugger {
   }
 
 
-  public static SClass getSClass(final SSymbol factoryName) {
-    return revivedClasses.get(factoryName);
-  }
   public static void reportSClass(final SSymbol factoryName, final SClass revivedClass) {
     revivedClasses.put(factoryName, revivedClass);
   }
-
-
-  public static Actor getActor(final Long actorId) {
-    return revivedActors.get(actorId);
+  public static SClass getSClass(final SSymbol factoryName) {
+    return revivedClasses.get(factoryName);
   }
+
+
   public static void reportActor(final Long actorId, final Actor revivedActor) {
     revivedActors.put(actorId, revivedActor);
   }
+  public static Actor getActor(final Long actorId) {
+    return revivedActors.get(actorId);
+  }
+
 
    /*
     * actual methods to perform replay, once the system state is restored
