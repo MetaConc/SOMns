@@ -157,12 +157,11 @@ public final class Database {
   // - (method) target has_root in
 
   public void storeDirectMessage(final Session session, final DatabaseInfo info,
-      final long causalMessageId, final Actor target, final SSymbol selector,
+      final Actor target, final SSymbol selector,
       final Object[] args, final Actor sender, final SResolver resolver,
       final RootCallTarget onReceive,
       final boolean triggerMessageReceiverBreakpoint,
-      final boolean triggerPromiseResolverBreakpoint,
-      final boolean triggerPromiseResolutionBreakpoint) {
+      final boolean triggerPromiseResolverBreakpoint) {
 
     RootNode rootNode = onReceive.getRootNode();
     storeActor(session, sender);
@@ -170,12 +169,12 @@ public final class Database {
     TimeTravellingDebugger.reportRootNode(rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: DirectMessage {messageName: {messageName}, causalId: {causalId}, sender: {senderId}, target: {targetId}, "
-        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
+        " CREATE (message: DirectMessage {messageName: {messageName}, sender: {senderId}, target: {targetId}, "
+        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
         + " return message",
-        parameters("messageName", selector.getString(), "causalId", causalMessageId, "senderId", sender.getId(),
+        parameters("messageName", selector.getString(), "senderId", sender.getId(),
             "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
-            "promiseResolver", triggerPromiseResolverBreakpoint, "promiseResolution", triggerPromiseResolutionBreakpoint));
+            "promiseResolver", triggerPromiseResolverBreakpoint));
 
     Object messageId = result.single().get("message").asNode().id();
     info.setRoot(messageId);
@@ -186,24 +185,23 @@ public final class Database {
   }
 
   public void storePromiseSendMessage(final Session session,
-      final DatabaseInfo info, final long causalMessageId, final Actor target,
+      final DatabaseInfo info, final Actor target,
       final SPromise originalTarget, final SSymbol selector, final Object[] args,
       final Actor finalSender, final SResolver resolver, final RootCallTarget onReceive,
       final boolean triggerMessageReceiverBreakpoint,
-      final boolean triggerPromiseResolverBreakpoint,
-      final boolean triggerPromiseResolutionBreakpoint) {
+      final boolean triggerPromiseResolverBreakpoint) {
     RootNode rootNode = onReceive.getRootNode();
     storeActor(session, finalSender);
     storeActor(session, target);
     TimeTravellingDebugger.reportRootNode(rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseSendMessage {messageName: {messageName}, causalId: {causalId}, sender: {senderId}, target: {targetId}, "
-        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
+        " CREATE (message: PromiseSendMessage {messageName: {messageName},  sender: {senderId}, target: {targetId}, "
+        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
         + " return message",
-        parameters("messageName", selector.getString(), "causalId", causalMessageId, "senderId", finalSender.getId(),
+        parameters("messageName", selector.getString(), "senderId", finalSender.getId(),
             "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
-            "promiseResolver", triggerPromiseResolverBreakpoint, "promiseResolution", triggerPromiseResolutionBreakpoint));
+            "promiseResolver", triggerPromiseResolverBreakpoint));
 
     Object messageId = result.single().get("message").asNode().id();
     info.setRoot(messageId);
@@ -215,23 +213,22 @@ public final class Database {
   }
 
   // TODO rootblock
-  public void storePromiseCallbackMessage(final Session session, final DatabaseInfo info, final long causalMessageId,
+  public void storePromiseCallbackMessage(final Session session, final DatabaseInfo info,
       final Actor originalSender, final SBlock callback, final SResolver resolver,
       final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint,
-      final boolean triggerPromiseResolverBreakpoint,
-      final boolean triggerPromiseResolutionBreakpoint, final SPromise promise) {
+      final boolean triggerPromiseResolverBreakpoint, final SPromise promise) {
 
     RootNode rootNode = onReceive.getRootNode();
     storeActor(session, originalSender);
     TimeTravellingDebugger.reportRootNode(rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseSendMessage {causalId: {causalId}, sender: {senderId}, "
+        " CREATE (message: PromiseSendMessage {sender: {senderId}, "
         + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
         + " return message",
-        parameters("causalId", causalMessageId, "senderId", originalSender.getId(),
+        parameters("senderId", originalSender.getId(),
             "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
-            "promiseResolver", triggerPromiseResolverBreakpoint, "promiseResolution", triggerPromiseResolutionBreakpoint));
+            "promiseResolver", triggerPromiseResolverBreakpoint));
 
     Object messageId = result.single().get("message").asNode().id();
     info.setRoot(messageId);

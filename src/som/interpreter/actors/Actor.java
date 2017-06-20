@@ -2,7 +2,6 @@ package som.interpreter.actors;
 
 import static tools.timeTravelling.ObjectWriter.writeMessage;
 
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory;
@@ -279,8 +278,8 @@ public class Actor implements Activity {
         }
 		if (VmSettings.TIME_TRAVELLING) {
 		  // i is -1 if message is not in the mailboxExtension
-          // i goes from 0 to size - 2	
-          writeMessage(currentThread.currentMessageId, msg, msg.getArgs()[0], size-i-1);
+          // i goes from 0 to size - 2
+          writeMessage(currentThread.currentMessage.messageId, msg, msg.getArgs()[0], 0);
         }
         msg.execute();
       } finally {

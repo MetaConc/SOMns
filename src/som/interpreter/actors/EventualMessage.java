@@ -121,9 +121,9 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storeDirectMessage(session, databaseInfo, causalMessageId, target,
+      database.storeDirectMessage(session, databaseInfo, target,
           selector, args,  sender, resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint );
+          triggerPromiseResolverBreakpoint );
     }
   }
 
@@ -248,9 +248,9 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storePromiseSendMessage(session, databaseInfo, causalMessageId, target, originalTarget,
+      database.storePromiseSendMessage(session, databaseInfo, target, originalTarget,
           selector, args, finalSender, resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint );
+          triggerPromiseResolverBreakpoint );
     }
   }
 
@@ -307,9 +307,9 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storePromiseCallbackMessage(session, databaseInfo, causalMessageId, originalSender,
+      database.storePromiseCallbackMessage(session, databaseInfo, originalSender,
           (SBlock) args[0], resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint, triggerPromiseResolutionBreakpoint, promise);
+          triggerPromiseResolverBreakpoint, promise);
     }
   }
 
