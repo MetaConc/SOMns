@@ -42,9 +42,11 @@ import tools.timeTravelling.DatabaseInfo.DatabaseState;
 
 public final class Database {
   private static Database singleton;
+  private VM vm;
   private Driver driver = GraphDatabase.driver("bolt://localhost:7687", AuthTokens.basic("neo4j", "timetraveling"));
 
-  private Database() {
+  private Database(final VM vm) {
+    this.vm = vm;
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
     StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
@@ -52,11 +54,14 @@ public final class Database {
     endSession(session);
   }
 
+  public static void instantiateDatabase(final VM vm) {
+    assert (singleton == null);
+    singleton = new Database(vm);
+  }
+
   // singleton design pattern
   public static synchronized Database getDatabaseInstance() {
-    if (singleton == null) {
-      singleton = new Database();
-    }
+    assert (singleton != null);
     return singleton;
   }
 
@@ -93,7 +98,7 @@ public final class Database {
   /* --------------------------------------- */
 
   public void storeActor(final Session session, final Actor actor) {
-    if(!actor.inDatabase) {
+    if (!actor.inDatabase) {
       session.run(" CREATE (actor:Actor {actorId: {actorId}})",
           parameters("actorId", actor.getId()));
       actor.inDatabase = true;
@@ -127,7 +132,7 @@ public final class Database {
   // the arguments of the message are already stored in the log.
   public void storeCheckpoint(final Session session, final Long messageId, final EventualMessage msg,
       final Actor actor, final SObjectWithClass target, final int messageCount) {
-    assert(actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
+    assert (actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
     final DatabaseInfo.DatabaseState old = storeSObject(session, target);
     storeEventualMessage(session, msg);
     // create checkpoint header, root node to which all information of one turn becomes connected.
@@ -144,7 +149,7 @@ public final class Database {
 
 
   private void storeEventualMessage(final Session session, final EventualMessage msg) {
-    if(msg.getDatabaseInfo().getState()!=DatabaseState.valid){
+    if (msg.getDatabaseInfo().getState() != DatabaseState.valid) {
      msg.storeInDb(this, session);
     }
   }
@@ -317,7 +322,7 @@ public final class Database {
 
     StatementResult result = session.run(
         "MATCH (target) where ID(target)={targetId}"
-            + " CREATE (farRef: SFarReference) - [:FAR_REFERENCE_TO]->target"
+            + " CREATE (farRef: SFarReference) - [:FAR_REFERENCE_TO]->(target)"
             + " return farRef",
             parameters("targetId", targetRef));
     return getIdFromStatementResult(result.single().get("farRef"));
@@ -332,9 +337,11 @@ public final class Database {
   }
 
   private Object storeSPromise(final Session session, final SPromise promise) {
+    System.out.println(promise.getClass());
     Object ref = promise.getDatabaseInfo().getRoot();
-    if(ref == null){
-      StatementResult result = session.run("CREATE (promise: SPromise) return promise");
+    if (ref == null) {
+      StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}}) return promise",
+          parameters("promiseId", promise.getPromiseId()));
       ref = getIdFromStatementResult(result.single().get("promise"));
       promise.getDatabaseInfo().setRoot(ref);
     }
@@ -342,7 +349,7 @@ public final class Database {
   }
 
   private void storeSResolver(final Session session, final SResolver resolver, final Object parentId) {
-    if(resolver != null){
+    if (resolver != null) {
       Object resolverRef = storeSResolver(session, resolver);
       session.run("MATCH (parent) where ID(parent) = {parentId}"
           + "MATCH (resolver: SResolver) where ID(resolver) = {resolverId}"
@@ -361,7 +368,7 @@ public final class Database {
   }
 
   private void storeSlots(final Session session, final SObjectWithClass o) {
-    if(o instanceof SObject){
+    if (o instanceof SObject) {
       final SObject object = (SObject) o;
       final Object parentRef = object.getDatabaseInfo().getRef();
       for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
@@ -476,30 +483,30 @@ public final class Database {
     return readSObject(session, result.single().get("SObject").asNode());
   }
 
-  private SAbstractObject readSObject(final Session session, final Node Object) {
-    SAbstractObject sObject = TimeTravellingDebugger.getSAbstractObject(Object.id());
+  private SAbstractObject readSObject(final Session session, final Node object) {
+    SAbstractObject sObject = TimeTravellingDebugger.getSAbstractObject(object.id());
 
-    if(sObject == null) {
+    if (sObject == null) {
       // create the SClass object
-      SClass sClass = getClassOfSObject(session, Object.id());
+      SClass sClass = getClassOfSObject(session, object.id());
 
       // create the SObject
       sObject = NewObjectPrim.createEmptySObject(sClass);
-      TimeTravellingDebugger.reportSAbstractObject(Object.id(), sObject);
+      TimeTravellingDebugger.reportSAbstractObject(object.id(), sObject);
     }
     if (sObject instanceof SObject) { // not a SObjectWithoutFields
       DatabaseInfo info = ((SObject) sObject).getDatabaseInfo();
-      int targetVersion = Object.get("version").asInt();
-      if(!info.hasVersion(targetVersion)) {
+      int targetVersion = object.get("version").asInt();
+      if (!info.hasVersion(targetVersion)) {
         // if the version is different fill the slots
-        fillSlots(session, Object.id(), (SObject) sObject);
+        fillSlots(session, object.id(), (SObject) sObject);
         info.setVersion(targetVersion);
       }
     }
     return sObject;
   }
 
-  private SFarReference readSFarReference(final Session session, final Node Object) {
+  private SFarReference readSFarReference(final Session session, final Node object) {
     StatementResult result = session.run("MATCH (farRef: SFarReference) where ID(farRef)={farRefId}" +
         "MATCH (farRef) - [:FAR_REFERENCE_TO]->(target: SObject)-[:in]->(actor: Actor)" +
         "return target, actor", parameters());
@@ -513,8 +520,8 @@ public final class Database {
   private Actor readActor(final Session session, final Node actorNode) {
     Long actorId = actorNode.get("actorId").asLong();
     Actor revivedActor = TimeTravellingDebugger.getActor(actorId);
-    if(revivedActor==null){
-      revivedActor = Actor.createActor();
+    if (revivedActor == null) {
+      revivedActor = Actor.createActor(vm);
       TimeTravellingDebugger.reportActor(actorId, revivedActor);
     }
     return revivedActor;
@@ -550,11 +557,11 @@ public final class Database {
     SSymbol factoryName = Symbols.symbolFor(node.get("factoryName").asString());
     SClass revivedClass = TimeTravellingDebugger.getSClass(factoryName);
 
-    if(revivedClass == null){
+    if (revivedClass == null) {
       if (idx == factoryNames.size() - 1) {
         return Classes.nilClass;
       }
-      SClass outer = reviveClass(factoryNames, idx+1);
+      SClass outer = reviveClass(factoryNames, idx + 1);
       revivedClass = ClassInstantiationNode.instantiate(outer, VM.getTimeTravellingDebugger().getFactory(factoryName));
       TimeTravellingDebugger.reportSClass(factoryName, revivedClass);
     }

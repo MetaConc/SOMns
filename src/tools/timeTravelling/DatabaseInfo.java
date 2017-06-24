@@ -55,7 +55,7 @@ public class DatabaseInfo {
   }
 
   public boolean hasVersion(final int version) {
-    return((state==DatabaseState.valid)&&(this.version==version));
+    return ((state == DatabaseState.valid) && (this.version == version));
   }
 
   public void setVersion(final int version) {

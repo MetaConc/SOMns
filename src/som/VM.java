@@ -53,6 +53,7 @@ import tools.debugger.WebDebugger;
 import tools.debugger.session.Breakpoints;
 import tools.dym.DynamicMetrics;
 import tools.language.StructuralProbe;
+import tools.timeTravelling.Database;
 import tools.timeTravelling.TimeTravellingDebugger;
 
 
@@ -412,6 +413,7 @@ public final class VM {
       webDebuggerInst.setEnabled(true);
 
       if (VmSettings.TIME_TRAVELLING) {
+        Database.instantiateDatabase(this);
         timetravellingDebugger = new TimeTravellingDebugger();
       }
       webDebugger = webDebuggerInst.lookup(WebDebugger.class);
@@ -482,7 +484,7 @@ public final class VM {
     }
   }
 
-  public static boolean isPlatformObject(final SObjectWithClass t) {
-    return t.getSOMClass() == vm.objectSystem.getPlatformClass();
+  public boolean isPlatformObject(final SObjectWithClass t) {
+    return t.getSOMClass() == objectSystem.getPlatformClass();
   }
 }

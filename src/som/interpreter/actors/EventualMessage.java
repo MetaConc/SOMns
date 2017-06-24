@@ -123,7 +123,7 @@ public abstract class EventualMessage {
     public void storeInDb(final Database database, final Session session) {
       database.storeDirectMessage(session, databaseInfo, target,
           selector, args,  sender, resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint );
+          triggerPromiseResolverBreakpoint);
     }
   }
 
@@ -250,7 +250,7 @@ public abstract class EventualMessage {
     public void storeInDb(final Database database, final Session session) {
       database.storePromiseSendMessage(session, databaseInfo, target, originalTarget,
           selector, args, finalSender, resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint );
+          triggerPromiseResolverBreakpoint);
     }
   }
 

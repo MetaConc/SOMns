@@ -3,10 +3,11 @@
 import * as d3 from "d3";
 import { IdMap } from "./messages";
 import { dbgLog } from "./source";
-import { getEntityId } from "./view";
+import { getEntityId, nodeFromTemplate} from "./view";
 import { Activity, TraceDataUpdate, SendOp } from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
 import { getLightTangoColor, PADDING } from "./system-view";
+import {timeTravelling} from "./time-travelling";
 
 const actorStart = 20;      // height at which actor headings are created
 const actorHeight = 30;     // height of actor headings
@@ -278,10 +279,35 @@ class TurnNode {
       "data-animation": "false",
       "data-placement": "top" });
 
+
+    circle.attr("data-content", function () {
+        let content = nodeFromTemplate("protocol-timetravel-menu");
+        $(content).find("button")
+            .attr("data-actor-id", turn.actor.getActivityId())
+            .attr("data-message-id", 0);
+        return $(content).html();
+    });
+
     // popover is a css element and has a different dom then svg,
     // popover requires jQuery select to pass typechecking
     this.popover = $("#" + this.getId());
     this.popover.popover();
+
+    $(document).on("click", ".timetravel-minimal", function (e) {
+      e.stopImmediatePropagation();
+      timeTravelling.timeTravel(
+        e.currentTarget.attributes["data-actor-id"].value, 
+        e.currentTarget.attributes["data-message-id"].value,
+        false);
+    });
+    
+    $(document).on("click", ".timetravel-full", function (e) {
+      e.stopImmediatePropagation();
+      timeTravelling.timeTravel(
+        e.currentTarget.attributes["data-actor-id"].value, 
+        e.currentTarget.attributes["data-message-id"].value,
+        true);
+    });    
 
     return circle;
   }
@@ -507,7 +533,6 @@ export class ProcessView {
     for (const act of newActivities) {
       if (this.metaModel.isActor(act)) {
         const actor = new ActorHeading(act, this.numActors);
-        dbgLog("new activity: " + act.id + " " + act.name);
         this.actors[act.id] = actor;
         this.numActors += 1;
         actor.draw(this.metaModel);

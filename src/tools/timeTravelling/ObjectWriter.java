@@ -16,11 +16,11 @@ public  class ObjectWriter {
   // msg        = message currently being executed
   // t          = targe tof message
   // messageCount = number of message in actor message queue, includes current message.
-  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t, final int messageCount) {
+  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t, final VM vm, final int messageCount) {
     try {
       if (t instanceof SObject) {
         SObject target = (SObject) t;
-        if (VM.isPlatformObject(target)) {
+        if (vm.isPlatformObject(target)) {
           System.out.println("is platform object"); // what information do we need from the platform object / actor?
         } else {
           Database database = getDatabaseInstance();

@@ -2,6 +2,7 @@ import { SymbolMessage, FullSourceCoordinate, ActivityType, PassiveEntityType,
   DynamicScopeType, SendOpType, ReceiveOpType } from "./messages";
 import { TraceParser } from "./trace-parser";
 import { KomposMetaModel, EntityRefType } from "./meta-model";
+import {dbgLog} from "./source";
 
 
 export interface EntityProperties {
@@ -275,7 +276,8 @@ export class RawSendOp extends RawEntity {
     if (target === undefined) {
       return false;
     }
-    return {
+     dbgLog("resolve succesfull sendop: " + this.type + " " + this.entityId + " " + this.targetId + " " + creationActivity + " " + creationScope);
+   return {
       id: null,
       type: this.type,
       entity: entity,

@@ -259,7 +259,7 @@ function arrayToString(arr: any[][]) {
   return result;
 }
 
-function nodeFromTemplate(tplId: string) {
+export function nodeFromTemplate(tplId: string) {
   const tpl = document.getElementById(tplId);
   console.assert(tpl, "nodeFromTemplate failed for: " + tplId);
   const result = <Element> tpl.cloneNode(true);

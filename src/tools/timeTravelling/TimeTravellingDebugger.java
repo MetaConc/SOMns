@@ -26,9 +26,11 @@ public class TimeTravellingDebugger {
    * This is necessary as we want to preserve the object state
    * Two objects pointing to the same third object should again point to the same object
    */
-    private static Map<Object, SAbstractObject> revivedObjects = new HashMap<Object, SAbstractObject>();
-    private static Map<SSymbol, SClass> revivedClasses = new HashMap<SSymbol, SClass>();
-    private static Map<Long, Actor> revivedActors = new HashMap<Long, Actor>();
+  private static Map<Object, SAbstractObject> revivedObjects = new HashMap<Object, SAbstractObject>();
+  private static Map<SSymbol, SClass> revivedClasses = new HashMap<SSymbol, SClass>();
+  private static Map<Long, Actor> revivedActors = new HashMap<Long, Actor>();
+
+  public TimeTravellingDebugger(){};
 
   /*
    *  Runtime information kept to make serialization easier
@@ -74,9 +76,9 @@ public class TimeTravellingDebugger {
   }
 
 
-   /*
-    * actual methods to perform replay, once the system state is restored
-    */
+  /*
+   * actual methods to perform replay, once the system state is restored
+   */
   public static void replayMethod(final SSymbol messageName, final SAbstractObject target, final Object[] arguments) {
     Dispatchable method = target.getSOMClass().lookupMessage(messageName, AccessModifier.PUBLIC);
     method.invoke(IndirectCallNode.create(), arguments);

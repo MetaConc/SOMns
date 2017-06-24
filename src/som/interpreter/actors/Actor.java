@@ -276,10 +276,11 @@ public class Actor implements Activity {
           ActorExecutionTrace.scopeStart(DynamicScopeType.TURN, msg.getMessageId(),
               msg.getTargetSourceSection());
         }
-		if (VmSettings.TIME_TRAVELLING) {
-		  // i is -1 if message is not in the mailboxExtension
+        if (VmSettings.TIME_TRAVELLING) {
+          // i is -1 if message is not in the mailboxExtension
           // i goes from 0 to size - 2
-          writeMessage(currentThread.currentMessage.messageId, msg, msg.getArgs()[0], 0);
+          // TODO message count
+          writeMessage(currentThread.currentMessage.messageId, msg, msg.getArgs()[0], vm, 0);
         }
         msg.execute();
       } finally {
