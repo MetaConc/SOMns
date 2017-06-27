@@ -1,5 +1,5 @@
 import { ServerCapabilities, SendDef, ReceiveDef, EntityDef, ActivityType } from "./messages";
-import { Activity, SendOp } from "./execution-data";
+import { Activity, SendOp, DynamicScope } from "./execution-data"
 
 class SendOpModel {
   public readonly sendOp: SendDef;
@@ -37,6 +37,9 @@ export class KomposMetaModel {
 
   private actorTag:        number;
   private actorMessageTag: number;
+  private promiseMessageTag: number;
+  private promiseResolutionTag: number;
+  private dynamicScopeTurnTag: number;
 
   private readonly activityTypeMap: EntityDef[];
 
@@ -58,8 +61,16 @@ export class KomposMetaModel {
     }
 
     for (const sendOpT of this.serverCapabilities.sendOps) {
-      if (sendOpT.label === "ACTOR_MSG") {
-        this.actorMessageTag = sendOpT.marker;
+      switch(sendOpT.label){
+        case "ACTOR_MSG":
+          this.actorMessageTag = sendOpT.marker;
+          break;
+        case "PROMISE_MSG":
+          this.promiseMessageTag = sendOpT.marker;
+          break;
+        case "PROMISE_RESOLUTION":
+          this.promiseResolutionTag = sendOpT.marker;
+          break;
       }
     }
 
@@ -72,6 +83,12 @@ export class KomposMetaModel {
     for (const receiveOp of this.serverCapabilities.receiveOps) {
       this.receiveOps[receiveOp.marker] = new ReceiveOpModel(
         receiveOp, this.getKind(receiveOp.source));
+    }
+
+    for (const dynamicScope of this.serverCapabilities.dynamicScopes) {
+      if (dynamicScope.label === "act-msg") {
+        this.dynamicScopeTurnTag = dynamicScope.id;
+      }
     }
   }
 
@@ -107,12 +124,24 @@ export class KomposMetaModel {
     return sendOp.type === this.actorMessageTag;
   }
 
+  public isPromiseMessage(sendOp: SendOp) {
+    return sendOp.type === this.promiseMessageTag;
+  }
+
+  public isPromiseResolution(sendOp: SendOp) {
+    return sendOp.type === this.promiseResolutionTag;
+  }
+
   public getActivityDef(activity: Activity): EntityDef {
     return this.activityTypeMap[activity.type];
   }
 
   public getActivityDefFromType(type: ActivityType) {
     return this.activityTypeMap[type];
+  }
+
+  public isTurnScope(scope: DynamicScope) {
+    return scope.type === this.dynamicScopeTurnTag;
   }
 }
 

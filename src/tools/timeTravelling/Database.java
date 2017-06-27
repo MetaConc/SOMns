@@ -2,6 +2,7 @@ package tools.timeTravelling;
 
 import static org.neo4j.driver.v1.Values.parameters;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -21,8 +22,10 @@ import som.VM;
 import som.compiler.MixinDefinition.SlotDefinition;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
+import som.interpreter.actors.EventualMessage.PromiseMessage;
 import som.interpreter.actors.SFarReference;
 import som.interpreter.actors.SPromise;
+import som.interpreter.actors.SPromise.Resolution;
 import som.interpreter.actors.SPromise.SResolver;
 import som.interpreter.nodes.ClassInstantiationNode;
 import som.interpreter.objectstorage.StorageLocation;
@@ -162,7 +165,7 @@ public final class Database {
   // - (method) target has_root in
 
   public void storeDirectMessage(final Session session, final DatabaseInfo info,
-      final Actor target, final SSymbol selector,
+      final long messageId, final Actor target, final SSymbol selector,
       final Object[] args, final Actor sender, final SResolver resolver,
       final RootCallTarget onReceive,
       final boolean triggerMessageReceiverBreakpoint,
@@ -175,22 +178,22 @@ public final class Database {
 
     StatementResult result = session.run(
         " CREATE (message: DirectMessage {messageName: {messageName}, sender: {senderId}, target: {targetId}, "
-        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
+        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, messageId: {messageId}})"
         + " return message",
-        parameters("messageName", selector.getString(), "senderId", sender.getId(),
+        parameters("messageName", selector.getString(), "messageId", messageId, "senderId", sender.getId(),
             "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
             "promiseResolver", triggerPromiseResolverBreakpoint));
 
-    Object messageId = result.single().get("message").asNode().id();
-    info.setRoot(messageId);
+    Object messageRef = result.single().get("message").asNode().id();
+    info.setRoot(messageRef);
     for (int i = 1; i < args.length; i++) {
-      storeArgument(session, messageId, i, args[i]);
+      storeArgument(session, messageRef, i, args[i]);
     }
-    storeSResolver(session, resolver, messageId);
+    storeSResolver(session, resolver, messageRef);
   }
 
   public void storePromiseSendMessage(final Session session,
-      final DatabaseInfo info, final Actor target,
+      final long messageId, final DatabaseInfo info, final Actor target,
       final SPromise originalTarget, final SSymbol selector, final Object[] args,
       final Actor finalSender, final SResolver resolver, final RootCallTarget onReceive,
       final boolean triggerMessageReceiverBreakpoint,
@@ -201,25 +204,25 @@ public final class Database {
     TimeTravellingDebugger.reportRootNode(rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseSendMessage {messageName: {messageName},  sender: {senderId}, target: {targetId}, "
-        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
+        " CREATE (message: PromiseSendMessage {messageName: {messageName},  messageId: {messageId}, sender: {senderId}"
+        + ", target: {targetId}, msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
         + " return message",
-        parameters("messageName", selector.getString(), "senderId", finalSender.getId(),
+        parameters("messageName", selector.getString(), "messageId", messageId, "senderId", finalSender.getId(),
             "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
             "promiseResolver", triggerPromiseResolverBreakpoint));
 
-    Object messageId = result.single().get("message").asNode().id();
-    info.setRoot(messageId);
+    Object messageRef = result.single().get("message").asNode().id();
+    info.setRoot(messageRef);
     for (int i = 1; i < args.length; i++) {
-      storeArgument(session, messageId, i, args[i]);
+      storeArgument(session, messageRef, i, args[i]);
     }
-    storeSPromise(session, originalTarget, messageId);
-    storeSResolver(session, resolver, messageId);
+    storeSPromise(session, originalTarget, messageRef);
+    storeSResolver(session, resolver, messageRef);
   }
 
   // TODO rootblock
   public void storePromiseCallbackMessage(final Session session, final DatabaseInfo info,
-      final Actor originalSender, final SBlock callback, final SResolver resolver,
+      final long messageId, final Actor originalSender, final SBlock callback, final SResolver resolver,
       final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint,
       final boolean triggerPromiseResolverBreakpoint, final SPromise promise) {
 
@@ -228,17 +231,17 @@ public final class Database {
     TimeTravellingDebugger.reportRootNode(rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseSendMessage {sender: {senderId}, "
-        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
+        " CREATE (message: PromiseSendMessage {messageId: {messageId}, sender: {senderId}"
+        + ", msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
         + " return message",
-        parameters("senderId", originalSender.getId(),
+        parameters("messageId", messageId, "senderId", originalSender.getId(),
             "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
             "promiseResolver", triggerPromiseResolverBreakpoint));
 
-    Object messageId = result.single().get("message").asNode().id();
-    info.setRoot(messageId);
-    storeSPromise(session, promise, messageId);
-    storeSResolver(session, resolver, messageId);
+    Object messageRef = result.single().get("message").asNode().id();
+    info.setRoot(messageRef);
+    storeSPromise(session, promise, messageRef);
+    storeSResolver(session, resolver, messageRef);
   }
 
 
@@ -328,6 +331,7 @@ public final class Database {
     return getIdFromStatementResult(result.single().get("farRef"));
   }
 
+  // store SPromise and create link with parent
   private void storeSPromise(final Session session, final SPromise promise, final Object parentId) {
     Object promiseRef = storeSPromise(session, promise);
     session.run("MATCH (parent) where ID(parent) = {parentId}"
@@ -337,7 +341,6 @@ public final class Database {
   }
 
   private Object storeSPromise(final Session session, final SPromise promise) {
-    System.out.println(promise.getClass());
     Object ref = promise.getDatabaseInfo().getRoot();
     if (ref == null) {
       StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}}) return promise",
@@ -346,6 +349,19 @@ public final class Database {
       promise.getDatabaseInfo().setRoot(ref);
     }
     return ref;
+  }
+
+  public void storeSPromise(final Session session, final long promiseId,
+      final PromiseMessage whenResolved, final ArrayList<PromiseMessage> whenResolvedExt,
+      final PromiseMessage onError, final ArrayList<PromiseMessage> onErrorExt,
+      final SPromise chainedPromise, final ArrayList<SPromise> chainedPromiseExt,
+      final Object value, final Resolution resolutionState, final Actor owner) {
+
+    Object[] whenResolvedRef;
+    Object[] onErrorRefs;
+    Object[] chainedPromiseRefs;
+
+
   }
 
   private void storeSResolver(final Session session, final SResolver resolver, final Object parentId) {

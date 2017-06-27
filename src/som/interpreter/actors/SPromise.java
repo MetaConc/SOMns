@@ -3,6 +3,8 @@ package som.interpreter.actors;
 import java.util.ArrayList;
 import java.util.concurrent.ForkJoinPool;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.source.SourceSection;
@@ -16,6 +18,7 @@ import som.vmobjects.SObjectWithClass;
 import tools.concurrency.ActorExecutionTrace;
 import tools.concurrency.TracingActivityThread;
 import tools.debugger.entities.PassiveEntityType;
+import tools.timeTravelling.Database;
 
 
 public class SPromise extends SObjectWithClass {
@@ -263,6 +266,10 @@ public class SPromise extends SObjectWithClass {
   public boolean isExplicitPromise() {
     return explicitPromise;
   }
+
+  public void storeInDb(final Database database, final Session session) {
+    database.storeSPromise(session, this.getPromiseId(), whenResolved, whenResolvedExt, onError, onErrorExt, chainedPromise, chainedPromiseExt, value, resolutionState, owner);
+  };
 
   protected static class STracingPromise extends SPromise {
     protected final long promiseId;

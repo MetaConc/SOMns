@@ -30,8 +30,6 @@ public class TimeTravellingDebugger {
   private static Map<SSymbol, SClass> revivedClasses = new HashMap<SSymbol, SClass>();
   private static Map<Long, Actor> revivedActors = new HashMap<Long, Actor>();
 
-  public TimeTravellingDebugger(){};
-
   /*
    *  Runtime information kept to make serialization easier
    */

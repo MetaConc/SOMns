@@ -1,8 +1,6 @@
 import { IdMap, Source, StackFrame, SourceMessage, TaggedSourceCoordinate,
   getSectionId } from "./messages";
 import { Breakpoint } from "./breakpoints";
-
-
 export class Debugger {
 
   /**

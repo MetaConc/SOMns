@@ -3,7 +3,6 @@ import { EntityDef, ActivityType, EntityType, DynamicScopeType,
 import { ExecutionData, RawSourceCoordinate, RawActivity, RawScope,
   RawPassiveEntity, RawSendOp, RawReceiveOp } from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
-import { dbgLog } from "./source";
 
 enum TraceRecords {
   ActivityCreation,
@@ -169,8 +168,7 @@ export class TraceParser {
     const marker = data.getUint8(i);
     const entityId = this.readLong(data, i + 1);
     const targetId = this.readLong(data, i + 9);
-    dbgLog("new sendop: " + marker + " " + entityId + " " + targetId + " " + currentActivityId + " " + currentScopeId);
-
+        
     this.execData.addRawSendOp(new RawSendOp(
       this.sendOps[marker], entityId, targetId, currentActivityId,
       currentScopeId));

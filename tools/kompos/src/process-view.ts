@@ -4,7 +4,7 @@ import * as d3 from "d3";
 import { IdMap } from "./messages";
 import { dbgLog } from "./source";
 import { getEntityId, nodeFromTemplate} from "./view";
-import { Activity, TraceDataUpdate, SendOp } from "./execution-data";
+import { Activity, TraceDataUpdate, SendOp , DynamicScope} from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
 import { getLightTangoColor, PADDING } from "./system-view";
 import {timeTravelling} from "./time-travelling";
@@ -495,7 +495,11 @@ class Message extends EmptyMessage {
     Only one turn can be highlighted at a time. */
 export class ProcessView {
   private static highlighted: TurnNode;
-  private actors:             IdMap<ActorHeading>;
+  private actors:             IdMap<ActorHeading>; 
+  private scopes:             IdMap<DynamicScope>; // received scopes
+  private unReceivedPromiseMessages: unReceivedMessage[]; // these messages have been send but not yet received. We know the sender, but not the receiver
+  private unReceivedResolutionMessages: unReceivedMessage[];
+  private receivedMessages: IdMap<Message>;
 
   private metaModel: KomposMetaModel;
   private numActors: number;
@@ -512,12 +516,20 @@ export class ProcessView {
 
     defs = svgContainer.append("defs");
     this.actors = {};
+    this.scopes = {};
     this.numActors = 0;
+    this.unReceivedPromiseMessages = [];
+    this.unReceivedResolutionMessages = [];
+    this.receivedMessages = {};
   }
 
   public reset() {
     this.numActors = 0;
     this.actors = {};
+    this.scopes = {};
+    this.unReceivedPromiseMessages = [];
+    this.unReceivedResolutionMessages = [];
+    this.receivedMessages = {};
   }
 
   public setMetaModel(metaModel: KomposMetaModel) {
@@ -527,11 +539,13 @@ export class ProcessView {
   public updateTraceData(data: TraceDataUpdate) {
     this.newActivities(data.activities);
     this.newMessages(data.sendOps);
+    this.newScopes(data.scopes);
   }
 
   private newActivities(newActivities: Activity[]) {
     for (const act of newActivities) {
       if (this.metaModel.isActor(act)) {
+        dbgLog("actor: " + act.id + " " + act.name);
         const actor = new ActorHeading(act, this.numActors);
         this.actors[act.id] = actor;
         this.numActors += 1;
@@ -542,17 +556,61 @@ export class ProcessView {
 
   private newMessages(newMessages: SendOp[]) {
     for (const msg of newMessages) {
-      if (!this.metaModel.isActorMessage(msg)) {
+      
+      if (!(this.metaModel.isActorMessage(msg)||this.metaModel.isPromiseMessage(msg)||this.metaModel.isPromiseResolution(msg))) {
         // ignore all non-actor message sends
         continue;
       }
 
-      const senderActor = this.actors[msg.creationActivity.id];
-      const targetActor = this.actors[(<Activity> msg.target).id];
-
-      new Message(senderActor, targetActor, msg, senderActor.getLastTurn());
+      if(this.metaModel.isActorMessage(msg)) {
+        const senderActor = this.actors[msg.creationActivity.id];
+        const targetActor = this.actors[(<Activity> msg.target).id];
+        new Message(senderActor, targetActor, msg, senderActor.getLastTurn());
+      }
+      if(this.metaModel.isPromiseMessage(msg)) {
+        var unReceivedMessage = <unReceivedMessage> msg;
+        unReceivedMessage.senderActor = this.actors[(<Activity> msg.creationActivity).id];
+        unReceivedMessage.senderTurn = unReceivedMessage.senderActor.getLastTurn();  
+        this.unReceivedPromiseMessages.push(unReceivedMessage);
+      }
+    
+      if(this.metaModel.isPromiseResolution(msg)) {    
+         var unReceivedMessage = <unReceivedMessage> msg;
+        unReceivedMessage.senderActor = this.actors[(<Activity> msg.creationActivity).id];
+        unReceivedMessage.senderTurn = unReceivedMessage.senderActor.getLastTurn();  
+        this.unReceivedResolutionMessages.push(unReceivedMessage);
+      }
     }
   }
+
+  private processReceivedMessages(){
+    for (const i in this.unReceivedPromiseMessages){
+      const msg = this.unReceivedPromiseMessages[i];
+      const scope = this.scopes[<number> msg.entity];
+      if(scope == null){
+        return;
+      }
+      delete this.unReceivedPromiseMessages[i];       
+      const targetActor = this.actors[(<Activity> scope.creationActivity).id];
+      const message = new Message(msg.senderActor, targetActor, msg, msg.senderTurn);
+      this.receivedMessages[<number> msg.entity]=message;
+    }
+  }
+
+  private newScopes(scopes: DynamicScope[]){
+    var newScope = false; // only retry messages if a new turn scope arrived
+    for (const scope of scopes){
+      if(this.metaModel.isTurnScope(scope)){
+        newScope = true;
+        this.scopes[scope.id]=(scope);
+      }
+    }
+    if(newScope){
+      this.processReceivedMessages();
+    }
+  }
+
+  
 
   /** Ensure only one node chain can be highlighted at the same time. */
   public static changeHighlight(turn: TurnNode) {
@@ -569,3 +627,8 @@ export class ProcessView {
     ProcessView.highlighted = turn;
   }
 }
+
+  interface unReceivedMessage extends SendOp {
+    senderActor: ActorHeading;
+    senderTurn: TurnNode;
+  }
