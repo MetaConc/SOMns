@@ -338,9 +338,9 @@ public class ActorExecutionTrace {
     }
   }
 
-  public static void recordArguments(final SSymbol methodName, final long promiseId) {
+  public static void recordArguments(final SSymbol methodName, final long messageId) {
     TracingActivityThread t = getThread();
-    t.getBuffer().recordArguments(methodName, promiseId);
+    t.getBuffer().recordArguments(methodName, messageId);
   }
 
   private static class TraceWorkerThread extends Thread {

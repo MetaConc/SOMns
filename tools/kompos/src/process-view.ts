@@ -561,18 +561,18 @@ export class ProcessView {
       }
 
       if(this.metaModel.isActorMessage(msg)) {
-        const promiseId = <number> msg.entity;
+        const messageId = <number> msg.entity;
         const senderActor = this.actors[msg.creationActivity.id];
         const targetActor = this.actors[(<Activity> msg.target).id];
-        var rawMessage = new RawMessages(promiseId, senderActor, msg);
+        var rawMessage = new RawMessages(messageId, senderActor, msg);
         rawMessage.setTarget(targetActor);
-        this.rawMessages[promiseId]=rawMessage;
+        this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
       }
       if(this.metaModel.isPromiseMessage(msg)) {
-        const promiseId = <number> msg.entity;
-        var rawMessage = new RawMessages(promiseId, this.actors[(<Activity> msg.creationActivity).id], msg)
-        this.rawMessages[promiseId]=rawMessage;
+        const messageId = <number> msg.entity;
+        var rawMessage = new RawMessages(messageId, this.actors[(<Activity> msg.creationActivity).id], msg)
+        this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
       }
     }
@@ -617,15 +617,15 @@ export class ProcessView {
 }
 
   class RawMessages {
-    public promiseId: number;
+    public messageId: number;
     private senderActor: ActorHeading;
     private sendingTurn: TurnNode;
     private targetActor: ActorHeading;
     private arguments: Arguments;
     private sendOp: SendOp;
 
-    constructor(promiseId: number, senderActor: ActorHeading, sendOp: SendOp) {
-      this.promiseId = promiseId;
+    constructor(messageId: number, senderActor: ActorHeading, sendOp: SendOp) {
+      this.messageId = messageId;
       this.senderActor = senderActor;
       this.sendingTurn = senderActor.getLastTurn();
       this.sendOp = sendOp;
@@ -636,19 +636,19 @@ export class ProcessView {
     }
 
     resolve(data: ProcessView){
-      const scope = data.scopes[this.promiseId];
+      const scope = data.scopes[this.messageId];
       if(scope != null){
-        delete data.scopes[this.promiseId];
+        delete data.scopes[this.messageId];
         this.targetActor = data.actors[(<Activity> scope.creationActivity).id];
       }
-      const args = data.arguments[this.promiseId];
+      const args = data.arguments[this.messageId];
       if(args != null){
-        delete data.arguments[this.promiseId];
+        delete data.arguments[this.messageId];
         this.arguments = args;
       }
 
       if(this.targetActor != null && this.arguments != null) {
-        delete data.rawMessages[this.promiseId];
+        delete data.rawMessages[this.messageId];
         new Message(this.senderActor, this.targetActor, this.sendOp, this.sendingTurn, this.arguments);
       }
     }      

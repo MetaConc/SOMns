@@ -320,16 +320,16 @@ export class RawReceiveOp extends RawEntity {
 }
 
 export class RawArguments {
-  public promiseId:        number;
+  public messageId:        number;
   public nameId:           number;
 
-  constructor(promiseId: number, nameId: number) {
-    this.promiseId = promiseId;
+  constructor(messageId: number, nameId: number) {
+    this.messageId = messageId;
     this.nameId = nameId;
   }
 
   public resolve(data: ExecutionData): Arguments {
-    return new Arguments(this.promiseId, data.getSymbol(this.nameId));
+    return new Arguments(this.messageId, data.getSymbol(this.nameId));
   }
 }
 
