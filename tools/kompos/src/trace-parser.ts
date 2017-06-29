@@ -1,7 +1,7 @@
 import { EntityDef, ActivityType, EntityType, DynamicScopeType,
   PassiveEntityType, SendOpType, ReceiveOpType } from "./messages";
 import { ExecutionData, RawSourceCoordinate, RawActivity, RawScope,
-  RawPassiveEntity, RawSendOp, RawReceiveOp } from "./execution-data";
+  RawPassiveEntity, RawSendOp, RawReceiveOp, RawArguments } from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
 
 enum TraceRecords {
@@ -14,13 +14,15 @@ enum TraceRecords {
   SendOp,
   ReceiveOp,
   ImplThread,
-  ImplThreadCurrentActivity
+  ImplThreadCurrentActivity,
+  Arguments
 }
 
 const SOURCE_SECTION_SIZE = 8;
 
 const IMPL_THREAD_MARKER = 20;
 const IMPL_THREAD_CURRENT_ACTIVITY_MARKER = 21;
+const ARGUMENT_MARKER = 23;
 
 const RECORD_SIZE = {
   ActivityCreation   : 11 + SOURCE_SECTION_SIZE,
@@ -106,6 +108,7 @@ export class TraceParser {
 
     this.parseTable[IMPL_THREAD_MARKER] = TraceRecords.ImplThread;
     this.parseTable[IMPL_THREAD_CURRENT_ACTIVITY_MARKER] = TraceRecords.ImplThreadCurrentActivity;
+    this.parseTable[ARGUMENT_MARKER] = TraceRecords.Arguments;
   }
 
   /** Read a long within JS int range */
@@ -188,6 +191,14 @@ export class TraceParser {
     return i + RECORD_SIZE.ReceiveOp;
   }
 
+  private readArguments(i: number, data: DataView) : number {
+      // only one marker for arguments, we don't need to reread it
+      const promiseId = this.readLong(data, i+1);
+      const methodId = data.getInt16(i+9);
+      this.execData.addArguments(new RawArguments(promiseId, methodId));    
+      return i + 11;
+  }
+
   public parseTrace(data: DataView) {
     let i = data.byteOffset;
     console.assert(i === 0);
@@ -236,6 +247,10 @@ export class TraceParser {
           currentActivityId = this.readLong(data, i + 1);
           currentActivityBufferId = data.getUint32(i + 9);
           i += RECORD_SIZE.ImplThreadCurrentActivity;
+          break;
+        }
+        case TraceRecords.Arguments: {
+          i = this.readArguments(i, data);
           break;
         }
         default:

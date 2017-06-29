@@ -338,6 +338,11 @@ public class ActorExecutionTrace {
     }
   }
 
+  public static void recordArguments(final SSymbol methodName, final long promiseId) {
+    TracingActivityThread t = getThread();
+    t.getBuffer().recordArguments(methodName, promiseId);
+  }
+
   private static class TraceWorkerThread extends Thread {
     protected boolean cont = true;
 

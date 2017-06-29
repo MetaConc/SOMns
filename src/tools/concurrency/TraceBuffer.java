@@ -13,10 +13,12 @@ import som.vm.ObjectSystem;
 import som.vm.Symbols;
 import som.vm.VmSettings;
 import som.vmobjects.SInvokable;
+import som.vmobjects.SSymbol;
 import tools.SourceCoordinate;
 import tools.debugger.entities.ActivityType;
 import tools.debugger.entities.DynamicScopeType;
 import tools.debugger.entities.Implementation;
+import tools.debugger.entities.Marker;
 import tools.debugger.entities.PassiveEntityType;
 import tools.debugger.entities.ReceiveOp;
 import tools.debugger.entities.SendOp;
@@ -247,6 +249,17 @@ public class TraceBuffer {
     storage.putLong(entityId);
     storage.putLong(targetId);
 
+    assert storage.position() == start + requiredSpace;
+  }
+
+  // method name
+  // id of promise to link back to the message
+  public void recordArguments(final SSymbol methodName, final long promiseId) {
+    int requiredSpace = 11;
+    final int start = storage.position();
+    storage.put(Marker.ARGUMENTS);
+    storage.putLong(promiseId);
+    storage.putShort(methodName.getSymbolId());
     assert storage.position() == start + requiredSpace;
   }
 

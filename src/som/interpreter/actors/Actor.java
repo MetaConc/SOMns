@@ -275,6 +275,7 @@ public class Actor implements Activity {
         if (VmSettings.ACTOR_TRACING) {
           ActorExecutionTrace.scopeStart(DynamicScopeType.TURN, msg.getMessageId(),
               msg.getTargetSourceSection());
+          ActorExecutionTrace.recordArguments(msg.getSelector(), msg.getMessageId());
         }
         if (VmSettings.TIME_TRAVELLING) {
           // i is -1 if message is not in the mailboxExtension

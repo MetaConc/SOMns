@@ -319,10 +319,25 @@ export class RawReceiveOp extends RawEntity {
   }
 }
 
+export class RawArguments {
+  public promiseId:        number;
+  public nameId:           number;
+
+  constructor(promiseId: number, nameId: number) {
+    this.promiseId = promiseId;
+    this.nameId = nameId;
+  }
+
+  public resolve(data: ExecutionData): Arguments {
+    return new Arguments(this.promiseId, data.getSymbol(this.nameId));
+  }
+}
+
 export class TraceDataUpdate {
   public readonly activities:      Activity[];
   public readonly scopes:          DynamicScope[];
   public readonly passiveEntities: PassiveEntity[];
+  public readonly arguments:       Arguments[];
 
   public readonly sendOps:    SendOp[];
   public readonly receiveOps: ReceiveOp[];
@@ -331,6 +346,7 @@ export class TraceDataUpdate {
     this.activities = [];
     this.scopes     = [];
     this.passiveEntities = [];
+    this.arguments = [];
 
     this.sendOps    = [];
     this.receiveOps = [];
@@ -461,6 +477,10 @@ export class ExecutionData {
     this.rawReceives.push(receive);
   }
 
+  public addArguments(args: RawArguments) {
+    this.newData.arguments.push(args.resolve(this));
+  }
+
   public getNewestDataSinceLastUpdate(): TraceDataUpdate {
     const result = this.newData;
     this.newData = new TraceDataUpdate();
@@ -529,5 +549,15 @@ export class ExecutionData {
         this.activities[aId].completed = true;
       }
     }
+  }
+}
+
+export class Arguments {
+  public promiseId:        number;
+  public methodName:       string;
+
+  constructor(promiseId: number, methodName: string) {
+    this.promiseId = promiseId;
+    this.methodName = methodName;
   }
 }
