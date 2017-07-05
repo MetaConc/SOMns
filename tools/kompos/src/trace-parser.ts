@@ -1,8 +1,9 @@
 import { EntityDef, ActivityType, EntityType, DynamicScopeType,
   PassiveEntityType, SendOpType, ReceiveOpType } from "./messages";
 import { ExecutionData, RawSourceCoordinate, RawActivity, RawScope,
-  RawPassiveEntity, RawSendOp, RawReceiveOp, RawArguments } from "./execution-data";
+  RawPassiveEntity, RawSendOp, RawReceiveOp, Arguments } from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
+import { dbgLog } from "./source";
 
 enum TraceRecords {
   ActivityCreation,
@@ -137,6 +138,8 @@ export class TraceParser {
       <ActivityType> this.typeCreation[marker], activityId, symbolId,
       sourceSection, currentActivityId, currentScopeId));
 
+      dbgLog("new raw activity: " + activityId);
+
     return i + RECORD_SIZE.ActivityCreation;
   }
 
@@ -149,6 +152,8 @@ export class TraceParser {
     this.execData.addRawScope(new RawScope(
       <DynamicScopeType> this.typeCreation[marker], id, source,
       currentActivityId, currentScopeId));
+
+      dbgLog("new raw scope: " + id);
 
     return i + RECORD_SIZE.DynamicScopeStart;
   }
@@ -163,6 +168,8 @@ export class TraceParser {
       <PassiveEntityType> this.typeCreation[marker], id, source,
       currentActivityId, currentScopeId));
 
+      dbgLog("new raw entity: " + id);
+
     return i + RECORD_SIZE.PassiveEntityCreation;
   }
 
@@ -175,6 +182,8 @@ export class TraceParser {
     this.execData.addRawSendOp(new RawSendOp(
       this.sendOps[marker], entityId, targetId, currentActivityId,
       currentScopeId));
+
+      dbgLog("new raw sendOp: " + entityId + " form: " + currentActivityId  + " to: " +  targetId);
 
     return i + RECORD_SIZE.SendOp;
   }
@@ -195,7 +204,9 @@ export class TraceParser {
       // only one marker for arguments, we don't need to reread it
       const messageId = this.readLong(data, i+1);
       const methodId = data.getInt16(i+9);
-      this.execData.addArguments(new RawArguments(messageId, methodId));    
+      this.execData.addArguments(new Arguments(messageId, this.execData.getSymbol(methodId)));    
+
+      dbgLog("new raw arguments: " + messageId);
       return i + 11;
   }
 

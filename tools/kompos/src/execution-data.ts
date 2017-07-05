@@ -319,20 +319,6 @@ export class RawReceiveOp extends RawEntity {
   }
 }
 
-export class RawArguments {
-  public messageId:        number;
-  public nameId:           number;
-
-  constructor(messageId: number, nameId: number) {
-    this.messageId = messageId;
-    this.nameId = nameId;
-  }
-
-  public resolve(data: ExecutionData): Arguments {
-    return new Arguments(this.messageId, data.getSymbol(this.nameId));
-  }
-}
-
 export class TraceDataUpdate {
   public readonly activities:      Activity[];
   public readonly scopes:          DynamicScope[];
@@ -477,8 +463,8 @@ export class ExecutionData {
     this.rawReceives.push(receive);
   }
 
-  public addArguments(args: RawArguments) {
-    this.newData.arguments.push(args.resolve(this));
+  public addArguments(args: Arguments) {
+    this.newData.arguments.push(args);
   }
 
   public getNewestDataSinceLastUpdate(): TraceDataUpdate {
@@ -553,11 +539,11 @@ export class ExecutionData {
 }
 
 export class Arguments {
-  public promiseId:        number;
+  public messageId:        number;
   public methodName:       string;
 
-  constructor(promiseId: number, methodName: string) {
-    this.promiseId = promiseId;
+  constructor(messageId: number, methodName: string) {
+    this.messageId = messageId;
     this.methodName = methodName;
   }
 }

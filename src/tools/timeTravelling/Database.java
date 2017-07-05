@@ -449,7 +449,7 @@ public final class Database {
       Database database = getDatabaseInstance();
       Session session = database.startSession();
 
-      Record record = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message: EventualMessage) RETURN turn, message",
+      Record record = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) RETURN turn, message",
           parameters("messageId", causalMessageId)).single();
       Node turn = record.get("turn").asNode();
       Node message = record.get("message").asNode();

@@ -284,7 +284,7 @@ class TurnNode {
         let content = nodeFromTemplate("protocol-timetravel-menu");
         $(content).find("button")
             .attr("data-actor-id", turn.actor.getActivityId())
-            .attr("data-message-id", 0);
+            .attr("data-message-id", turn.incoming.getMessageId());
         return $(content).html();
     });
 
@@ -320,6 +320,7 @@ class EmptyMessage {
   public getText() { return "42"; }
   public shiftAtSender(_yShift: number) {}
   public shiftAtTarget(_yShift: number) {}
+  public getMessageId() { return 0;}
 }
 
 /** message represent a message send between two actors
@@ -361,6 +362,10 @@ class Message extends EmptyMessage {
 
   public getText() {
     return this.text;
+  }
+
+  public getMessageId() {
+    return <number> this.sendOp.entity;
   }
 
   private getColor() {
@@ -567,12 +572,14 @@ export class ProcessView {
         var rawMessage = new RawMessages(messageId, senderActor, msg);
         rawMessage.setTarget(targetActor);
         this.rawMessages[messageId]=rawMessage;
+        dbgLog("new actor message: " + messageId + " from: " + senderActor.getActivityId() + " to: " + targetActor.getActivityId());
         rawMessage.resolve(this);
       }
       if(this.metaModel.isPromiseMessage(msg)) {
         const messageId = <number> msg.entity;
         var rawMessage = new RawMessages(messageId, this.actors[(<Activity> msg.creationActivity).id], msg)
         this.rawMessages[messageId]=rawMessage;
+        dbgLog("new promise message: " + messageId + " from: " + this.actors[(<Activity> msg.creationActivity).id]);
         rawMessage.resolve(this);
       }
     }
@@ -581,6 +588,7 @@ export class ProcessView {
   private newScopes(scopes: DynamicScope[]){
     for (const scope of scopes){
       if(this.metaModel.isTurnScope(scope)){
+        dbgLog("new scope: " + scope.id);
         this.scopes[scope.id]=(scope);
         const msg = this.rawMessages[scope.id];
         if(msg!=null){
@@ -592,8 +600,9 @@ export class ProcessView {
 
   private newArguments(args: Arguments[]){
     for (const arg of args){
-      this.arguments[arg.promiseId]=arg;
-      const msg = this.rawMessages[arg.promiseId];
+      this.arguments[arg.messageId]=arg;
+      const msg = this.rawMessages[arg.messageId];
+      dbgLog("new arguments: " + arg.messageId);
       if(msg!=null){
         msg.resolve(this);
       } 
