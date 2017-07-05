@@ -25,25 +25,18 @@ public  class ObjectWriter {
         } else {
           Database database = getDatabaseInstance();
           Session session = database.startSession();
-
           Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-
           database.storeCheckpoint(session, messageId, msg, targetActor, target, messageCount);
           database.endSession(session);
         }
       } else if (t instanceof SClass) {
         // method is either a constructor or static method, no target object, only store arguments
         SClass target = (SClass) t;
-
         Database database = getDatabaseInstance();
         Session session = database.startSession();
-
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-
         database.storeFactoryMethod(session, messageId, msg, targetActor, target, messageCount);
-
         database.endSession(session);
-
       } else {
         VM.println("ignored: " + t.getClass() + " " + t.toString());
       }

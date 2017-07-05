@@ -87,11 +87,6 @@ public final class Database {
     String;
   }
 
-  private enum MethodType {
-    factory,
-    method;
-  }
-
   private Object getIdFromStatementResult(final Value value) {
     return value.asNode().id();
   }
@@ -117,11 +112,11 @@ public final class Database {
         "MATCH (actor: Actor {actorId: {actorId}})"
             + " MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
             + " MATCH (message) where ID(message)={messageRef}"
-            + " CREATE (turn: Turn {type: {methodType}, messageId: {messageId}, messageCount: {messageCount}}) - [:TURN] -> (actor)"
+            + " CREATE (turn: Turn {messageId: {messageId}, messageCount: {messageCount}}) - [:TURN] -> (actor)"
             + " CREATE (turn) - [:TARGET] -> (SClass)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "SClassId", target.getDatabaseInfo().getRef(), "methodType", MethodType.factory.name(),
+            parameters("actorId", actor.getId(), "SClassId", target.getDatabaseInfo().getRef(),
                 "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef(), "messageCount", messageCount));
 
     Record record = result.single();
@@ -143,17 +138,17 @@ public final class Database {
         "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
             + " MATCH (message) where ID(message)={messageRef}"
             + (old == DatabaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
-            + " CREATE (turn: Turn {type: {methodType}, messageId: {messageId}, messageCount: {messageCount}}) - [:TARGET] -> (SObject)"
+            + " CREATE (turn: Turn {messageId: {messageId}, messageCount: {messageCount}}) - [:TARGET] -> (SObject)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
             parameters("actorId", actor.getId(), "SObjectId", target.getDatabaseInfo().getRef(), "messageId", messageId,
-                "messageCount", messageCount, "methodType", MethodType.method.name(), "messageRef", msg.getDatabaseInfo().getRef()));
+                "messageCount", messageCount, "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
 
   private void storeEventualMessage(final Session session, final EventualMessage msg) {
     if (msg.getDatabaseInfo().getState() != DatabaseState.valid) {
-     msg.storeInDb(this, session);
+      msg.storeInDb(this, session);
     }
   }
 
@@ -178,11 +173,11 @@ public final class Database {
 
     StatementResult result = session.run(
         " CREATE (message: DirectMessage {messageName: {messageName}, sender: {senderId}, target: {targetId}, "
-        + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, messageId: {messageId}})"
-        + " return message",
-        parameters("messageName", selector.getString(), "messageId", messageId, "senderId", sender.getId(),
-            "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
-            "promiseResolver", triggerPromiseResolverBreakpoint));
+            + "msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, messageId: {messageId}})"
+            + " return message",
+            parameters("messageName", selector.getString(), "messageId", messageId, "senderId", sender.getId(),
+                "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
+                "promiseResolver", triggerPromiseResolverBreakpoint));
 
     Object messageRef = result.single().get("message").asNode().id();
     info.setRoot(messageRef);
@@ -205,11 +200,11 @@ public final class Database {
 
     StatementResult result = session.run(
         " CREATE (message: PromiseSendMessage {messageName: {messageName},  messageId: {messageId}, sender: {senderId}"
-        + ", target: {targetId}, msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
-        + " return message",
-        parameters("messageName", selector.getString(), "messageId", messageId, "senderId", finalSender.getId(),
-            "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
-            "promiseResolver", triggerPromiseResolverBreakpoint));
+            + ", target: {targetId}, msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}})"
+            + " return message",
+            parameters("messageName", selector.getString(), "messageId", messageId, "senderId", finalSender.getId(),
+                "targetId", target.getId(), "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
+                "promiseResolver", triggerPromiseResolverBreakpoint));
 
     Object messageRef = result.single().get("message").asNode().id();
     info.setRoot(messageRef);
@@ -231,12 +226,12 @@ public final class Database {
     TimeTravellingDebugger.reportRootNode(rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseSendMessage {messageId: {messageId}, sender: {senderId}"
-        + ", msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
-        + " return message",
-        parameters("messageId", messageId, "senderId", originalSender.getId(),
-            "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
-            "promiseResolver", triggerPromiseResolverBreakpoint));
+        " CREATE (message: PromiseCallbackMessage {messageId: {messageId}, sender: {senderId}"
+            + ", msgReceiver: {msgReceiver}, promiseResolver: {promiseResolver}, promiseResolution: {promiseResolution}})"
+            + " return message",
+            parameters("messageId", messageId, "senderId", originalSender.getId(),
+                "rootNode", rootNode.getSourceSection().toString(), "msgReceiver", triggerMessageReceiverBreakpoint,
+                "promiseResolver", triggerPromiseResolverBreakpoint));
 
     Object messageRef = result.single().get("message").asNode().id();
     info.setRoot(messageRef);
@@ -444,10 +439,9 @@ public final class Database {
   /* --------------------------------------- */
 
   public static void prepareForTimeTravel(final long actorId, final long causalMessageId) {
+    Database database = getDatabaseInstance();
+    Session session = database.startSession();
     try {
-
-      Database database = getDatabaseInstance();
-      Session session = database.startSession();
 
       Record record = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) RETURN turn, message",
           parameters("messageId", causalMessageId)).single();
@@ -455,27 +449,29 @@ public final class Database {
       Node message = record.get("message").asNode();
       SSymbol messageName = Symbols.symbolFor(message.get("messageName").asString());
       Object[] arguments = database.readMessageArguments(session, causalMessageId);
-      MethodType methodType = MethodType.valueOf(turn.get("type").asString());
+      String methodType = message.labels().iterator().next();
       switch(methodType) {
-        case method: {
+        case "PromiseSendMessage":
+        case "PromiseCallbackMessage": {
           SAbstractObject target = database.readTarget(session, causalMessageId);
           arguments[0] = target;
           TimeTravellingDebugger.replayMethod(messageName, target, arguments);
           break;
         }
-        case factory: {
+        case "DirectMessage": {
           SClass target = database.readSClassAsTarget(session, causalMessageId);
           arguments[0] = target;
           TimeTravellingDebugger.replayFactory(messageName, target, arguments);
-
+          break;
         }
       }
-      database.endSession(session);
     } catch (Exception e) {
       VM.errorPrint(e.getMessage());
       e.printStackTrace();
     }
-
+    finally {
+      database.endSession(session);
+    }
   }
 
   // expect the actor check to be done in readMessage name
