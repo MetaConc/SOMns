@@ -3,7 +3,6 @@ import { EntityDef, ActivityType, EntityType, DynamicScopeType,
 import { ExecutionData, RawSourceCoordinate, RawActivity, RawScope,
   RawPassiveEntity, RawSendOp, RawReceiveOp, Arguments } from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
-import { dbgLog } from "./source";
 
 enum TraceRecords {
   ActivityCreation,
@@ -32,7 +31,7 @@ const RECORD_SIZE = {
   DynamicScopeEnd    : 1,
   PassiveEntityCreation   : 9 + SOURCE_SECTION_SIZE,
   PassiveEntityCompletion : undefined,
-  SendOp     : 17,
+  SendOp     : 25,
   ReceiveOp  : 9,
   ImplThread : 9,
   ImplThreadCurrentActivity: 13
@@ -138,8 +137,6 @@ export class TraceParser {
       <ActivityType> this.typeCreation[marker], activityId, symbolId,
       sourceSection, currentActivityId, currentScopeId));
 
-      dbgLog("new raw activity: " + activityId);
-
     return i + RECORD_SIZE.ActivityCreation;
   }
 
@@ -153,8 +150,6 @@ export class TraceParser {
       <DynamicScopeType> this.typeCreation[marker], id, source,
       currentActivityId, currentScopeId));
 
-      dbgLog("new raw scope: " + id);
-
     return i + RECORD_SIZE.DynamicScopeStart;
   }
 
@@ -167,9 +162,7 @@ export class TraceParser {
     this.execData.addRawPassiveEntity(new RawPassiveEntity(
       <PassiveEntityType> this.typeCreation[marker], id, source,
       currentActivityId, currentScopeId));
-
-      dbgLog("new raw entity: " + id);
-
+    
     return i + RECORD_SIZE.PassiveEntityCreation;
   }
 
@@ -178,13 +171,12 @@ export class TraceParser {
     const marker = data.getUint8(i);
     const entityId = this.readLong(data, i + 1);
     const targetId = this.readLong(data, i + 9);
+    const turnId = this.readLong(data, i + 17);
         
     this.execData.addRawSendOp(new RawSendOp(
       this.sendOps[marker], entityId, targetId, currentActivityId,
-      currentScopeId));
-
-      dbgLog("new raw sendOp: " + entityId + " form: " + currentActivityId  + " to: " +  targetId);
-
+      currentScopeId, turnId));
+    
     return i + RECORD_SIZE.SendOp;
   }
 
@@ -206,7 +198,6 @@ export class TraceParser {
       const methodId = data.getInt16(i+9);
       this.execData.addArguments(new Arguments(messageId, this.execData.getSymbol(methodId)));    
 
-      dbgLog("new raw arguments: " + messageId);
       return i + 11;
   }
 

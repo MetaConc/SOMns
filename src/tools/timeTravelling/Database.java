@@ -96,10 +96,10 @@ public final class Database {
   /* --------------------------------------- */
 
   public void storeActor(final Session session, final Actor actor) {
-    if (!actor.inDatabase) {
+    if (!actor.inDatabase()) {
       session.run(" CREATE (actor:Actor {actorId: {actorId}})",
           parameters("actorId", actor.getId()));
-      actor.inDatabase = true;
+      actor.addedToDatabase();
     }
   }
 
@@ -130,7 +130,7 @@ public final class Database {
   // the arguments of the message are already stored in the log.
   public void storeCheckpoint(final Session session, final Long messageId, final EventualMessage msg,
       final Actor actor, final SObjectWithClass target, final int messageCount) {
-    assert (actor.inDatabase); // Can't create actors from objects, first operation will always be a factoryMethod
+    assert (actor.inDatabase()); // Can't create actors from objects, first operation will always be a factoryMethod
     final DatabaseInfo.DatabaseState old = storeSObject(session, target);
     storeEventualMessage(session, msg);
     // create checkpoint header, root node to which all information of one turn becomes connected.

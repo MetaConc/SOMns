@@ -240,7 +240,7 @@ public class TraceBuffer {
   }
 
   public void recordSendOperation(final SendOp op, final long entityId,
-      final long targetId, final Activity current) {
+      final long targetId, final Activity current, final long turn) {
     int requiredSpace = op.getSize();
     ensureSufficientSpace(requiredSpace, current);
 
@@ -248,6 +248,7 @@ public class TraceBuffer {
     storage.put(op.getId());
     storage.putLong(entityId);
     storage.putLong(targetId);
+    storage.putLong(turn);
 
     assert storage.position() == start + requiredSpace;
   }
@@ -305,8 +306,8 @@ public class TraceBuffer {
 
     @Override
     public synchronized void recordSendOperation(final SendOp op,
-        final long entityId, final long targetId, final Activity current) {
-      super.recordSendOperation(op, entityId, targetId, current);
+        final long entityId, final long targetId, final Activity current, final long turn) {
+      super.recordSendOperation(op, entityId, targetId, current, turn);
     }
   }
 }

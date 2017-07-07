@@ -6,7 +6,8 @@ import { dbgLog } from "./source";
 import { getEntityId, nodeFromTemplate} from "./view";
 import { Activity, TraceDataUpdate, SendOp , DynamicScope, Arguments} from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
-import { getLightTangoColor, PADDING } from "./system-view";
+//import { getLightTangoColor, PADDING } from "./system-view"; // TODO after thesis: uncomment line
+import { PADDING } from "./system-view"; // TODO after thesis: remove line
 import {timeTravelling} from "./time-travelling";
 
 const actorStart = 20;      // height at which actor headings are created
@@ -24,6 +25,11 @@ const highlightedWidth = 5; // width of turn borders when highlighted
 let svgContainer; // global canvas, stores actor <g> elements
 let defs;         // global container to store all markers
 
+let color = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6",
+             "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99",
+             "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262",
+             "#5574a6", "#3b3eac"]; // TODO remove after thesis
+
 const lineGenerator: any =
   d3.svg.line()
     .x(function(d) { return d[0]; })
@@ -36,6 +42,7 @@ const lineGenerator: any =
     to hide an actor the other group and all incoming messages are set to hidden */
 class ActorHeading {
   private readonly turns:     TurnNode[];
+  private readonly turnMap:   IdMap<TurnNode>;
   private readonly activity:  Activity;
   public  readonly x:         number;
   private readonly y:         number;
@@ -46,23 +53,27 @@ class ActorHeading {
 
   constructor(activity: Activity, num: number) {
     this.turns = [];
+    this.turnMap={};
     this.activity = activity;
     this.x = 50 + num * actorSpacing;
     this.y = actorStart;
-    this.color = getLightTangoColor(activity.type, activity.id);
+    // this.color = getLightTangoColor(activity.type, activity.id); // TODOO after thesis: uncomment this line
+    this.color = color[num % color.length]; // TODOO after thesis: remove this line
     this.visibility = true;
   }
 
   public addTurn(turn: TurnNode) {
     this.turns.push(turn);
+    this.turnMap[turn.getId()]=turn;
     return this.turns.length;
   }
 
-  public getLastTurn() {
-    if (this.turns.length === 0) {
+  public getTurn(turnId: number){
+    const turn = this.turnMap[turnId];
+    if (turn == null) {
       return new TurnNode(this, new EmptyMessage());
     } else {
-      return this.turns[this.turns.length - 1];
+      return turn;
     }
   }
 
@@ -169,8 +180,8 @@ class TurnNode {
     return this.actor.color;
   }
 
-  private getId() {
-    return "turn" + this.actor.getActivityId() + "-" + this.count;
+  public getId() {
+    return this.incoming.getMessageId();
   }
 
   // -----------visualization------------
@@ -548,7 +559,6 @@ export class ProcessView {
   private newActivities(newActivities: Activity[]) {
     for (const act of newActivities) {
       if (this.metaModel.isActor(act)) {
-        //dbgLog("actor: " + act.id + " " + act.name);
         const actor = new ActorHeading(act, this.numActors);
         this.actors[act.id] = actor;
         this.numActors += 1;
@@ -569,17 +579,15 @@ export class ProcessView {
         const messageId = <number> msg.entity;
         const senderActor = this.actors[msg.creationActivity.id];
         const targetActor = this.actors[(<Activity> msg.target).id];
-        var rawMessage = new RawMessages(messageId, senderActor, msg);
+        var rawMessage = new RawMessages(messageId, senderActor, msg.turnId, msg);
         rawMessage.setTarget(targetActor);
         this.rawMessages[messageId]=rawMessage;
-        dbgLog("new actor message: " + messageId + " from: " + senderActor.getActivityId() + " to: " + targetActor.getActivityId());
         rawMessage.resolve(this);
       }
       if(this.metaModel.isPromiseMessage(msg)) {
         const messageId = <number> msg.entity;
-        var rawMessage = new RawMessages(messageId, this.actors[(<Activity> msg.creationActivity).id], msg)
+        var rawMessage = new RawMessages(messageId, this.actors[(<Activity> msg.creationActivity).id], msg.turnId, msg)
         this.rawMessages[messageId]=rawMessage;
-        dbgLog("new promise message: " + messageId + " from: " + this.actors[(<Activity> msg.creationActivity).id]);
         rawMessage.resolve(this);
       }
     }
@@ -588,7 +596,6 @@ export class ProcessView {
   private newScopes(scopes: DynamicScope[]){
     for (const scope of scopes){
       if(this.metaModel.isTurnScope(scope)){
-        dbgLog("new scope: " + scope.id);
         this.scopes[scope.id]=(scope);
         const msg = this.rawMessages[scope.id];
         if(msg!=null){
@@ -602,7 +609,6 @@ export class ProcessView {
     for (const arg of args){
       this.arguments[arg.messageId]=arg;
       const msg = this.rawMessages[arg.messageId];
-      dbgLog("new arguments: " + arg.messageId);
       if(msg!=null){
         msg.resolve(this);
       } 
@@ -633,10 +639,10 @@ export class ProcessView {
     private arguments: Arguments;
     private sendOp: SendOp;
 
-    constructor(messageId: number, senderActor: ActorHeading, sendOp: SendOp) {
+    constructor(messageId: number, senderActor: ActorHeading, turnId: number, sendOp: SendOp) {
       this.messageId = messageId;
       this.senderActor = senderActor;
-      this.sendingTurn = senderActor.getLastTurn();
+      this.sendingTurn = senderActor.getTurn(turnId);
       this.sendOp = sendOp;
     }
 

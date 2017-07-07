@@ -20,5 +20,5 @@ public enum SendOp {
   public byte getId() { return id; }
   public EntityType getEntity() { return entity; }
   public EntityType getTarget() { return target; }
-  public int getSize() { return 17; }
+  public int getSize() { return 25; }
 }

@@ -52,7 +52,7 @@ public final class TracingChannel extends SChannel {
         super.write(value);
       } finally {
         ActorExecutionTrace.sendOperation(
-            SendOp.CHANNEL_SEND, current.messageId, current.channelId);
+            SendOp.CHANNEL_SEND, current.messageId, current.channelId, -1);
       }
     }
   }

@@ -293,7 +293,6 @@ public final class PromisePrims {
       PromiseCallbackMessage onError    = new PromiseCallbackMessage(rcvr.getOwner(), error,    resolver, errorTarget,    false, promiseResolverBreakpoint.executeShouldHalt(), rcvr);
 
       if (VmSettings.ACTOR_TRACING) {
-        System.out.println("double");
         ActorExecutionTrace.sendOperation(SendOp.PROMISE_MSG, onResolved.getMessageId(), rcvr.getPromiseId());
         ActorExecutionTrace.sendOperation(SendOp.PROMISE_MSG, onError.getMessageId(), rcvr.getPromiseId());
       }

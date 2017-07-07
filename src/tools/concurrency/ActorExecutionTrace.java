@@ -30,6 +30,7 @@ import com.sun.management.GarbageCollectionNotificationInfo;
 
 import som.VM;
 import som.interpreter.actors.Actor;
+import som.interpreter.actors.Actor.ActorProcessingThread;
 import som.primitives.TimerPrim;
 import som.vm.Activity;
 import som.vm.ObjectSystem;
@@ -205,7 +206,7 @@ public class ActorExecutionTrace {
     buffer.init(storage, 0);
     buffer.recordCurrentActivity(mainActor);
     buffer.recordMainActor(mainActor, objectSystem);
-    buffer.recordSendOperation(SendOp.ACTOR_MSG, 0, mainActor.getId(), mainActor);
+    buffer.recordSendOperation(SendOp.ACTOR_MSG, 0, mainActor.getId(), mainActor, 0);
     buffer.returnBuffer();
 
     // start worker thread for trace processing
@@ -261,10 +262,10 @@ public class ActorExecutionTrace {
       return;
     }
 
-    assert current instanceof TracingActivityThread;
-    TracingActivityThread t = (TracingActivityThread) current;
+    assert current instanceof ActorProcessingThread;
+    ActorProcessingThread t = (ActorProcessingThread) current;
 
-    t.getBuffer().recordSendOperation(SendOp.PROMISE_RESOLUTION, 0, promiseId, t.getActivity());
+    t.getBuffer().recordSendOperation(SendOp.PROMISE_RESOLUTION, 0, promiseId, t.getActivity(), t.currentMessage.getMessageId());
     t.resolvedPromises++;
   }
 
@@ -274,9 +275,9 @@ public class ActorExecutionTrace {
       return;
     }
 
-    assert current instanceof TracingActivityThread;
-    TracingActivityThread t = (TracingActivityThread) current;
-    t.getBuffer().recordSendOperation(SendOp.PROMISE_RESOLUTION, 0, promiseId, t.getActivity());
+    assert current instanceof ActorProcessingThread;
+    ActorProcessingThread t = (ActorProcessingThread) current;
+    t.getBuffer().recordSendOperation(SendOp.PROMISE_RESOLUTION, 0, promiseId, t.getActivity(), t.currentMessage.getMessageId());
     t.erroredPromises++;
   }
 
@@ -287,17 +288,29 @@ public class ActorExecutionTrace {
    * @param promiseId, the promise that is being resolved
    */
   public static void promiseChained(final long promiseValueId, final long promiseId) {
-    TracingActivityThread t = getThread();
+    TracingActivityThread current = getThread();
+    assert current instanceof ActorProcessingThread;
+    ActorProcessingThread t = (ActorProcessingThread) current;
     t.getBuffer().recordSendOperation(
-        SendOp.PROMISE_RESOLUTION, promiseValueId, promiseId, t.getActivity());
+        SendOp.PROMISE_RESOLUTION, promiseValueId, promiseId, t.getActivity(), t.currentMessage.getMessageId());
     t.resolvedPromises++;
   }
 
   public static void sendOperation(final SendOp op, final long entityId,
       final long targetId) {
-    TracingActivityThread t = getThread();
-    t.getBuffer().recordSendOperation(op, entityId, targetId, t.getActivity());
+    TracingActivityThread current = getThread();
+    assert current instanceof ActorProcessingThread;
+    ActorProcessingThread t = (ActorProcessingThread) current;
+    t.getBuffer().recordSendOperation(op, entityId, targetId, t.getActivity(), t.currentMessage.getMessageId());
   }
+
+  public static void sendOperation(final SendOp op, final long entityId,
+      final long targetId, final long turn) {
+    TracingActivityThread t = getThread();
+    t.getBuffer().recordSendOperation(op, entityId, targetId, t.getActivity(), turn);
+  }
+
+
 
   public static void receiveOperation(final ReceiveOp op, final long sourceId) {
     TracingActivityThread t = getThread();

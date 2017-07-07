@@ -198,7 +198,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     inMsgAF.register(VariablesRequest.class);
     inMsgAF.register(ProgramInfoRequest.class);
     inMsgAF.register(TraceDataRequest.class);
-	inMsgAF.register("timeTravel", TimeTravelMessage.class);
+    inMsgAF.register("timeTravel", TimeTravelMessage.class);
 
 
     ClassHierarchyAdapterFactory<BreakpointInfo> breakpointAF = new ClassHierarchyAdapterFactory<>(BreakpointInfo.class, "type");

@@ -30,6 +30,7 @@ export interface SendOp extends EntityProperties {
   type: SendOpType;
   entity: Activity | PassiveEntity | DynamicScope | number;
   target: Activity | PassiveEntity | DynamicScope | number;
+  turnId: number;
 }
 
 export interface ReceiveOp extends EntityProperties {
@@ -246,13 +247,15 @@ export class RawSendOp extends RawEntity {
   private readonly type: SendOpType;
   private readonly entityId: number;
   private readonly targetId: number;
+  private readonly turnId:   number;
 
   constructor(type: SendOpType, entityId: number, targetId: number,
-      creationActivity: number, creationScope: number) {
+      creationActivity: number, creationScope: number, turnId: number) {
     super(creationActivity, creationScope);
     this.type = type;
     this.entityId = entityId;
     this.targetId = targetId;
+    this.turnId = turnId;
   }
 
   public resolve(data: ExecutionData): SendOp | false {
@@ -278,7 +281,8 @@ export class RawSendOp extends RawEntity {
       entity: entity,
       target: target,
       creationActivity: creationActivity,
-      creationScope: creationScope
+      creationScope: creationScope,
+      turnId: this.turnId
     };
   }
 }
