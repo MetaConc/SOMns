@@ -70,11 +70,7 @@ class ActorHeading {
 
   public getTurn(turnId: number){
     const turn = this.turnMap[turnId];
-    if (turn == null) {
-      return new TurnNode(this, new EmptyMessage());
-    } else {
-      return turn;
-    }
+    return turn;
   }
 
   public getContainer() {
@@ -514,7 +510,8 @@ export class ProcessView {
   public actors:             IdMap<ActorHeading>; 
   public scopes:             IdMap<DynamicScope>; // received scopes
   public arguments:          IdMap<Arguments>;
-  public rawMessages:        IdMap<RawMessages>; // we don't have full information of these messages, we miss the receiver or the arguments
+  public rawMessages:        IdMap<RawMessage>; // we don't have full information of these messages, we miss the receiver or the arguments
+  public eagerMessages:       IdMap<RawMessage[]>; // message who arrived before all the data of the turn they where send in.
   
   private metaModel: KomposMetaModel;
   private numActors: number;
@@ -535,6 +532,7 @@ export class ProcessView {
     this.numActors = 0;
     this.rawMessages = {};
     this.arguments = {};
+    this.eagerMessages = {};
   }
 
   public reset() {
@@ -543,6 +541,7 @@ export class ProcessView {
     this.scopes = {};
     this.rawMessages = {};
     this.arguments = {};
+    this.eagerMessages = {};
   }
 
   public setMetaModel(metaModel: KomposMetaModel) {
@@ -579,21 +578,25 @@ export class ProcessView {
         const messageId = <number> msg.entity;
         const senderActor = this.actors[msg.creationActivity.id];
         const targetActor = this.actors[(<Activity> msg.target).id];
-        var rawMessage = new RawMessages(messageId, senderActor, msg.turnId, msg);
+        if(messageId == 0){ // start message
+          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage()), {messageId: 0, methodName: "starts"});
+          return;
+        }
+        var rawMessage = new RawMessage(messageId, senderActor, msg.turnId, msg);
         rawMessage.setTarget(targetActor);
         this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
       }
       if(this.metaModel.isPromiseMessage(msg)) {
         const messageId = <number> msg.entity;
-        var rawMessage = new RawMessages(messageId, this.actors[(<Activity> msg.creationActivity).id], msg.turnId, msg)
+        var rawMessage = new RawMessage(messageId, this.actors[(<Activity> msg.creationActivity).id], msg.turnId, msg)
         this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
       }
     }
   }
 
-  private newScopes(scopes: DynamicScope[]){
+  private newScopes(scopes: DynamicScope[]) {
     for (const scope of scopes){
       if(this.metaModel.isTurnScope(scope)){
         this.scopes[scope.id]=(scope);
@@ -605,7 +608,7 @@ export class ProcessView {
     }
   }
 
-  private newArguments(args: Arguments[]){
+  private newArguments(args: Arguments[]) {
     for (const arg of args){
       this.arguments[arg.messageId]=arg;
       const msg = this.rawMessages[arg.messageId];
@@ -631,10 +634,10 @@ export class ProcessView {
   }
 }
 
-  class RawMessages {
+  class RawMessage {
     public messageId: number;
     private senderActor: ActorHeading;
-    private sendingTurn: TurnNode;
+    private turnId: number;
     private targetActor: ActorHeading;
     private arguments: Arguments;
     private sendOp: SendOp;
@@ -642,15 +645,15 @@ export class ProcessView {
     constructor(messageId: number, senderActor: ActorHeading, turnId: number, sendOp: SendOp) {
       this.messageId = messageId;
       this.senderActor = senderActor;
-      this.sendingTurn = senderActor.getTurn(turnId);
       this.sendOp = sendOp;
+      this.turnId = turnId;
     }
 
-    setTarget(targetActor: ActorHeading){
+    setTarget(targetActor: ActorHeading) {
       this.targetActor = targetActor;
     }
 
-    resolve(data: ProcessView){
+    resolve(data: ProcessView) {
       const scope = data.scopes[this.messageId];
       if(scope != null){
         delete data.scopes[this.messageId];
@@ -660,11 +663,31 @@ export class ProcessView {
       if(args != null){
         delete data.arguments[this.messageId];
         this.arguments = args;
-      }
-
+      }    
+      // all information of the message is available. 
       if(this.targetActor != null && this.arguments != null) {
         delete data.rawMessages[this.messageId];
-        new Message(this.senderActor, this.targetActor, this.sendOp, this.sendingTurn, this.arguments);
+        const sendingTurn = this.senderActor.getTurn(this.turnId);
+        if(sendingTurn == null){
+            // sending turn is not drawn yet
+            const messageWaitingForTurn = data.eagerMessages[this.turnId];
+
+            // add it to the list of message waiting for this turn, if list does not exist create it
+            if(messageWaitingForTurn==null){
+              data.eagerMessages[this.turnId]=[this];
+            } else {
+              messageWaitingForTurn.push(this);
+            }
+        }
+        new Message(this.senderActor, this.targetActor, this.sendOp, sendingTurn, this.arguments);
+
+        // my turn is now drawn, all message waiting for me can be resolved, afterwards delete the list
+        const messagesWaitingForMe = data.eagerMessages[this.messageId];
+        for(const i in messagesWaitingForMe){
+          const msg = messagesWaitingForMe[i];
+          msg.resolve(data);
+        }
+        delete data.eagerMessages[this.messageId];
       }
     }      
   }
