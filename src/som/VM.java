@@ -63,7 +63,7 @@ public final class VM {
 
   @CompilationFinal private StructuralProbe structuralProbe;
   @CompilationFinal private WebDebugger webDebugger;
-  @CompilationFinal private static TimeTravellingDebugger timetravellingDebugger;
+  @CompilationFinal private static TimeTravellingDebugger timeTravellingDebugger;
   @CompilationFinal private Profiler truffleProfiler;
 
   private final ForkJoinPool actorPool;
@@ -413,8 +413,8 @@ public final class VM {
       webDebuggerInst.setEnabled(true);
 
       if (VmSettings.TIME_TRAVELLING) {
-        Database.instantiateDatabase(this);
-        timetravellingDebugger = new TimeTravellingDebugger();
+        timeTravellingDebugger = new TimeTravellingDebugger(this);
+        Database.instantiateDatabase(this, timeTravellingDebugger);
       }
       webDebugger = webDebuggerInst.lookup(WebDebugger.class);
       webDebugger.startServer(debugger, this);
@@ -475,12 +475,12 @@ public final class VM {
   }
 
   public static TimeTravellingDebugger getTimeTravellingDebugger() {
-    return timetravellingDebugger;
+    return timeTravellingDebugger;
   }
 
   public static void reportClassFactory(final ClassFactory classFactory) {
-    if (timetravellingDebugger != null) {
-      timetravellingDebugger.reportClassFactory(classFactory);
+    if (timeTravellingDebugger != null) {
+      timeTravellingDebugger.reportClassFactory(classFactory);
     }
   }
 

@@ -252,6 +252,12 @@ public abstract class EventualMessage {
           selector, args, finalSender, resolver, onReceive, triggerMessageReceiverBreakpoint,
           triggerPromiseResolverBreakpoint);
     }
+
+    public static PromiseSendMessage createForTimeTravel(final SSymbol selector,
+        final Object[] arguments, final Actor originalSender, final SResolver resolver,
+        final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint, final boolean triggerPromiseResolverBreakpoint) {
+      return new PromiseSendMessage(selector, arguments, originalSender, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
+    }
   }
 
   /** The callback message to be send after a promise is resolved. */

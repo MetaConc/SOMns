@@ -114,6 +114,11 @@ public class SPromise extends SObjectWithClass {
     assert promiseClass != null;
   }
 
+  public static SPromise createPromiseForTimeTravel(@NotNull final Actor owner, final boolean triggerPromiseResolutionBreakpoint,
+      final boolean triggerExplicitPromiseResolverBreakpoint, final boolean explicitPromise) {
+    return new SPromise(owner, triggerPromiseResolutionBreakpoint, triggerExplicitPromiseResolverBreakpoint, explicitPromise);
+  }
+
   @Override
   public String toString() {
     String r = "Promise[" + owner.toString();
@@ -268,7 +273,8 @@ public class SPromise extends SObjectWithClass {
   }
 
   public void storeInDb(final Database database, final Session session) {
-    database.storeSPromise(session, this.getPromiseId(), whenResolved, whenResolvedExt, onError, onErrorExt, chainedPromise, chainedPromiseExt, value, resolutionState, owner);
+    database.storeSPromise(session, this, triggerPromiseResolutionBreakpoint,
+        triggerExplicitPromiseResolverBreakpoint, explicitPromise);
   };
 
   protected static class STracingPromise extends SPromise {
@@ -311,12 +317,12 @@ public class SPromise extends SObjectWithClass {
     return new SResolver(promise);
   }
 
-  public static final class SResolver extends SObjectWithClass {
+  public static class SResolver extends SObjectWithClass {
     @CompilationFinal private static SClass resolverClass;
 
     protected final SPromise promise;
 
-    private SResolver(final SPromise promise) {
+    protected SResolver(final SPromise promise) {
       super(resolverClass, resolverClass.getInstanceFactory());
       this.promise = promise;
       assert resolverClass != null;
