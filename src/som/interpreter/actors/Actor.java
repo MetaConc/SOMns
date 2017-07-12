@@ -1,7 +1,5 @@
 package som.interpreter.actors;
 
-import static tools.timeTravelling.ObjectWriter.writeMessage;
-
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory;
@@ -281,8 +279,7 @@ public class Actor implements Activity {
         if (VmSettings.TIME_TRAVELLING) {
           // i is -1 if message is not in the mailboxExtension
           // i goes from 0 to size - 2
-          // TODO message count
-          writeMessage(currentThread.currentMessage.messageId, msg, vm);
+          msg.storeTurnInDb();
         }
         msg.execute();
       } finally {

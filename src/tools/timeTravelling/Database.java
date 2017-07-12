@@ -358,8 +358,10 @@ public final class Database {
 
     Object ref = promise.getDatabaseInfo().getRoot();
     if (ref == null) {
-      StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}, promiseResolution: {promiseResolution}, promiseResolver: {promiseResolver}, explicitPromise: {explicitPromise}}) return promise",
-          parameters("promiseId", promise.getPromiseId(), "promiseResolution",  triggerPromiseResolutionBreakpoint, "promiseResolver", triggerExplicitPromiseResolverBreakpoint, "explicitPromise", explicitPromise));
+      StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}, promiseResolution: {promiseResolution}, "
+          + "promiseResolver: {promiseResolver}, explicitPromise: {explicitPromise}, type: {type}}) return promise",
+          parameters("promiseId", promise.getPromiseId(), "promiseResolution",  triggerPromiseResolutionBreakpoint, "promiseResolver",
+              triggerExplicitPromiseResolverBreakpoint, "explicitPromise", explicitPromise, "type", SomValueType.SPromise.name()));
       ref = getIdFromStatementResult(result.single().get("promise"));
       promise.getDatabaseInfo().setRoot(ref);
     }
@@ -482,7 +484,7 @@ public final class Database {
   }
 
   // expect the actor check to be done in readMessage name
-  public Object[] readMessageArguments(final Session session, final long causalMessageId) {
+  private Object[] readMessageArguments(final Session session, final long causalMessageId) {
     StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) <- [idx:ARGUMENT]- (argument)"
         + " RETURN argument, idx",
         parameters("messageId", causalMessageId));
@@ -496,7 +498,7 @@ public final class Database {
     return args;
   }
 
-  public DirectMessage readDirectMessage(final Session session, final Node messageNode, final long causalMessageId) {
+  private DirectMessage readDirectMessage(final Session session, final Node messageNode, final long causalMessageId) {
     SSymbol selector = Symbols.symbolFor(messageNode.get("messageName").asString());
     Object[] arguments = readMessageArguments(session, causalMessageId);
     SClass target = readSClassAsTarget(session, causalMessageId);
@@ -508,7 +510,7 @@ public final class Database {
     return new DirectMessage(absorbingActor, selector, arguments, absorbingActor, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
   }
 
-  public PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
+  private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
     SSymbol selector = Symbols.symbolFor(messageNode.get("messageName").asString());
     Object[] arguments = readMessageArguments(session, causalMessageId);
     SAbstractObject target = readTarget(session, causalMessageId);
@@ -524,7 +526,7 @@ public final class Database {
     return msg;
   }
 
-  public PromiseCallbackMessage readPromiseCallbackMessage(final Session session, final Node messageNode, final long causalMessageId){
+  private PromiseCallbackMessage readPromiseCallbackMessage(final Session session, final Node messageNode, final long causalMessageId){
     Actor owner = absorbingActor;
     SBlock callback = timeTravellingDebugger.getSBlock(causalMessageId);
     SResolver resolver = new AbsorbingSResolver();
@@ -536,9 +538,13 @@ public final class Database {
     return msg;
   }
 
-  public SPromise readSPromise(final Session session, final long messageId){
+  private SPromise readSPromise(final Session session, final long messageId){
     final Node promiseNode = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) - [:HAS_PROMISE]->(promise: SPromise) RETURN promise",
         parameters("messageId", messageId)).single().get("promise").asNode();
+    return readSPromise(session, promiseNode);
+  }
+
+  private SPromise readSPromise(final Session session, final Node promiseNode) {
     boolean triggerPromiseResolutionBreakpoint = promiseNode.get("promiseResolution").asBoolean();
     boolean triggerExplicitPromiseResolverBreakpoint = promiseNode.get("promiseResolver").asBoolean();
     boolean explicitPromise = promiseNode.get("explicitPromise").asBoolean();
@@ -546,7 +552,7 @@ public final class Database {
     return promise;
   }
 
-  public SAbstractObject readTarget(final Session session, final long causalMessageId) {
+  private SAbstractObject readTarget(final Session session, final long causalMessageId) {
     StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) RETURN SObject",
         parameters("messageId", causalMessageId));
     return readSObject(session, result.single().get("SObject").asNode());
@@ -643,7 +649,7 @@ public final class Database {
       case SFarReference:
         return readSFarReference(session, value.asNode());
       case SPromise:
-        throw new RuntimeException("not yet implemented: read SPromise");
+        return readSPromise(session, value.asNode());
       case SAbstractObject:
         return readSObject(session, value.asNode());
       case Long:

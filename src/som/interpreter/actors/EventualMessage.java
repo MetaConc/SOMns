@@ -25,10 +25,10 @@ public abstract class EventualMessage {
   protected final long messageId;
 
   /**
-    * Indicates the case when an asynchronous message has a receiver breakpoint.
-    * It is not final because its value can be updated in order that other breakpoints
-    * can reuse the stepping strategy implemented for message receiver breakpoints.
-    */
+   * Indicates the case when an asynchronous message has a receiver breakpoint.
+   * It is not final because its value can be updated in order that other breakpoints
+   * can reuse the stepping strategy implemented for message receiver breakpoints.
+   */
   protected boolean triggerMessageReceiverBreakpoint;
   /**
    * Indicates the case when an implicit promise has a promise resolver breakpoint
@@ -124,6 +124,24 @@ public abstract class EventualMessage {
       database.storeDirectMessage(session, databaseInfo, messageId, target,
           selector, args,  sender, resolver, onReceive, triggerMessageReceiverBreakpoint,
           triggerPromiseResolverBreakpoint);
+    }
+
+    @Override
+    public void storeTurnInDb() {
+      Database database = Database.getDatabaseInstance();
+      Session session = database.startSession();
+      try {
+        if(messageId == 0) {
+          // This is the start message
+          return;
+        }
+        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
+        database.storeDirectMessageTurn(session, messageId, this, targetActor);
+      } catch (Exception e) {
+        e.printStackTrace();
+      } finally {
+        database.endSession(session);
+      }
     }
   }
 
@@ -258,6 +276,20 @@ public abstract class EventualMessage {
         final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint, final boolean triggerPromiseResolverBreakpoint) {
       return new PromiseSendMessage(selector, arguments, originalSender, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
     }
+
+    @Override
+    public void storeTurnInDb() {
+      Database database = Database.getDatabaseInstance();
+      Session session = database.startSession();
+      try {
+        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
+        database.storeSendMessageTurn(session, messageId, this, targetActor);
+      } catch (Exception e) {
+        e.printStackTrace();
+      } finally {
+        database.endSession(session);
+      }
+    }
   }
 
   /** The callback message to be send after a promise is resolved. */
@@ -316,6 +348,20 @@ public abstract class EventualMessage {
       database.storePromiseCallbackMessage(session, databaseInfo, messageId, originalSender,
           (SBlock) args[0], resolver, onReceive, triggerMessageReceiverBreakpoint,
           triggerPromiseResolverBreakpoint, promise);
+    }
+
+    @Override
+    public void storeTurnInDb() {
+      Database database = Database.getDatabaseInstance();
+      Session session = database.startSession();
+      try {
+        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
+        database.storeCallbackMessageTurn(session, messageId, this, targetActor);
+      } catch (Exception e) {
+        e.printStackTrace();
+      } finally {
+        database.endSession(session);
+      }
     }
   }
 
@@ -381,5 +427,8 @@ public abstract class EventualMessage {
     return databaseInfo;
   }
 
+  // this message needs to be store in the database
   public abstract void storeInDb(final Database database, final Session session);
+  // This turn caused by this message needs to be stored in db, the type of data depends on message
+  public abstract void storeTurnInDb();
 }
