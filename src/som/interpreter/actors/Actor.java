@@ -282,7 +282,7 @@ public class Actor implements Activity {
           // i is -1 if message is not in the mailboxExtension
           // i goes from 0 to size - 2
           // TODO message count
-          writeMessage(currentThread.currentMessage.messageId, msg, msg.getArgs()[0], vm, 0);
+          writeMessage(currentThread.currentMessage.messageId, msg, vm);
         }
         msg.execute();
       } finally {

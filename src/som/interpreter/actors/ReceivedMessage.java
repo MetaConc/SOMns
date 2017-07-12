@@ -10,6 +10,7 @@ import com.oracle.truffle.api.nodes.DirectCallNode;
 import som.interpreter.SArguments;
 import som.interpreter.SomException;
 import som.interpreter.SomLanguage;
+import som.interpreter.actors.SPromise.SResolver;
 import som.interpreter.nodes.MessageSendNode.AbstractMessageSendNode;
 import som.vm.VmSettings;
 import som.vmobjects.SSymbol;
@@ -96,7 +97,8 @@ public class ReceivedMessage extends ReceivedRootNode {
       EventualMessage msg = (EventualMessage) SArguments.rcvr(frame);
       boolean promiseResolutionBreakpoint = false;
 
-      if (msg.getResolver() != null) {
+      SResolver resolver = msg.getResolver();
+      if (resolver != null && !(resolver instanceof AbsorbingSResolver)) {
         promiseResolutionBreakpoint = msg.getResolver().getPromise().isTriggerPromiseResolutionBreakpoint();
       }
 

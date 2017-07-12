@@ -7,8 +7,9 @@ import org.neo4j.driver.v1.Session;
 import som.VM;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
-import som.vmobjects.SClass;
-import som.vmobjects.SObject;
+import som.interpreter.actors.EventualMessage.DirectMessage;
+import som.interpreter.actors.EventualMessage.PromiseCallbackMessage;
+import som.interpreter.actors.EventualMessage.PromiseSendMessage;
 
 public  class ObjectWriter {
 
@@ -16,32 +17,35 @@ public  class ObjectWriter {
   // msg        = message currently being executed
   // t          = targe tof message
   // messageCount = number of message in actor message queue, includes current message.
-  public static void writeMessage(final Long messageId, final EventualMessage msg, final Object t, final VM vm, final int messageCount) {
+  public static void writeMessage(final Long messageId, final EventualMessage msg, final VM vm) {
     try {
-      if (t instanceof SObject) {
-        SObject target = (SObject) t;
-        if (vm.isPlatformObject(target)) {
-          System.out.println("is platform object"); // what information do we need from the platform object / actor?
-        } else {
-          Database database = getDatabaseInstance();
-          Session session = database.startSession();
-          Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-          database.storeCheckpoint(session, messageId, msg, targetActor, target, messageCount);
-          database.endSession(session);
-        }
-      } else if (t instanceof SClass) {
-        // method is either a constructor or static method, no target object, only store arguments
-        SClass target = (SClass) t;
+      if (msg instanceof PromiseSendMessage) {
         Database database = getDatabaseInstance();
         Session session = database.startSession();
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-        database.storeFactoryMethod(session, messageId, msg, targetActor, target, messageCount);
+        database.storeSendMessageTurn(session, messageId, (PromiseSendMessage) msg, targetActor);
+        database.endSession(session);
+      } else if (msg instanceof PromiseCallbackMessage) {
+        Database database = getDatabaseInstance();
+        Session session = database.startSession();
+        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
+        database.storeCallbackMessageTurn(session, messageId, (PromiseCallbackMessage) msg, targetActor);
+        database.endSession(session);
+      } else if(msg instanceof DirectMessage) {
+        if(msg.getMessageId() == 0) {
+            // This is the start message
+          return;
+        }
+        Database database = getDatabaseInstance();
+        Session session = database.startSession();
+        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
+        database.storeDirectMessageTurn(session, messageId, (DirectMessage) msg, targetActor);
         database.endSession(session);
       } else {
-        VM.println("ignored: " + t.getClass() + " " + t.toString());
+        VM.errorPrintln("unexpected type of message: " + msg.getClass());
       }
     } catch (Exception e) {
-      VM.errorPrintln(e.getMessage());
+      e.printStackTrace();
     }
   }
 }

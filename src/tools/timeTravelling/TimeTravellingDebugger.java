@@ -6,21 +6,20 @@ import java.util.Map;
 import com.oracle.truffle.api.nodes.IndirectCallNode;
 import com.oracle.truffle.api.nodes.RootNode;
 
-import som.VM;
 import som.compiler.AccessModifier;
-import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.interpreter.nodes.dispatch.Dispatchable;
 import som.interpreter.objectstorage.ClassFactory;
 import som.vmobjects.SAbstractObject;
+import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
 import som.vmobjects.SSymbol;
 
 // TODO merge file with debugger after thesis is done. This allows me to separate my work from SOM
 public class TimeTravellingDebugger {
-  private VM vm;
   private Map<SSymbol, ClassFactory> factories;
   private Map<Long, RootNode> rootNodes;
+  private Map<Long, SBlock> callbackBlocks;
 
   /*
    * map keeps track of revived SObject
@@ -29,15 +28,13 @@ public class TimeTravellingDebugger {
    */
   private Map<Object, SAbstractObject> revivedObjects;
   private Map<SSymbol, SClass> revivedClasses;
-  public Actor absorbingActor;
 
-  public TimeTravellingDebugger(final VM vm) {
-    this.vm = vm;
+  public TimeTravellingDebugger() {
     factories = new HashMap<SSymbol, ClassFactory>();
     rootNodes = new HashMap<Long, RootNode>();
+    callbackBlocks = new HashMap<Long, SBlock>();
     revivedObjects = new HashMap<Object, SAbstractObject>();
     revivedClasses = new HashMap<SSymbol, SClass>();
-    absorbingActor = Actor.createActor(vm);
   }
   /*
    *  Runtime information kept to make serialization easier
@@ -54,6 +51,13 @@ public class TimeTravellingDebugger {
   }
   public RootNode getRootNode(final long messageId) {
     return rootNodes.get(messageId);
+  }
+
+  public void reportSBlock(final Long messageId, final SBlock block) {
+    callbackBlocks.put(messageId, block);
+  }
+  public SBlock getSBlock(final long messageId) {
+    return callbackBlocks.get(messageId);
   }
 
   /*
