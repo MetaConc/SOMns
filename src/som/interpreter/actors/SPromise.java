@@ -273,8 +273,7 @@ public class SPromise extends SObjectWithClass {
   }
 
   public void storeInDb(final Database database, final Session session) {
-    database.storeSPromise(session, this, triggerPromiseResolutionBreakpoint,
-        triggerExplicitPromiseResolverBreakpoint, explicitPromise);
+    database.storeSPromise(session, this, explicitPromise);
   };
 
   protected static class STracingPromise extends SPromise {

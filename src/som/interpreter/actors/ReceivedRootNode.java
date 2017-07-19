@@ -11,6 +11,7 @@ import som.interpreter.SomLanguage;
 import som.interpreter.actors.SPromise.SResolver;
 import som.vm.VmSettings;
 import tools.debugger.WebDebugger;
+import tools.timeTravelling.AbsorbingSResolver;
 
 
 public abstract class ReceivedRootNode extends RootNode {
@@ -86,7 +87,7 @@ public abstract class ReceivedRootNode extends RootNode {
     public Object executeEvaluated(final VirtualFrame frame,
         final SResolver receiver, final Object argument,
         final boolean isBreakpointOnPromiseResolution) {
-      assert receiver == null;
+      assert (receiver == null || receiver instanceof AbsorbingSResolver);
       /* TODO: add a tag to the send node to disable or remove the button
        * if (isBreakpointOnResolutionAtRcvr) {} */
       return null;

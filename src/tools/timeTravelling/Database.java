@@ -117,7 +117,7 @@ public final class Database {
     storeEventualMessage(session, msg);
     // create checkpoint header, root node to which all information of one turn becomes connected.
 
-    StatementResult result = session.run(
+    session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
             + " MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
             + " MATCH (message) where ID(message)={messageRef}"
@@ -127,13 +127,6 @@ public final class Database {
             + " return turn",
             parameters("actorId", actor.getId(), "SClassId", target.getDatabaseInfo().getRef(),
                 "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
-
-    Record record = result.single();
-    Object argumentId = record.get("turn").asNode().id();
-    Object[] args = msg.getArgs();
-    for (int i = 1; i < args.length; i++) {
-      storeArgument(session, argumentId, i, args[i]);
-    }
   }
 
   public void storeSendMessageTurn(final Session session, final Long messageId, final PromiseSendMessage msg, final Actor actor) {
@@ -235,7 +228,7 @@ public final class Database {
   public void storePromiseCallbackMessage(final Session session, final DatabaseInfo info,
       final long messageId, final Actor originalSender, final SBlock callback, final SResolver resolver,
       final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint,
-      final boolean triggerPromiseResolverBreakpoint, final SPromise promise) {
+      final boolean triggerPromiseResolverBreakpoint, final SPromise promise, final Object target) {
 
     RootNode rootNode = onReceive.getRootNode();
     storeActor(session, originalSender);
@@ -253,6 +246,7 @@ public final class Database {
     info.setRoot(messageRef);
     storeSPromise(session, promise, messageRef);
     storeSResolver(session, resolver, messageRef);
+    storeArgument(session, messageRef, 1, target); // promise callback message have 2 arguments: callback and the value which resolved the promise
   }
 
 
@@ -353,16 +347,12 @@ public final class Database {
   }
 
   public void storeSPromise(final Session session, final SPromise promise,
-      final boolean triggerPromiseResolutionBreakpoint,
-      final boolean triggerExplicitPromiseResolverBreakpoint,
       final boolean explicitPromise) {
 
     Object ref = promise.getDatabaseInfo().getRoot();
     if (ref == null) {
-      StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}, promiseResolution: {promiseResolution}, "
-          + "promiseResolver: {promiseResolver}, explicitPromise: {explicitPromise}, type: {type}}) return promise",
-          parameters("promiseId", promise.getPromiseId(), "promiseResolution",  triggerPromiseResolutionBreakpoint, "promiseResolver",
-              triggerExplicitPromiseResolverBreakpoint, "explicitPromise", explicitPromise, "type", SomValueType.SPromise.name()));
+      StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}, explicitPromise: {explicitPromise}, type: {type}}) return promise",
+          parameters("promiseId", promise.getPromiseId(), "explicitPromise", explicitPromise, "type", SomValueType.SPromise.name()));
       ref = getIdFromStatementResult(result.single().get("promise"));
       promise.getDatabaseInfo().setRoot(ref);
     }
@@ -513,8 +503,6 @@ public final class Database {
   private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
     SSymbol selector = Symbols.symbolFor(messageNode.get("messageName").asString());
     Object[] arguments = readMessageArguments(session, causalMessageId);
-    SAbstractObject targetObject = readTarget(session, causalMessageId);
-    SFarReference target = new SFarReference(timeTravelingActor, targetObject); // the target of our message needs to be owned by the time travel actor
     SPromise targetPromise = readSPromise(session, causalMessageId);
     arguments[0] = targetPromise;
     SResolver resolver = new AbsorbingSResolver();
@@ -522,12 +510,15 @@ public final class Database {
     boolean triggerMessageReceiverBreakpoint = messageNode.get("msgReceiver").asBoolean();
     boolean triggerPromiseResolverBreakpoint = messageNode.get("promiseResolver").asBoolean();
     PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
+
+    SAbstractObject targetObject = readTarget(session, causalMessageId);
+    SFarReference target = new SFarReference(timeTravelingActor, targetObject); // the target of our message needs to be owned by the time travel actor
     msg.resolve(target, timeTravelingActor, absorbingActor);
     return msg;
   }
 
   private PromiseCallbackMessage readPromiseCallbackMessage(final Session session, final Node messageNode, final long causalMessageId){
-    Actor owner = absorbingActor;
+    Actor owner = timeTravelingActor;
     SBlock callback = timeTravellingDebugger.getSBlock(causalMessageId);
     SResolver resolver = new AbsorbingSResolver();
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
@@ -535,7 +526,17 @@ public final class Database {
     boolean triggerPromiseResolverBreakpoint = messageNode.get("promiseResolver").asBoolean();
     SPromise promiseRegisteredOn = readSPromise(session, causalMessageId);
     PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint, promiseRegisteredOn);
+
+    Object resolution = readCallbackResolution(session, causalMessageId);
+    msg.resolve(resolution, timeTravelingActor, absorbingActor);
     return msg;
+  }
+
+  private Object readCallbackResolution(final Session session, final long causalMessageId){
+    StatementResult result = session.run("MATCH (message: PromiseCallbackMessage {messageId: {messageId}}) <- [:ARGUMENT]- (argument)"
+        + " RETURN argument",
+        parameters("messageId", causalMessageId));
+    return readValue(session, result.single().get("argument"));
   }
 
   private SPromise readSPromise(final Session session, final long messageId){
@@ -545,10 +546,8 @@ public final class Database {
   }
 
   private SPromise readSPromise(final Session session, final Node promiseNode) {
-    boolean triggerPromiseResolutionBreakpoint = promiseNode.get("promiseResolution").asBoolean();
-    boolean triggerExplicitPromiseResolverBreakpoint = promiseNode.get("promiseResolver").asBoolean();
     boolean explicitPromise = promiseNode.get("explicitPromise").asBoolean();
-    SPromise promise = SPromise.createPromiseForTimeTravel(absorbingActor, triggerPromiseResolutionBreakpoint, triggerExplicitPromiseResolverBreakpoint, explicitPromise);
+    SPromise promise = SPromise.createPromiseForTimeTravel(absorbingActor, false, false, explicitPromise);
     return promise;
   }
 

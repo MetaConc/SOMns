@@ -347,7 +347,7 @@ public abstract class EventualMessage {
     public void storeInDb(final Database database, final Session session) {
       database.storePromiseCallbackMessage(session, databaseInfo, messageId, originalSender,
           (SBlock) args[0], resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint, promise);
+          triggerPromiseResolverBreakpoint, promise, args[1]);
     }
 
     @Override
