@@ -277,8 +277,6 @@ public class Actor implements Activity {
           ActorExecutionTrace.recordArguments(msg.getSelector(), msg.getMessageId());
         }
         if (VmSettings.TIME_TRAVELLING) {
-          // i is -1 if message is not in the mailboxExtension
-          // i goes from 0 to size - 2
           msg.storeTurnInDb();
         }
         msg.execute();

@@ -10,19 +10,19 @@ public class VmSettings {
   // TODO: revise naming of flags
   public static final boolean FAIL_ON_MISSING_OPTIMIZATIONS;
   public static final boolean DEBUG_MODE;
-  public static final boolean ACTOR_TRACING;
-  public static final boolean MEMORY_TRACING;
+  public static boolean ACTOR_TRACING;
+  public static boolean MEMORY_TRACING;
   public static final String  TRACE_FILE;
   public static final boolean DISABLE_TRACE_FILE;
   public static final boolean INSTRUMENTATION;
   public static final boolean DYNAMIC_METRICS;
   public static final boolean DNU_PRINT_STACK_TRACE;
   public static final boolean MESSAGE_PARAMETERS;
-  public static final boolean PROMISE_CREATION;
-  public static final boolean PROMISE_RESOLUTION;
-  public static final boolean PROMISE_RESOLVED_WITH;
+  public static boolean PROMISE_CREATION;
+  public static boolean PROMISE_RESOLUTION;
+  public static boolean PROMISE_RESOLVED_WITH;
   public static final boolean REPLAY;
-  public static final boolean TIME_TRAVELLING;
+  public static boolean TIME_TRAVELLING;
 
   public static final boolean TRUFFLE_DEBUGGER_ENABLED;
 
@@ -72,5 +72,14 @@ public class VmSettings {
 
   private static boolean getBool(final String prop, final boolean defaultVal) {
     return Boolean.parseBoolean(System.getProperty(prop, defaultVal ? "true" : "false"));
+  }
+
+  public static void switchToTimeTravel() {
+    TIME_TRAVELLING = false;
+    //ACTOR_TRACING = false;
+    //MEMORY_TRACING = false;
+    //PROMISE_CREATION = false;
+    //PROMISE_RESOLUTION = false;
+    //PROMISE_RESOLVED_WITH = false;
   }
 }

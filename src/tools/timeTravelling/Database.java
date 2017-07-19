@@ -41,19 +41,20 @@ import som.vmobjects.SObject.SImmutableObject;
 import som.vmobjects.SObject.SMutableObject;
 import som.vmobjects.SObjectWithClass;
 import som.vmobjects.SSymbol;
+import tools.concurrency.TracingActors;
 import tools.timeTravelling.DatabaseInfo.DatabaseState;
 
 public final class Database {
   private static Database singleton;
-  private VM vm;
   private TimeTravellingDebugger timeTravellingDebugger;
   private Driver driver = GraphDatabase.driver("bolt://localhost:7687", AuthTokens.basic("neo4j", "timetraveling"));
   private AbsorbingActor absorbingActor;
+  private Actor timeTravelingActor;
 
   private Database(final VM vm, final TimeTravellingDebugger timeTravellingDebugger) {
-    this.vm = vm;
     this.timeTravellingDebugger = timeTravellingDebugger;
     absorbingActor = new AbsorbingActor(vm);
+    timeTravelingActor = new TracingActors.TracingActor(vm);
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
     StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
@@ -453,7 +454,6 @@ public final class Database {
     Database database = getDatabaseInstance();
     Session session = database.startSession();
     try {
-
       Record record = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) RETURN message",
           parameters("messageId", causalMessageId)).single();
       Node message = record.get("message").asNode();
@@ -461,17 +461,17 @@ public final class Database {
       switch(methodType) {
         case "PromiseSendMessage": {
           PromiseSendMessage msg = database.readPromiseSendMessage(session, message, causalMessageId);
-          database.timeTravellingDebugger.replayMessage(msg);
+          database.timeTravellingDebugger.replayMessage(database.timeTravelingActor, msg);
           break;
         }
         case "PromiseCallbackMessage": {
           PromiseCallbackMessage msg = database.readPromiseCallbackMessage(session, message, causalMessageId);
-          database.timeTravellingDebugger.replayMessage(msg);
+          database.timeTravellingDebugger.replayMessage(database.timeTravelingActor, msg);
           break;
         }
         case "DirectMessage": {
           DirectMessage msg = database.readDirectMessage(session, message, causalMessageId);
-          database.timeTravellingDebugger.replayMessage(msg);
+          database.timeTravellingDebugger.replayMessage(database.timeTravelingActor, msg);
           break;
         }
       }
@@ -485,7 +485,7 @@ public final class Database {
 
   // expect the actor check to be done in readMessage name
   private Object[] readMessageArguments(final Session session, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) <- [idx:ARGUMENT]- (argument)"
+    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) <- [idx:ARGUMENT]- (argument)"
         + " RETURN argument, idx",
         parameters("messageId", causalMessageId));
     List<Record> recordList = result.list();
@@ -507,22 +507,22 @@ public final class Database {
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     boolean triggerMessageReceiverBreakpoint = messageNode.get("msgReceiver").asBoolean();
     boolean triggerPromiseResolverBreakpoint = messageNode.get("promiseResolver").asBoolean();
-    return new DirectMessage(absorbingActor, selector, arguments, absorbingActor, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
+    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
   }
 
   private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
     SSymbol selector = Symbols.symbolFor(messageNode.get("messageName").asString());
     Object[] arguments = readMessageArguments(session, causalMessageId);
-    SAbstractObject target = readTarget(session, causalMessageId);
+    SAbstractObject targetObject = readTarget(session, causalMessageId);
+    SFarReference target = new SFarReference(timeTravelingActor, targetObject); // the target of our message needs to be owned by the time travel actor
     SPromise targetPromise = readSPromise(session, causalMessageId);
     arguments[0] = targetPromise;
-    System.out.println("size: " + arguments.length);
     SResolver resolver = new AbsorbingSResolver();
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     boolean triggerMessageReceiverBreakpoint = messageNode.get("msgReceiver").asBoolean();
     boolean triggerPromiseResolverBreakpoint = messageNode.get("promiseResolver").asBoolean();
     PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
-    msg.resolve(target, absorbingActor, absorbingActor);
+    msg.resolve(target, timeTravelingActor, absorbingActor);
     return msg;
   }
 
