@@ -273,9 +273,7 @@ class TurnNode {
       });
 
     /*add popover, a on hover/click menu with the name of the message causing
-      the turn and two buttons
-        one to do minimal restore
-        one to do full restore
+      the turn and one button to start time travelling.
     */
     circle.attr({
       "data-toggle"   : "popover",
@@ -300,22 +298,12 @@ class TurnNode {
     this.popover = $("#" + this.getId());
     this.popover.popover();
 
-    $(document).on("click", ".timetravel-minimal", function (e) {
+    $(document).on("click", ".timetravel", function (e) {
       e.stopImmediatePropagation();
       timeTravelling.timeTravel(
         e.currentTarget.attributes["data-actor-id"].value, 
-        e.currentTarget.attributes["data-message-id"].value,
-        false);
+        e.currentTarget.attributes["data-message-id"].value);
     });
-    
-    $(document).on("click", ".timetravel-full", function (e) {
-      e.stopImmediatePropagation();
-      timeTravelling.timeTravel(
-        e.currentTarget.attributes["data-actor-id"].value, 
-        e.currentTarget.attributes["data-message-id"].value,
-        true);
-    });    
-
     return circle;
   }
 }

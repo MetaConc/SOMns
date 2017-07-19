@@ -177,12 +177,11 @@ export class VmConnection {
     });
   }
 
-  public sendTimeTravel(actorId: number, messageId: number, full: boolean) {
+  public sendTimeTravel(actorId: number, messageId: number) {
     this.send({
       action: "timeTravel",
       actorId: actorId,
-      messageId: messageId,
-      full: full
+      messageId: messageId
     });
   }
 

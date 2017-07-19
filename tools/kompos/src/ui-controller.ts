@@ -266,7 +266,7 @@ export class UiController extends Controller {
     this.view.onContinueExecution(act);
   }
 
-  public timeTravel(actorId: number, messageId: number, full: boolean){
-    this.vmConnection.sendTimeTravel(actorId, messageId, full);
+  public timeTravel(actorId: number, messageId: number){
+    this.vmConnection.sendTimeTravel(actorId, messageId);
   }
 }

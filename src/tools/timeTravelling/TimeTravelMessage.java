@@ -10,13 +10,11 @@ import tools.debugger.message.Message.IncommingMessage;
 public class TimeTravelMessage extends IncommingMessage {
   private long actorId;
   private long messageId;
-  private boolean full;
 
-  public TimeTravelMessage(final long actorId, final long messageId, final boolean full) {
+  public TimeTravelMessage(final long actorId, final long messageId) {
 
     this.actorId = actorId;
     this.messageId = messageId;
-    this.full = full;
   };
 
 
@@ -27,10 +25,6 @@ public class TimeTravelMessage extends IncommingMessage {
 
   public long getMessageId() {
     return messageId;
-  }
-
-  public boolean isFullReplay() {
-    return full;
   }
 
   @Override

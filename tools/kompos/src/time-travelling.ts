@@ -1,7 +1,7 @@
 
 export class timeTravelling {
 	
-	static timeTravel(activityId: number, messageId: number, full: boolean){
-		ctrl.timeTravel(activityId, messageId, full);
+	static timeTravel(activityId: number, messageId: number){
+		ctrl.timeTravel(activityId, messageId);
 	}
 }

@@ -239,8 +239,7 @@ export interface TraceDataRequest {
 export interface TimeTravel {
   action: "timeTravel",
   actorId: number,
-  messageId: number,
-  full: boolean
+  messageId: number
 }
 
 interface UpdateBreakpoint {
