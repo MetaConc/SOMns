@@ -413,7 +413,7 @@ public final class VM {
       webDebuggerInst.setEnabled(true);
 
       if (VmSettings.TIME_TRAVELLING) {
-        timeTravellingDebugger = new TimeTravellingDebugger();
+        timeTravellingDebugger = new TimeTravellingDebugger(this);
         Database.instantiateDatabase(this, timeTravellingDebugger);
       }
       webDebugger = webDebuggerInst.lookup(WebDebugger.class);

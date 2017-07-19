@@ -122,8 +122,7 @@ public abstract class EventualMessage {
     @Override
     public void storeInDb(final Database database, final Session session) {
       database.storeDirectMessage(session, databaseInfo, messageId, target,
-          selector, args,  sender, resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint);
+          selector, args,  sender, resolver, onReceive);
     }
 
     @Override
@@ -267,8 +266,7 @@ public abstract class EventualMessage {
     @Override
     public void storeInDb(final Database database, final Session session) {
       database.storePromiseSendMessage(session, messageId, databaseInfo, target, originalTarget,
-          selector, args, finalSender, resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint);
+          selector, args, finalSender, resolver, onReceive);
     }
 
     public static PromiseSendMessage createForTimeTravel(final SSymbol selector,
@@ -346,8 +344,7 @@ public abstract class EventualMessage {
     @Override
     public void storeInDb(final Database database, final Session session) {
       database.storePromiseCallbackMessage(session, databaseInfo, messageId, originalSender,
-          (SBlock) args[0], resolver, onReceive, triggerMessageReceiverBreakpoint,
-          triggerPromiseResolverBreakpoint, promise, args[1]);
+          (SBlock) args[0], resolver, onReceive, promise, args[1]);
     }
 
     @Override
