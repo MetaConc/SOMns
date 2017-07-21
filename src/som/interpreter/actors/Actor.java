@@ -46,16 +46,6 @@ import tools.debugger.entities.DynamicScopeType;
  *    - and sequentially executes all messages
  */
 public class Actor implements Activity {
-  private boolean inDatabase;
-
-
-  public void addedToDatabase() {
-    inDatabase = true;
-  }
-
-  public boolean inDatabase() {
-    return inDatabase;
-  }
 
   public static Actor createActor(final VM vm) {
     if (VmSettings.REPLAY) {
