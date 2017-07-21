@@ -48,6 +48,7 @@ import tools.debugger.session.BreakpointInfo;
 import tools.debugger.session.Breakpoints;
 import tools.debugger.session.LineBreakpoint;
 import tools.debugger.session.SectionBreakpoint;
+import tools.timeTravelling.ConnectorStrategy;
 import tools.timeTravelling.TimeTravelMessage;
 
 
@@ -63,6 +64,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
   private FrontendConnector connector;
   private Instrumenter      instrumenter;
   private Breakpoints       breakpoints;
+  private ConnectorStrategy strategy;
 
   @CompilationFinal VM vm;
 
@@ -171,11 +173,16 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     breakpoints = new Breakpoints(dbg, this);
     connector = new FrontendConnector(breakpoints, instrumenter, this,
         createJsonProcessor());
+    strategy = new normal(connector);
     connector.awaitClient();
   }
 
   public Breakpoints getBreakpoints() {
     return breakpoints;
+  }
+
+  public void setStrategy(final ConnectorStrategy strategy){
+    this.strategy = strategy;
   }
 
   public static Gson createJsonProcessor() {
@@ -210,5 +217,18 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
         registerTypeAdapterFactory(inMsgAF).
         registerTypeAdapterFactory(breakpointAF).
         create();
+  }
+}
+
+class normal implements ConnectorStrategy {
+  private FrontendConnector connector;
+
+  public normal(final FrontendConnector connector){
+    this.connector = connector;
+  }
+
+  @Override
+  public void sendStoppedMessage(final Suspension suspension) {
+    connector.sendStoppedMessage(suspension);
   }
 }

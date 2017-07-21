@@ -7,7 +7,6 @@ import com.oracle.truffle.api.interop.TruffleObject;
 
 import som.interop.SObjectInteropMessageResolutionForeign;
 import som.interpreter.objectstorage.ClassFactory;
-import som.vm.ObjectSystem;
 import som.vm.VmSettings;
 import tools.timeTravelling.DatabaseInfo;
 
@@ -65,7 +64,7 @@ public abstract class SObjectWithClass extends SAbstractObject implements Truffl
   }
 
   public void performedWrite() {
-    if(VmSettings.TIME_TRAVELLING){
+    if (VmSettings.TIME_TRAVELLING) {
       databaseInfo.performedWrite();
     }
   }

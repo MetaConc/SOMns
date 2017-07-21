@@ -2,7 +2,6 @@ package tools.timeTravelling;
 
 import org.java_websocket.WebSocket;
 
-import som.vm.VmSettings;
 import tools.debugger.FrontendConnector;
 import tools.debugger.message.Message.IncommingMessage;
 
@@ -29,7 +28,7 @@ public class TimeTravelMessage extends IncommingMessage {
 
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
-    VmSettings.switchToTimeTravel();
+    TimeTravellingDebugger.switchToTimeTravelMode();
     Database.prepareForTimeTravel(actorId, messageId);
   }
 }

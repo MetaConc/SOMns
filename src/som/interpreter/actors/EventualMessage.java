@@ -425,7 +425,7 @@ public abstract class EventualMessage {
   }
 
   // this message needs to be store in the database
-  public abstract void storeInDb(final Database database, final Session session);
+  public abstract void storeInDb(Database database, Session session);
   // This turn caused by this message needs to be stored in db, the type of data depends on message
   public abstract void storeTurnInDb();
 }

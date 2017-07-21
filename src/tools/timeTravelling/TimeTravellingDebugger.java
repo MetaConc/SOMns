@@ -9,6 +9,7 @@ import som.VM;
 import som.interpreter.actors.Actor;
 import som.interpreter.actors.EventualMessage;
 import som.interpreter.objectstorage.ClassFactory;
+import som.vm.VmSettings;
 import som.vmobjects.SAbstractObject;
 import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
@@ -37,6 +38,18 @@ public class TimeTravellingDebugger {
     revivedObjects = new HashMap<Object, SAbstractObject>();
     revivedClasses = new HashMap<SSymbol, SClass>();
   }
+
+  // TODO turn of tracing after time travel starts
+  public static void switchToTimeTravelMode() {
+    VmSettings.TIME_TRAVELLING = false;
+    VmSettings.ACTOR_TRACING = false;
+    //VmSettings.ACTOR_TRACING = false;
+    //VmSettings.MEMORY_TRACING = false;
+    //VmSettings.PROMISE_CREATION = false;
+    //VmSettings.PROMISE_RESOLUTION = false;
+    //VmSettings.PROMISE_RESOLVED_WITH = false;
+  }
+
   /*
    *  Runtime information kept to make serialization easier
    */

@@ -53,9 +53,9 @@ public class VmSettings {
     boolean filter = (al.size() > 0 && !atConfig.isEmpty()) || getBool("som.actorTracing",   false);
 
     MESSAGE_PARAMETERS    = !al.contains("mp") && filter;
-    PROMISE_CREATION      = !al.contains("pc") && filter || TIME_TRAVELLING; // TODO check?
-    PROMISE_RESOLUTION    = PROMISE_CREATION && (!al.contains("pr")) && filter || TIME_TRAVELLING; // TODO check?
-    PROMISE_RESOLVED_WITH = !al.contains("prw") && filter || TIME_TRAVELLING; // TODO check?;
+    PROMISE_CREATION      = !al.contains("pc") && filter || TIME_TRAVELLING;
+    PROMISE_RESOLUTION    = PROMISE_CREATION && (!al.contains("pr")) && filter || TIME_TRAVELLING;
+    PROMISE_RESOLVED_WITH = !al.contains("prw") && filter || TIME_TRAVELLING;
 
 
     ACTOR_TRACING = TRUFFLE_DEBUGGER_ENABLED || getBool("som.actorTracing", false) ||
@@ -72,14 +72,5 @@ public class VmSettings {
 
   private static boolean getBool(final String prop, final boolean defaultVal) {
     return Boolean.parseBoolean(System.getProperty(prop, defaultVal ? "true" : "false"));
-  }
-
-  public static void switchToTimeTravel() {
-    TIME_TRAVELLING = false;
-    //ACTOR_TRACING = false;
-    //MEMORY_TRACING = false;
-    //PROMISE_CREATION = false;
-    //PROMISE_RESOLUTION = false;
-    //PROMISE_RESOLVED_WITH = false;
   }
 }
