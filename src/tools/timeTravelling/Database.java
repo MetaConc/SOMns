@@ -89,7 +89,8 @@ public final class Database {
     Long,
     Double,
     Boolean,
-    String;
+    String,
+    SClass;
   }
 
   private Object getIdFromStatementResult(final Value value) {
@@ -110,22 +111,19 @@ public final class Database {
 
   public void storeDirectMessageTurn(final Session session, final Long messageId, final DirectMessage msg, final Actor actor) {
     storeActor(session, actor);
-    Object t = msg.getArgs()[0];
-    assert (t instanceof SClass);
-    SClass target = (SClass) t;
-    storeSClass(session, target);
+    Object ref = storeValue(session, msg.getArgs()[0]);
     storeEventualMessage(session, msg);
     // create checkpoint header, root node to which all information of one turn becomes connected.
 
     session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
-            + " MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
+            + " MATCH (target) where ID(target) = {targetId}"
             + " MATCH (message) where ID(message)={messageRef}"
             + " CREATE (turn: Turn {messageId: {messageId}}) - [:TURN] -> (actor)"
-            + " CREATE (turn) - [:TARGET] -> (SClass)"
+            + " CREATE (turn) - [:TARGET] -> (target)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "SClassId", target.getDatabaseInfo().getRef(),
+            parameters("actorId", actor.getId(), "targetId", ref,
                 "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
@@ -239,22 +237,24 @@ public final class Database {
 
 
 
-  private void storeSClass(final Session session, final SClass sClass) {
+  private Object storeSClass(final Session session, final SClass sClass) {
     DatabaseInfo info = sClass.getDatabaseInfo();
     info.getLock();
-    if (info.getRef() == null) {
+    Object ref = info.getRef();
+    if (ref == null) {
 
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
-      storeSClass(session, enclosing);
+      Object enclosingRef = storeSClass(session, enclosing);
       StatementResult result = session.run(
           "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
-              + " CREATE (Child: SClass {factoryName: {factoryName}}) - [:ENCLOSED_BY]-> (SClass)"
+              + " CREATE (Child: SClass {factoryName: {factoryName}, type: {classType}}) - [:ENCLOSED_BY]-> (SClass)"
               + " return Child",
-              parameters("SClassId", enclosing.getDatabaseInfo().getRef(), "factoryName", sClass.getName().getString()));
-      final Object ref = getIdFromStatementResult(result.single().get("Child"));
+              parameters("SClassId", enclosingRef, "factoryName", sClass.getName().getString(), "classType", SomValueType.SClass.name()));
+      ref = getIdFromStatementResult(result.single().get("Child"));
       info.setRoot(ref);
     }
     info.releaseLock();
+    return ref;
   }
 
   private DatabaseInfo.DatabaseState storeSObject(final Session session, final SObjectWithClass object) {
@@ -408,6 +408,9 @@ public final class Database {
       SObject object = (SObject) value;
       storeSObject(session, object);
       return object.getDatabaseInfo().getRef();
+    } else if (value instanceof SClass) {
+      SClass sClass = (SClass) value;
+      return storeSClass(session, sClass);
     } else if (Nil.valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
       return null;
     } else if (value instanceof Long) {
@@ -479,7 +482,7 @@ public final class Database {
   private DirectMessage readDirectMessage(final Session session, final Node messageNode, final long causalMessageId) {
     SSymbol selector = Symbols.symbolFor(messageNode.get("messageName").asString());
     Object[] arguments = readMessageArguments(session, causalMessageId);
-    SClass target = readSClassAsTarget(session, causalMessageId);
+    Object target = readValue(session, readTarget(session, causalMessageId));
     arguments[0] = target;
     SResolver resolver = new AbsorbingSResolver();
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
@@ -495,7 +498,7 @@ public final class Database {
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
 
-    SAbstractObject targetObject = readTarget(session, causalMessageId);
+    SAbstractObject targetObject = readSObject(session, readTarget(session, causalMessageId).asNode());
     SFarReference target = new SFarReference(timeTravelingActor, targetObject); // the target of our message needs to be owned by the time travel actor
     msg.resolve(target, timeTravelingActor, absorbingActor);
     return msg;
@@ -533,10 +536,10 @@ public final class Database {
     return promise;
   }
 
-  private SAbstractObject readTarget(final Session session, final long causalMessageId) {
-    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject: SObject) RETURN SObject",
+  private Value readTarget(final Session session, final long causalMessageId) {
+    StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (target) RETURN target",
         parameters("messageId", causalMessageId));
-    return readSObject(session, result.single().get("SObject").asNode());
+    return result.single().get("target");
   }
 
   private SAbstractObject readSObject(final Session session, final Node object) {
@@ -584,13 +587,13 @@ public final class Database {
     return reviveClass(nodes, 1);
   }
 
-  private SClass readSClassAsTarget(final Session session, final long causalMessageId) {
+  private SClass readSClass(final Session session, final Node node) {
     StatementResult result = session.run(
-        "MATCH (turn: Turn {messageId: {messageId}}) - [:TARGET]->(base:SClass)"
+        "MATCH (base:SClass) WHERE id(base)={classId}"
             + " MATCH (top: SClass {name: \"nil\"})"
             + " MATCH path = (base) - [:ENCLOSED_BY*]->(top)"
             + " RETURN NODES(path)",
-            parameters("messageId", causalMessageId));
+            parameters("classId", node.id()));
     Value value = result.single().get("NODES(path)");
     List<Object> nodes = value.asList(); // single because the path to nil class should be unique
     return reviveClass(nodes, 0);
@@ -633,6 +636,8 @@ public final class Database {
         return readSPromise(session, value.asNode());
       case SAbstractObject:
         return readSObject(session, value.asNode());
+      case SClass:
+        return readSClass(session, value.asNode());
       case Long:
         return value.get("value").asLong();
       case Double:
