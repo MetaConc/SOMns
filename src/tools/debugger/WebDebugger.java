@@ -48,8 +48,9 @@ import tools.debugger.session.BreakpointInfo;
 import tools.debugger.session.Breakpoints;
 import tools.debugger.session.LineBreakpoint;
 import tools.debugger.session.SectionBreakpoint;
-import tools.timeTravelling.ConnectorStrategy;
 import tools.timeTravelling.TimeTravelMessage;
+import tools.timeTravelling.TimeTravelResponse;
+import tools.timeTravelling.WebDebuggerstrategy;
 
 
 /**
@@ -64,7 +65,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
   private FrontendConnector connector;
   private Instrumenter      instrumenter;
   private Breakpoints       breakpoints;
-  private ConnectorStrategy strategy;
+  private WebDebuggerstrategy strategy;
 
   @CompilationFinal VM vm;
 
@@ -141,7 +142,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     Suspension suspension = getSuspension();
     suspension.update(e);
 
-    connector.sendStoppedMessage(suspension);
+    strategy.sendStoppedMessage(suspension);
     suspension.suspend();
   }
 
@@ -173,7 +174,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     breakpoints = new Breakpoints(dbg, this);
     connector = new FrontendConnector(breakpoints, instrumenter, this,
         createJsonProcessor());
-    strategy = new normal(connector);
+    strategy = new ForwardStrategy(connector);
     connector.awaitClient();
   }
 
@@ -181,7 +182,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     return breakpoints;
   }
 
-  public void setStrategy(final ConnectorStrategy strategy){
+  public void setStrategy(final WebDebuggerstrategy strategy) {
     this.strategy = strategy;
   }
 
@@ -195,6 +196,7 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
     outMsgAF.register(ScopesResponse.class);
     outMsgAF.register(VariablesResponse.class);
     outMsgAF.register(ProgramInfoResponse.class);
+    outMsgAF.register(TimeTravelResponse.class);
 
     ClassHierarchyAdapterFactory<IncommingMessage> inMsgAF = new ClassHierarchyAdapterFactory<>(IncommingMessage.class, "action");
     inMsgAF.register(InitializeConnection.class);
@@ -218,12 +220,17 @@ public class WebDebugger extends TruffleInstrument implements SuspendedCallback 
         registerTypeAdapterFactory(breakpointAF).
         create();
   }
+
+  public void sendTimeTravelResponse(final TimeTravelResponse response) {
+    connector.sendTimeTravelResponse(response);
+  }
 }
 
-class normal implements ConnectorStrategy {
+// when stepping forward, the front end needs to be notified of every stop operation
+class ForwardStrategy implements WebDebuggerstrategy {
   private FrontendConnector connector;
 
-  public normal(final FrontendConnector connector){
+  public ForwardStrategy(final FrontendConnector connector) {
     this.connector = connector;
   }
 

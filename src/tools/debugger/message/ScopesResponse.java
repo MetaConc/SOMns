@@ -19,7 +19,7 @@ import tools.debugger.message.Message.Response;
 
 @SuppressWarnings("unused")
 public final class ScopesResponse extends Response {
-  private final Scope[] scopes;
+  public final Scope[] scopes;
   private final long variablesReference;
 
   private ScopesResponse(final long globalFrameId, final Scope[] scopes,
@@ -30,7 +30,7 @@ public final class ScopesResponse extends Response {
     this.scopes = scopes;
   }
 
-  private static final class Scope {
+  public static final class Scope {
     /** Name of the scope such as 'Arguments', 'Locals'. */
     private final String name;
 
@@ -38,7 +38,7 @@ public final class ScopesResponse extends Response {
      * The variables of this scope can be retrieved by passing the value of
      * variablesReference to the VariablesRequest.
      */
-    private final long variablesReference;
+    public final long variablesReference;
 
     /** If true, the number of variables in this scope is large or expensive to retrieve. */
     private final boolean expensive;

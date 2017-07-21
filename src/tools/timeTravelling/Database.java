@@ -111,7 +111,7 @@ public final class Database {
   public void storeDirectMessageTurn(final Session session, final Long messageId, final DirectMessage msg, final Actor actor) {
     storeActor(session, actor);
     Object t = msg.getArgs()[0];
-    assert(t instanceof SClass);
+    assert (t instanceof SClass);
     SClass target = (SClass) t;
     storeSClass(session, target);
     storeEventualMessage(session, msg);
@@ -132,7 +132,7 @@ public final class Database {
   public void storeSendMessageTurn(final Session session, final Long messageId, final PromiseSendMessage msg, final Actor actor) {
     assert (actor.inDatabase()); // Can't create actors from objects, first operation will always be a factoryMethod
     Object t = msg.getArgs()[0];
-    assert(t instanceof SObjectWithClass);
+    assert (t instanceof SObjectWithClass);
     SObjectWithClass target = (SObjectWithClass) t;
     final DatabaseInfo.DatabaseState old = storeSObject(session, target);
     storeEventualMessage(session, msg);
@@ -148,11 +148,10 @@ public final class Database {
                 "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
-  //the arguments of the message are already stored in the log.
   public void storeCallbackMessageTurn(final Session session, final Long messageId, final PromiseCallbackMessage msg, final Actor actor) {
     assert (actor.inDatabase()); // Can't create actors from objects, first operation will always be a factoryMethod
     Object t = msg.getArgs()[0];
-    assert(t instanceof SBlock);
+    assert (t instanceof SBlock);
     SBlock target = (SBlock) t;
     timeTravellingDebugger.reportSBlock(messageId, target);
     storeEventualMessage(session, msg);
@@ -484,7 +483,7 @@ public final class Database {
     arguments[0] = target;
     SResolver resolver = new AbsorbingSResolver();
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
-    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, false, false);
+    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
   }
 
   private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
@@ -494,7 +493,7 @@ public final class Database {
     arguments[0] = targetPromise;
     SResolver resolver = new AbsorbingSResolver();
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
-    PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, false, false);
+    PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
 
     SAbstractObject targetObject = readTarget(session, causalMessageId);
     SFarReference target = new SFarReference(timeTravelingActor, targetObject); // the target of our message needs to be owned by the time travel actor
@@ -502,27 +501,27 @@ public final class Database {
     return msg;
   }
 
-  private PromiseCallbackMessage readPromiseCallbackMessage(final Session session, final Node messageNode, final long causalMessageId){
+  private PromiseCallbackMessage readPromiseCallbackMessage(final Session session, final Node messageNode, final long causalMessageId) {
     Actor owner = timeTravelingActor;
     SBlock callback = timeTravellingDebugger.getSBlock(causalMessageId);
     SResolver resolver = new AbsorbingSResolver();
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     SPromise promiseRegisteredOn = readSPromise(session, causalMessageId);
-    PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, false, false, promiseRegisteredOn);
+    PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, true, false, promiseRegisteredOn); // pause before executing the message
 
     Object resolution = readCallbackResolution(session, causalMessageId);
     msg.resolve(resolution, timeTravelingActor, absorbingActor);
     return msg;
   }
 
-  private Object readCallbackResolution(final Session session, final long causalMessageId){
+  private Object readCallbackResolution(final Session session, final long causalMessageId) {
     StatementResult result = session.run("MATCH (message: PromiseCallbackMessage {messageId: {messageId}}) <- [:ARGUMENT]- (argument)"
         + " RETURN argument",
         parameters("messageId", causalMessageId));
     return readValue(session, result.single().get("argument"));
   }
 
-  private SPromise readSPromise(final Session session, final long messageId){
+  private SPromise readSPromise(final Session session, final long messageId) {
     final Node promiseNode = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) - [:HAS_PROMISE]->(promise: SPromise) RETURN promise",
         parameters("messageId", messageId)).single().get("promise").asNode();
     return readSPromise(session, promiseNode);

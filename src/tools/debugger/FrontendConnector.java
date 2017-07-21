@@ -53,6 +53,7 @@ import tools.debugger.message.SymbolMessage;
 import tools.debugger.message.VariablesResponse;
 import tools.debugger.session.Breakpoints;
 import tools.debugger.session.LineBreakpoint;
+import tools.timeTravelling.TimeTravelResponse;
 
 /**
  * Connect the debugger to the UI front-end.
@@ -336,5 +337,9 @@ public class FrontendConnector {
       messageHandler.stop(delay);
       traceHandler.stop(delay);
     } catch (InterruptedException e) { }
+  }
+
+  public void sendTimeTravelResponse(final TimeTravelResponse response) {
+    send(response);
   }
 }

@@ -46,11 +46,20 @@ public final class StackTraceResponse extends Response {
     }
   }
 
-  static class StackFrame {
+  public StackFrame getFirstFrame(){
+    if(stackFrames != null && stackFrames.length>0){
+      return stackFrames[0];
+    } else {
+      return null;
+    }
+
+  }
+
+  public static class StackFrame {
     /**
      * Id for the frame, unique across all threads.
      */
-    private final long id;
+    public final long id;
 
     /** Name of the frame, typically a method name. */
     private final String name;
