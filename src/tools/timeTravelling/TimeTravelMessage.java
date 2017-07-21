@@ -30,6 +30,6 @@ public class TimeTravelMessage extends IncommingMessage {
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
     VM.getTimeTravellingDebugger().switchToTimeTravelMode();
-    Database.prepareForTimeTravel(actorId, messageId);
+    Database.prepareForTimeTravel(messageId);
   }
 }

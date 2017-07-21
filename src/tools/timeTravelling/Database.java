@@ -102,33 +102,20 @@ public final class Database {
   /* -                 Writing             - */
   /* --------------------------------------- */
 
-  public void storeActor(final Session session, final Actor actor) {
-    if (!actor.inDatabase()) {
-      session.run(" CREATE (actor:Actor {actorId: {actorId}})",
-          parameters("actorId", actor.getId()));
-      actor.addedToDatabase();
-    }
-  }
-
-  public void storeDirectMessageTurn(final Session session, final Long messageId, final DirectMessage msg, final Actor actor) {
-    storeActor(session, actor);
+  public void storeDirectMessageTurn(final Session session, final Long messageId, final DirectMessage msg) {
     Object ref = storeValue(session, msg.getArgs()[0]);
     storeEventualMessage(session, msg);
 
     session.run(
-        "MATCH (actor: Actor {actorId: {actorId}})"
-            + " MATCH (target) where ID(target) = {targetId}"
+        "MATCH (target) where ID(target) = {targetId}"
             + " MATCH (message) where ID(message)={messageRef}"
-            + " CREATE (turn: Turn {messageId: {messageId}}) - [:TURN] -> (actor)"
-            + " CREATE (turn) - [:TARGET] -> (target)"
+            + " CREATE (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (target)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "targetId", ref,
-                "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
+            parameters("targetId", ref, "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
-  public void storeSendMessageTurn(final Session session, final Long messageId, final PromiseSendMessage msg, final Actor actor) {
-    assert (actor.inDatabase()); // Can't create actors from objects, first operation will always be a factoryMethod
+  public void storeSendMessageTurn(final Session session, final Long messageId, final PromiseSendMessage msg) {
     Object t = msg.getArgs()[0];
     Object targetRef = storeValue(session, t);
     storeEventualMessage(session, msg);
@@ -139,12 +126,11 @@ public final class Database {
             + " CREATE (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (target)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "targetId", targetRef, "messageId", messageId,
+            parameters("targetId", targetRef, "messageId", messageId,
                 "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
-  public void storeCallbackMessageTurn(final Session session, final Long messageId, final PromiseCallbackMessage msg, final Actor actor) {
-    assert (actor.inDatabase()); // Can't create actors from objects, first operation will always be a factoryMethod
+  public void storeCallbackMessageTurn(final Session session, final Long messageId, final PromiseCallbackMessage msg) {
     Object t = msg.getArgs()[0];
     assert (t instanceof SBlock);
     SBlock target = (SBlock) t;
@@ -155,8 +141,7 @@ public final class Database {
         "MATCH (message) where ID(message)={messageRef}"
             + " CREATE (turn: Turn {messageId: {messageId}}) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "messageId", messageId,
-                "messageRef", msg.getDatabaseInfo().getRef()));
+            parameters("messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
   private void storeEventualMessage(final Session session, final EventualMessage msg) {
@@ -166,19 +151,16 @@ public final class Database {
   }
 
   public void storeDirectMessage(final Session session, final DatabaseInfo info,
-      final long messageId, final Actor target, final SSymbol selector,
-      final Object[] args, final Actor sender, final SResolver resolver,
-      final RootCallTarget onReceive) {
+      final long messageId, final SSymbol selector, final Object[] args,
+      final SResolver resolver, final RootCallTarget onReceive) {
 
     RootNode rootNode = onReceive.getRootNode();
-    storeActor(session, sender);
-    storeActor(session, target);
     timeTravellingDebugger.reportRootNode(messageId, rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: DirectMessage {messageName: {messageName}, sender: {senderId}, target: {targetId}, messageId: {messageId}})"
+        " CREATE (message: DirectMessage {messageName: {messageName}, messageId: {messageId}})"
             + " return message",
-            parameters("messageName", selector.getString(), "messageId", messageId, "senderId", sender.getId(), "targetId", target.getId()));
+            parameters("messageName", selector.getString(), "messageId", messageId));
 
     Object messageRef = result.single().get("message").asNode().id();
     info.setRoot(messageRef);
@@ -189,18 +171,15 @@ public final class Database {
   }
 
   public void storePromiseSendMessage(final Session session,
-      final long messageId, final DatabaseInfo info, final Actor target,
-      final SPromise originalTarget, final SSymbol selector, final Object[] args,
-      final Actor finalSender, final SResolver resolver, final RootCallTarget onReceive) {
+      final long messageId, final DatabaseInfo info, final SPromise originalTarget,
+      final SSymbol selector, final Object[] args, final SResolver resolver, final RootCallTarget onReceive) {
     RootNode rootNode = onReceive.getRootNode();
-    storeActor(session, finalSender);
-    storeActor(session, target);
     timeTravellingDebugger.reportRootNode(messageId, rootNode);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseSendMessage {messageName: {messageName},  messageId: {messageId}, sender: {senderId}, target: {targetId}})"
+        " CREATE (message: PromiseSendMessage {messageName: {messageName},  messageId: {messageId}})"
             + " return message",
-            parameters("messageName", selector.getString(), "messageId", messageId, "senderId", finalSender.getId(), "targetId", target.getId()));
+            parameters("messageName", selector.getString(), "messageId", messageId));
 
     Object messageRef = result.single().get("message").asNode().id();
     info.setRoot(messageRef);
@@ -212,18 +191,17 @@ public final class Database {
   }
 
   public void storePromiseCallbackMessage(final Session session, final DatabaseInfo info,
-      final long messageId, final Actor originalSender, final SBlock callback, final SResolver resolver,
+      final long messageId, final SBlock callback, final SResolver resolver,
       final RootCallTarget onReceive, final SPromise promise, final Object target) {
 
     RootNode rootNode = onReceive.getRootNode();
-    storeActor(session, originalSender);
     timeTravellingDebugger.reportRootNode(messageId, rootNode);
     timeTravellingDebugger.reportSBlock(messageId, callback);
 
     StatementResult result = session.run(
-        " CREATE (message: PromiseCallbackMessage {messageId: {messageId}, sender: {senderId}})"
+        " CREATE (message: PromiseCallbackMessage {messageId: {messageId}})"
             + " return message",
-            parameters("messageId", messageId, "senderId", originalSender.getId()));
+            parameters("messageId", messageId));
 
     Object messageRef = result.single().get("message").asNode().id();
     info.setRoot(messageRef);
@@ -429,7 +407,7 @@ public final class Database {
   /* -                 Reading             - */
   /* --------------------------------------- */
 
-  public static void prepareForTimeTravel(final long actorId, final long causalMessageId) {
+  public static void prepareForTimeTravel(final long causalMessageId) {
     Database database = getDatabaseInstance();
     Session session = database.startSession();
     try {
@@ -462,7 +440,6 @@ public final class Database {
     }
   }
 
-  // expect the actor check to be done in readMessage name
   private Object[] readMessageArguments(final Session session, final long causalMessageId) {
     StatementResult result = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) <- [idx:ARGUMENT]- (argument)"
         + " RETURN argument, idx",
@@ -497,7 +474,6 @@ public final class Database {
     PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
 
     Value targetNode = readTarget(session, causalMessageId);
-    System.out.println("messageId: " + causalMessageId + " " + targetNode.asMap());
     Object targetValue = readValue(session, targetNode);
     SFarReference target = new SFarReference(timeTravelingActor, targetValue); // the target of our message needs to be owned by the time travel actor
     msg.resolve(target, timeTravelingActor, absorbingActor);

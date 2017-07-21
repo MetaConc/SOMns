@@ -121,8 +121,7 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storeDirectMessage(session, databaseInfo, messageId, target,
-          selector, args,  sender, resolver, onReceive);
+      database.storeDirectMessage(session, databaseInfo, messageId, selector, args,  resolver, onReceive);
     }
 
     @Override
@@ -135,7 +134,7 @@ public abstract class EventualMessage {
           return;
         }
         Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-        database.storeDirectMessageTurn(session, messageId, this, targetActor);
+        database.storeDirectMessageTurn(session, messageId, this);
       } catch (Exception e) {
         e.printStackTrace();
       } finally {
@@ -265,8 +264,8 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storePromiseSendMessage(session, messageId, databaseInfo, target, originalTarget,
-          selector, args, finalSender, resolver, onReceive);
+      database.storePromiseSendMessage(session, messageId, databaseInfo, originalTarget,
+          selector, args, resolver, onReceive);
     }
 
     public static PromiseSendMessage createForTimeTravel(final SSymbol selector,
@@ -280,8 +279,7 @@ public abstract class EventualMessage {
       Database database = Database.getDatabaseInstance();
       Session session = database.startSession();
       try {
-        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-        database.storeSendMessageTurn(session, messageId, this, targetActor);
+        database.storeSendMessageTurn(session, messageId, this);
       } catch (Exception e) {
         e.printStackTrace();
       } finally {
@@ -343,8 +341,7 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storePromiseCallbackMessage(session, databaseInfo, messageId, originalSender,
-          (SBlock) args[0], resolver, onReceive, promise, args[1]);
+      database.storePromiseCallbackMessage(session, databaseInfo, messageId, (SBlock) args[0], resolver, onReceive, promise, args[1]);
     }
 
     @Override
@@ -352,8 +349,7 @@ public abstract class EventualMessage {
       Database database = Database.getDatabaseInstance();
       Session session = database.startSession();
       try {
-        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
-        database.storeCallbackMessageTurn(session, messageId, this, targetActor);
+        database.storeCallbackMessageTurn(session, messageId, this);
       } catch (Exception e) {
         e.printStackTrace();
       } finally {
