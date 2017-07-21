@@ -40,6 +40,7 @@ import som.vmobjects.SObject;
 import som.vmobjects.SObject.SImmutableObject;
 import som.vmobjects.SObject.SMutableObject;
 import som.vmobjects.SObjectWithClass;
+import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import som.vmobjects.SSymbol;
 import tools.concurrency.TracingActors;
 import tools.timeTravelling.DatabaseInfo.DatabaseState;
@@ -113,7 +114,6 @@ public final class Database {
     storeActor(session, actor);
     Object ref = storeValue(session, msg.getArgs()[0]);
     storeEventualMessage(session, msg);
-    // create checkpoint header, root node to which all information of one turn becomes connected.
 
     session.run(
         "MATCH (actor: Actor {actorId: {actorId}})"
@@ -130,19 +130,16 @@ public final class Database {
   public void storeSendMessageTurn(final Session session, final Long messageId, final PromiseSendMessage msg, final Actor actor) {
     assert (actor.inDatabase()); // Can't create actors from objects, first operation will always be a factoryMethod
     Object t = msg.getArgs()[0];
-    assert (t instanceof SObjectWithClass);
-    SObjectWithClass target = (SObjectWithClass) t;
-    final DatabaseInfo.DatabaseState old = storeSObject(session, target);
+    Object targetRef = storeValue(session, t);
     storeEventualMessage(session, msg);
-    // create checkpoint header, root node to which all information of one turn becomes connected.
+
     session.run(
-        "MATCH (SObject: SObject) where ID(SObject) = {SObjectId}"
+        "MATCH (target) where ID(target) = {targetId}"
             + " MATCH (message) where ID(message)={messageRef}"
-            + (old == DatabaseState.not_stored ? " MATCH (actor: Actor {actorId: {actorId}}) CREATE (SObject) - [:IN] -> (actor)" : "")
-            + " CREATE (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (SObject)"
+            + " CREATE (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (target)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("actorId", actor.getId(), "SObjectId", target.getDatabaseInfo().getRef(), "messageId", messageId,
+            parameters("actorId", actor.getId(), "targetId", targetRef, "messageId", messageId,
                 "messageRef", msg.getDatabaseInfo().getRef()));
   }
 
@@ -153,7 +150,7 @@ public final class Database {
     SBlock target = (SBlock) t;
     timeTravellingDebugger.reportSBlock(messageId, target);
     storeEventualMessage(session, msg);
-    // create checkpoint header, root node to which all information of one turn becomes connected.
+
     session.run(
         "MATCH (message) where ID(message)={messageRef}"
             + " CREATE (turn: Turn {messageId: {messageId}}) - [:MESSAGE]->(message)"
@@ -404,15 +401,16 @@ public final class Database {
       return promise.getDatabaseInfo().getRef();
     } else if (value instanceof SResolver) {
       return storeSResolver(session, (SResolver) value);
-    } else if (value instanceof SMutableObject || value instanceof SImmutableObject) {
-      SObject object = (SObject) value;
+    } else if (Nil.valueIsNil(value)) {
+      // is it not useful to store null values, use closed world assumption. If value is not in the database, that value is nil
+      return null;
+    } else if (value instanceof SMutableObject || value instanceof SImmutableObject || value instanceof SObjectWithoutFields) {
+      SObjectWithClass object = (SObjectWithClass) value;
       storeSObject(session, object);
       return object.getDatabaseInfo().getRef();
     } else if (value instanceof SClass) {
       SClass sClass = (SClass) value;
       return storeSClass(session, sClass);
-    } else if (Nil.valueIsNil(value)) { // is it useful to store null values? can't we use closed world assumption?
-      return null;
     } else if (value instanceof Long) {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Long.name()));
     } else if (value instanceof Double) {
@@ -498,8 +496,10 @@ public final class Database {
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
 
-    SAbstractObject targetObject = readSObject(session, readTarget(session, causalMessageId).asNode());
-    SFarReference target = new SFarReference(timeTravelingActor, targetObject); // the target of our message needs to be owned by the time travel actor
+    Value targetNode = readTarget(session, causalMessageId);
+    System.out.println("messageId: " + causalMessageId + " " + targetNode.asMap());
+    Object targetValue = readValue(session, targetNode);
+    SFarReference target = new SFarReference(timeTravelingActor, targetValue); // the target of our message needs to be owned by the time travel actor
     msg.resolve(target, timeTravelingActor, absorbingActor);
     return msg;
   }
@@ -567,10 +567,10 @@ public final class Database {
 
   private SFarReference readSFarReference(final Session session, final Node object) {
     StatementResult result = session.run("MATCH (farRef: SFarReference) where ID(farRef)={farRefId}" +
-        "MATCH (farRef) - [:FAR_REFERENCE_TO]->(target: SObject)-[:in]->(actor: Actor)" +
-        "return target, actor", parameters());
+        "MATCH (farRef) - [:FAR_REFERENCE_TO]->(target)" +
+        "return target", parameters());
     Record record = result.single();
-    SAbstractObject target = readSObject(session, record.get("target").asNode());
+    Object target = readValue(session, record.get("target"));
     return new SFarReference(absorbingActor, target);
   }
 
