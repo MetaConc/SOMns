@@ -65,14 +65,13 @@ public class TimeTravellingDebugger {
     if (VmSettings.TIME_TRAVELLING) {
       ActorExecutionTrace.forceSwapBuffers();
       VmSettings.TIME_TRAVELLING = false;
-      //VmSettings.ACTOR_TRACING = false;
+      VmSettings.ACTOR_TRACING = false;
+      VmSettings.MEMORY_TRACING = false;
+      VmSettings.PROMISE_CREATION = false;
+      VmSettings.PROMISE_RESOLUTION = false;
+      VmSettings.PROMISE_RESOLVED_WITH = false;
       vm.getWebDebugger().setStrategy(new TimeTravelStrategy(this));
-      // VmSettings.ACTOR_TRACING = false;
-      // VmSettings.MEMORY_TRACING = false;
-      // VmSettings.PROMISE_CREATION = false;
-      // VmSettings.PROMISE_RESOLUTION = false;
-      // VmSettings.PROMISE_RESOLVED_WITH = false;
-    }
+      }
   }
 
   /*

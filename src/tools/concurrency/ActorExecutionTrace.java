@@ -185,7 +185,6 @@ public class ActorExecutionTrace {
   }
 
   public static final void forceSwapBuffers() {
-    assert VmSettings.TRUFFLE_DEBUGGER_ENABLED && VmSettings.ACTOR_TRACING;
     TracingActivityThread[] result;
     synchronized (tracingThreads) {
       result = tracingThreads.toArray(new TracingActivityThread[0]);
