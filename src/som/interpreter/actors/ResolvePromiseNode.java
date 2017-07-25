@@ -9,7 +9,6 @@ import som.VM;
 import som.interpreter.actors.SPromise.Resolution;
 import som.interpreter.actors.SPromise.SResolver;
 import som.primitives.Primitive;
-import tools.timeTravelling.AbsorbingSResolver;
 
 @GenerateNodeFactory
 @Primitive(primitive = "actorsResolve:with:isBPResolution:", requiresContext = true)
@@ -28,10 +27,6 @@ public abstract class ResolvePromiseNode extends AbstractPromiseResolutionNode {
       final boolean isBreakpointOnPromiseResolution) {
     boolean breakpointOnResolution = isBreakpointOnPromiseResolution;
 
-    // TODO should become a guard
-    if(resolver instanceof AbsorbingSResolver){
-      return resolver;
-    }
     SPromise promise = resolver.getPromise();
 
     if (promise.isExplicitPromise() && promise.isTriggerExplicitPromiseResolverBreakpoint()) {

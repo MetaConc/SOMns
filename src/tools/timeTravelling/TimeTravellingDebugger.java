@@ -126,7 +126,6 @@ public class TimeTravellingDebugger {
   }
 
   public void sendStoppedMessage(final Suspension suspension) {
-
     // for each possible stopping point in the turn:
     //  get the stack trace
     //  get the scopes from the first frame in the stack

@@ -459,7 +459,7 @@ public final class Database {
     Object[] arguments = readMessageArguments(session, causalMessageId);
     Object target = readValue(session, readTarget(session, causalMessageId));
     arguments[0] = target;
-    SResolver resolver = new AbsorbingSResolver();
+    SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
   }
@@ -467,9 +467,9 @@ public final class Database {
   private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
     SSymbol selector = Symbols.symbolFor(messageNode.get("messageName").asString());
     Object[] arguments = readMessageArguments(session, causalMessageId);
-    SPromise targetPromise = readSPromise(session, causalMessageId);
+    SPromise targetPromise = readSPromise(session, messageNode.id());
     arguments[0] = targetPromise;
-    SResolver resolver = new AbsorbingSResolver();
+    SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
 
@@ -483,9 +483,9 @@ public final class Database {
   private PromiseCallbackMessage readPromiseCallbackMessage(final Session session, final Node messageNode, final long causalMessageId) {
     Actor owner = timeTravelingActor;
     SBlock callback = timeTravellingDebugger.getSBlock(causalMessageId);
-    SResolver resolver = new AbsorbingSResolver();
+    SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
-    SPromise promiseRegisteredOn = readSPromise(session, causalMessageId);
+    SPromise promiseRegisteredOn = readSPromise(session, messageNode.id());
     PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, true, false, promiseRegisteredOn); // pause before executing the message
 
     Object resolution = readCallbackResolution(session, causalMessageId);
@@ -501,15 +501,35 @@ public final class Database {
   }
 
   private SPromise readSPromise(final Session session, final long messageId) {
-    final Node promiseNode = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) - [:HAS_PROMISE]->(promise: SPromise) RETURN promise",
+    final Node promiseNode = session.run( "MATCH (message) where ID(message)={messageId}"
+        + " MATCH (message) - [:HAS_PROMISE]->(promise: SPromise) RETURN promise",
         parameters("messageId", messageId)).single().get("promise").asNode();
-    return readSPromise(session, promiseNode);
+    return readSPromise(promiseNode);
   }
 
-  private SPromise readSPromise(final Session session, final Node promiseNode) {
+  private SPromise readSPromise(final Node promiseNode) {
     boolean explicitPromise = promiseNode.get("explicitPromise").asBoolean();
-    SPromise promise = SPromise.createPromiseForTimeTravel(absorbingActor, false, false, explicitPromise);
+    SPromise promise = SPromise.createPromiseForTimeTravel(timeTravelingActor, false, false, explicitPromise);
     return promise;
+  }
+
+  private SResolver readSResolver(final Session session, final long messageId) {
+    final StatementResult result = session.run( "MATCH (message) where ID(message)={messageId}"
+        + " MATCH (message) - [:HAS_RESOLVER]->(resolver: SResolver) - [:RESOLVER_OF] -> (promise: SPromise) RETURN promise",
+        parameters("messageId", messageId));
+    if(result.hasNext()){
+      Node promiseNode = result.next().get("promise").asNode();
+      return SPromise.createResolver(readSPromise(promiseNode));
+    }
+    return null;
+  }
+
+  private SResolver readSResolver(final Session session, final Node resolverNode) {
+    StatementResult result = session.run("MATCH (resolver: SResolver) where ID(resolver)={resolverId} "
+        + " MATCH (resolver) - [:RESOLVER_OF]->(promise:SPromise) RETURN promise",
+       parameters("resolverId", resolverNode.id()));
+    SPromise promise = readSPromise(result.single().get("promise").asNode());
+    return SPromise.createResolver(promise);
   }
 
   private Value readTarget(final Session session, final long causalMessageId) {
@@ -603,7 +623,9 @@ public final class Database {
       case SFarReference:
         return readSFarReference(session, value.asNode());
       case SPromise:
-        return readSPromise(session, value.asNode());
+        return readSPromise(value.asNode());
+      case SResolver:
+         return readSResolver(session, value.asNode());
       case SAbstractObject:
         return readSObject(session, value.asNode());
       case SClass:
