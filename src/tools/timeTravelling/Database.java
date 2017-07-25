@@ -407,7 +407,7 @@ public final class Database {
   /* -                 Reading             - */
   /* --------------------------------------- */
 
-  public static void prepareForTimeTravel(final long causalMessageId) {
+  public static void timeTravel(final long causalMessageId) {
     Database database = getDatabaseInstance();
     Session session = database.startSession();
     try {
@@ -519,26 +519,20 @@ public final class Database {
   }
 
   private SAbstractObject readSObject(final Session session, final Node object) {
-    SAbstractObject sObject = timeTravellingDebugger.getSAbstractObject(object.id());
+    SAbstractObject abstractObject = timeTravellingDebugger.getSAbstractObject(object.id());
 
-    if (sObject == null) {
+    if (abstractObject == null) {
       // create the SClass object
       SClass sClass = getClassOfSObject(session, object.id());
 
       // create the SObject
-      sObject = NewObjectPrim.createEmptySObject(sClass);
-      timeTravellingDebugger.reportSAbstractObject(object.id(), sObject);
-    }
-    if (sObject instanceof SObject) { // not a SObjectWithoutFields
-      DatabaseInfo info = ((SObject) sObject).getDatabaseInfo();
-      int targetVersion = object.get("version").asInt();
-      if (!info.hasVersion(targetVersion)) {
-        // if the version is different fill the slots
-        fillSlots(session, object.id(), (SObject) sObject);
-        info.setVersion(targetVersion);
+      abstractObject = NewObjectPrim.createEmptySObject(sClass);
+      timeTravellingDebugger.reportSAbstractObject(object.id(), abstractObject);
+      if (abstractObject instanceof SObject) { // not a SObjectWithoutFields
+        fillSlots(session, object.id(), (SObject) abstractObject);
       }
     }
-    return sObject;
+    return abstractObject;
   }
 
   private SFarReference readSFarReference(final Session session, final Node object) {

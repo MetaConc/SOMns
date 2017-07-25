@@ -54,15 +54,6 @@ public class DatabaseInfo {
     return version;
   }
 
-  public boolean hasVersion(final int version) {
-    return ((state == DatabaseState.valid) && (this.version == version));
-  }
-
-  public void setVersion(final int version) {
-   this.version = version;
-   this.state = DatabaseState.valid;
-  }
-
   public void getLock() {
     lock.lock();
   }

@@ -60,8 +60,9 @@ public class TimeTravellingDebugger {
    this.connector = connector;
   }
 
-  // TODO turn of tracing after time travel starts
-  public void switchToTimeTravelMode() {
+  public void prepareForTimeTravel() {
+    // clear the revivedObjects to not work with the state of the previous session
+    revivedObjects = new HashMap<Object, SAbstractObject>();
     if (VmSettings.TIME_TRAVELLING) {
       ActorExecutionTrace.forceSwapBuffers();
       VmSettings.TIME_TRAVELLING = false;
