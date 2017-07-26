@@ -122,6 +122,7 @@ public class TimeTravellingDebugger {
    */
   public void replayMessage(final Actor timeTravelingActor, final EventualMessage msg) {
     frames = new ArrayList<TimeTravelFrame>();
+    // msg.setIsMessageReceiverBreakpoint(true);
     timeTravelingActor.send(msg, vm.getActorPool());
   }
 
@@ -131,19 +132,20 @@ public class TimeTravellingDebugger {
     //  get the scopes from the first frame in the stack
     //  for each scope get the variable value
     int requestId = 0;
-    StackTraceResponse trace = StackTraceResponse.create(0, 1, suspension, requestId); // TODO ensure levels shouldn't be 0
+    StackTraceResponse trace = StackTraceResponse.create(0, 0, suspension, requestId);
     StackFrame frame = trace.getFirstFrame();
     ArrayList<VariablesResponse> variables = new ArrayList<VariablesResponse>();
+    ScopesResponse scope = null;
     if(frame != null){
-      ScopesResponse scope = ScopesResponse.create(frame.id, suspension, requestId);
+      scope = ScopesResponse.create(frame.id, suspension, requestId);
       for (Scope s : scope.scopes) {
         variables.add(VariablesResponse.create(s.variablesReference, 0, suspension));
       }
     }
-    new TimeTravelFrame(variables.toArray(new VariablesResponse[0]));
+    frames.add(new TimeTravelFrame(trace, scope, variables.toArray(new VariablesResponse[0])));
     if (suspension.getEvent().getLocation() == SteppingLocation.AFTER_CALL) {
       // The message has finished executing, send all stacktraces to the front end
-      TimeTravelResponse response = new TimeTravelResponse(requestId, trace, frames.toArray(new TimeTravelFrame[0]));
+      TimeTravelResponse response = new TimeTravelResponse(requestId, frames.toArray(new TimeTravelFrame[0]));
       vm.getWebDebugger().sendTimeTravelResponse(response);
     } else {
       // The message has not finished executing, perform a step over

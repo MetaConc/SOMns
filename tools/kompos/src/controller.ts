@@ -1,8 +1,9 @@
 import { SourceMessage, StoppedMessage, SymbolMessage, InitializationResponse,
   StackTraceResponse, ScopesResponse, ProgramInfoResponse,
-  VariablesResponse } from "./messages";
+  VariablesResponse, TimeTravelResponse } from "./messages";
 import { VmConnection } from "./vm-connection";
 import { Activity } from "./execution-data";
+import { ControllerBehaviour } from "./time-travelling";
 
 /** A basic controller, providing an interface, but not providing any behavior. */
 export class Controller {
@@ -27,9 +28,11 @@ export class Controller {
   public onProgramInfo(_msg: ProgramInfoResponse) {}
   public onInitializationResponse(_msg: InitializationResponse) {}
   public onVariables(_msg: VariablesResponse)   {}
+  public onTimeTravelResponse(_msg: TimeTravelResponse) {}
   public onUnknownMessage(_msg: any) {}
 
   public onTracingData(_data: DataView) {}
 
   public onToggleSectionBreakpoint(_sectionId: string, _type: string) {}
+  public switchBehaviour(_behaviour: ControllerBehaviour){}
 }

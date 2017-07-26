@@ -349,18 +349,18 @@ function annotateArray(arr: any[][], sourceId: string, activityId: number,
  */
 export class View {
   private readonly systemView:   SystemView;
-  private readonly protocolView: ProcessView;
+  private readonly processView: ProcessView;
   private metaModel: KomposMetaModel;
 
   constructor() {
     this.systemView   = new SystemView();
-    this.protocolView = new ProcessView();
+    this.processView = new ProcessView();
   }
 
   public setCapabilities(metaModel: KomposMetaModel) {
     this.metaModel = metaModel;
     this.systemView.setCapabilities(metaModel);
-    this.protocolView.setMetaModel(metaModel);
+    this.processView.setMetaModel(metaModel);
   }
 
   public displaySystemView() {
@@ -617,7 +617,7 @@ export class View {
   public reset() {
     this.resetActivities();
     this.systemView.reset();
-    this.protocolView.reset();
+    this.processView.reset();
   }
 
   private resetActivities() {
@@ -626,7 +626,7 @@ export class View {
 
   public updateTraceData(data: TraceDataUpdate) {
     this.systemView.updateTraceData(data);
-    this.protocolView.updateTraceData(data);
+    this.processView.updateTraceData(data);
 
     for (const act of data.activities) {
       this.displayActivity(act);

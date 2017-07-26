@@ -40,8 +40,8 @@ export interface Method {
 }
 
 export type Message = SourceMessage | InitializationResponse | ProgramInfoResponse |
-  SymbolMessage | UpdateSourceSections | StoppedMessage |
-  StackTraceResponse | ScopesResponse | VariablesResponse;
+  SymbolMessage | UpdateSourceSections | StoppedMessage | StackTraceResponse | 
+  ScopesResponse | VariablesResponse | TimeTravelResponse;
 
 export interface SourceMessage {
   type:   "source";
@@ -359,5 +359,16 @@ export interface Variable {
   namedVariables: number;
   /** The number of indexed child variables. */
   indexedVariables: number;
+}
+
+export interface TimeTravelFrame {
+  stack: StackTraceResponse;
+  scope: ScopesResponse
+  variables: VariablesResponse[]; 
+}
+
+export interface TimeTravelResponse {
+  type: "TimeTravelResponse";
+  frames: TimeTravelFrame[];
 }
 

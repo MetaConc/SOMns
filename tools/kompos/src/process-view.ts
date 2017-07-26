@@ -8,7 +8,7 @@ import { Activity, TraceDataUpdate, SendOp , DynamicScope, Arguments} from "./ex
 import { KomposMetaModel } from "./meta-model";
 //import { getLightTangoColor, PADDING } from "./system-view"; // TODO after thesis: uncomment line
 import { PADDING } from "./system-view"; // TODO after thesis: remove line
-import {timeTravelling} from "./time-travelling";
+import {TimeTravellingDebugger} from "./time-travelling";
 
 const actorStart = 20;      // height at which actor headings are created
 const actorHeight = 30;     // height of actor headings
@@ -300,7 +300,7 @@ class TurnNode {
 
     $(document).on("click", ".timetravel", function (e) {
       e.stopImmediatePropagation();
-      timeTravelling.timeTravel(
+      ProcessView.timeDbg.timeTravel(
         e.currentTarget.attributes["data-actor-id"].value, 
         e.currentTarget.attributes["data-message-id"].value);
     });
@@ -494,12 +494,13 @@ class Message extends EmptyMessage {
 /** The ProcessView stores all actors currently in use.
     Only one turn can be highlighted at a time. */
 export class ProcessView {
-  private static highlighted: TurnNode;
+  private static highlighted:TurnNode;
+  public static timeDbg:     TimeTravellingDebugger;
   public actors:             IdMap<ActorHeading>; 
   public scopes:             IdMap<DynamicScope>; // received scopes
   public arguments:          IdMap<Arguments>;
   public rawMessages:        IdMap<RawMessage>; // we don't have full information of these messages, we miss the receiver or the arguments
-  public eagerMessages:       IdMap<RawMessage[]>; // message who arrived before all the data of the turn they where send in.
+  public eagerMessages:      IdMap<RawMessage[]>; // message who arrived before all the data of the turn they where send in.
   
   private metaModel: KomposMetaModel;
   private numActors: number;

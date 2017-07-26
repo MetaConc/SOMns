@@ -109,6 +109,9 @@ export class VmConnection {
         case "InitializationResponse":
           ctrl.onInitializationResponse(data);
           break;
+        case "TimeTravelResponse":
+          ctrl.onTimeTravelResponse(data);
+          break;
         default:
           ctrl.onUnknownMessage(data);
           break;

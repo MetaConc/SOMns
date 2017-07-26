@@ -5,7 +5,7 @@ import { Controller }   from "./controller";
 import { Debugger }     from "./debugger";
 import { SourceMessage, SymbolMessage, StoppedMessage, StackTraceResponse,
   ScopesResponse, VariablesResponse, ProgramInfoResponse, InitializationResponse,
-  Source, Method } from "./messages";
+  Source, Method, TimeTravelResponse } from "./messages";
 import { LineBreakpoint, SectionBreakpoint, getBreakpointId,
   createLineBreakpoint, createSectionBreakpoint } from "./breakpoints";
 import { dbgLog }       from "./source";
@@ -14,6 +14,7 @@ import { VmConnection } from "./vm-connection";
 import { Activity, ExecutionData, TraceDataUpdate } from "./execution-data";
 import { ActivityNode } from "./system-view-data";
 import { KomposMetaModel } from "./meta-model";
+import { TimeTravellingDebugger, ControllerBehaviour , DefaultBehaviour } from "./time-travelling";
 
 /**
  * The controller binds the domain model and the views, and mediates their
@@ -23,6 +24,8 @@ export class UiController extends Controller {
   private dbg: Debugger;
   private view: View;
   private data: ExecutionData;
+  private timeDbg: TimeTravellingDebugger;
+  private behaviour: ControllerBehaviour;
 
   private actProm = {};
   private actPromResolve = {};
@@ -30,8 +33,10 @@ export class UiController extends Controller {
   constructor(vmConnection: VmConnection) {
     super(vmConnection);
     this.dbg  = new Debugger();
+    this.timeDbg = new TimeTravellingDebugger(this);
     this.data = new ExecutionData();
     this.view = new View();
+    this.behaviour = new DefaultBehaviour(this.vmConnection);
   }
 
   private reset() {
@@ -164,7 +169,7 @@ export class UiController extends Controller {
       }
 
       const topFrameId = msg.stackFrames[0].id;
-      this.vmConnection.requestScope(topFrameId);
+      this.behaviour.requestScope(topFrameId);
 
       const sourceId = this.dbg.getSourceId(msg.stackFrames[0].sourceUri);
       const source = this.dbg.getSource(sourceId);
@@ -183,7 +188,7 @@ export class UiController extends Controller {
 
   public onScopes(msg: ScopesResponse) {
     for (let s of msg.scopes) {
-      this.vmConnection.requestVariables(s.variablesReference);
+      this.behaviour.requestVariables(s.variablesReference);
       this.view.displayScope(msg.variablesReference, s);
     }
   }
@@ -254,13 +259,11 @@ export class UiController extends Controller {
   }
 
   public step(actId: string, step: string) {
+    dbgLog("step: " + actId + " " + step);
     const activityId = getActivityIdFromView(actId);
     const act = this.data.getActivity(activityId);
 
-    // Note: in general, we assume that all stepping operations lead to a
-    // running activity. However, some operations, might discontinue execution
-    // completely. These need extra support/interaction with the back-end/interpreter.
-    if (act.running) { return; }
+    if (act.running) { dbgLog("return from step"); return; }
     act.running = true;
     this.vmConnection.sendDebuggerAction(step, act);
     this.view.onContinueExecution(act);
@@ -268,5 +271,13 @@ export class UiController extends Controller {
 
   public timeTravel(actorId: number, messageId: number){
     this.vmConnection.sendTimeTravel(actorId, messageId);
+  }
+
+  public onTimeTravelResponse(msg: TimeTravelResponse) {
+    this.timeDbg.onTimeTravelResponse(msg);
+  }
+
+  public switchBehaviour(behaviour: ControllerBehaviour){
+    this.behaviour = behaviour;
   }
 }
