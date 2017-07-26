@@ -136,10 +136,12 @@ public class TimeTravellingDebugger {
     StackFrame frame = trace.getFirstFrame();
     ArrayList<VariablesResponse> variables = new ArrayList<VariablesResponse>();
     ScopesResponse scope = null;
-    if(frame != null){
+    if(frame != null) {
       scope = ScopesResponse.create(frame.id, suspension, requestId);
       for (Scope s : scope.scopes) {
-        variables.add(VariablesResponse.create(s.variablesReference, 0, suspension));
+       VariablesResponse var = VariablesResponse.create(s.variablesReference, 0, suspension);
+        //var.print();
+        variables.add(var);
       }
     }
     frames.add(new TimeTravelFrame(trace, scope, variables.toArray(new VariablesResponse[0])));

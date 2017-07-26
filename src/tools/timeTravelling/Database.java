@@ -42,20 +42,21 @@ import som.vmobjects.SObject.SMutableObject;
 import som.vmobjects.SObjectWithClass;
 import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import som.vmobjects.SSymbol;
-import tools.concurrency.TracingActors;
 import tools.timeTravelling.DatabaseInfo.DatabaseState;
+import tools.timeTravelling.TimeTravellingActors.AbsorbingActor;
+import tools.timeTravelling.TimeTravellingActors.TimeTravelActor;
 
 public final class Database {
   private static Database singleton;
   private TimeTravellingDebugger timeTravellingDebugger;
   private Driver driver = GraphDatabase.driver("bolt://localhost:7687", AuthTokens.basic("neo4j", "timetraveling"));
   private AbsorbingActor absorbingActor;
-  private Actor timeTravelingActor;
+  private TimeTravelActor timeTravelingActor;
 
   private Database(final VM vm, final TimeTravellingDebugger timeTravellingDebugger) {
     this.timeTravellingDebugger = timeTravellingDebugger;
-    absorbingActor = new AbsorbingActor(vm);
-    timeTravelingActor = new TracingActors.TracingActor(vm);
+    absorbingActor = new TimeTravellingActors.AbsorbingActor(vm);
+    timeTravelingActor = new TimeTravellingActors.TimeTravelActor(vm);
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
     StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
@@ -407,9 +408,10 @@ public final class Database {
   /* -                 Reading             - */
   /* --------------------------------------- */
 
-  public static void timeTravel(final long causalMessageId) {
+  public static void timeTravel(final long actorId, final long causalMessageId) {
     Database database = getDatabaseInstance();
     Session session = database.startSession();
+    database.timeTravelingActor.setId(actorId); // the actor needs to have the same id as the original actor. This prevents changing id in the front end
     try {
       Record record = session.run("MATCH (turn: Turn {messageId: {messageId}}) - [:MESSAGE] -> (message) RETURN message",
           parameters("messageId", causalMessageId)).single();

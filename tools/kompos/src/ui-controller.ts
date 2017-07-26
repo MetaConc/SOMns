@@ -36,7 +36,7 @@ export class UiController extends Controller {
     this.timeDbg = new TimeTravellingDebugger(this);
     this.data = new ExecutionData();
     this.view = new View();
-    this.behaviour = new DefaultBehaviour(this.vmConnection);
+    this.behaviour = new DefaultBehaviour(this.vmConnection, this.view);
   }
 
   private reset() {
@@ -188,7 +188,9 @@ export class UiController extends Controller {
 
   public onScopes(msg: ScopesResponse) {
     for (let s of msg.scopes) {
+      dbgLog("scope1: " + s.variablesReference);
       this.behaviour.requestVariables(s.variablesReference);
+      dbgLog("scope2: " + s.variablesReference);
       this.view.displayScope(msg.variablesReference, s);
     }
   }
@@ -205,6 +207,7 @@ export class UiController extends Controller {
   }
 
   public onVariables(msg: VariablesResponse) {
+    dbgLog("variable: " + msg.variablesReference);
     this.view.displayVariables(msg.variablesReference, msg.variables);
   }
 
@@ -259,14 +262,9 @@ export class UiController extends Controller {
   }
 
   public step(actId: string, step: string) {
-    dbgLog("step: " + actId + " " + step);
     const activityId = getActivityIdFromView(actId);
     const act = this.data.getActivity(activityId);
-
-    if (act.running) { dbgLog("return from step"); return; }
-    act.running = true;
-    this.vmConnection.sendDebuggerAction(step, act);
-    this.view.onContinueExecution(act);
+    this.behaviour.step(act, step);
   }
 
   public timeTravel(actorId: number, messageId: number){

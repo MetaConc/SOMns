@@ -17,8 +17,6 @@ public class TimeTravelMessage extends IncommingMessage {
     this.messageId = messageId;
   };
 
-
-
   public long getActorId() {
     return actorId;
   }
@@ -30,6 +28,6 @@ public class TimeTravelMessage extends IncommingMessage {
   @Override
   public void process(final FrontendConnector connector, final WebSocket conn) {
     VM.getTimeTravellingDebugger().prepareForTimeTravel();
-    Database.timeTravel(messageId);
+    Database.timeTravel(actorId, messageId);
   }
 }
