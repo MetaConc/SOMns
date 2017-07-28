@@ -62,7 +62,7 @@ public final class VariablesResponse extends Response {
     } else {
       results = createFromObject(scopeOrObject, suspension);
     }
-    System.out.println("variable: " + globalVarRef);
+    //System.out.println("variable: " + globalVarRef);
     return new VariablesResponse(requestId, globalVarRef, results.toArray(new Variable[0]));
   }
 

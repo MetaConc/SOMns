@@ -127,6 +127,7 @@ public class TimeTravellingDebugger {
   }
 
   public void sendStoppedMessage(final Suspension suspension) {
+    //System.out.print(suspension.getEvent().getLocation());
     // for each possible stopping point in the turn:
     //  get the stack trace
     //  get the scopes from the first frame in the stack
@@ -145,6 +146,9 @@ public class TimeTravellingDebugger {
       }
     }
     frames.add(new TimeTravelFrame(trace, scope, variables.toArray(new VariablesResponse[0])));
+
+
+
     if (suspension.getEvent().getLocation() == SteppingLocation.AFTER_CALL) {
       // The message has finished executing, send all stacktraces to the front end
       TimeTravelResponse response = new TimeTravelResponse(requestId, frames.toArray(new TimeTravelFrame[0]));

@@ -531,6 +531,7 @@ export class ProcessView {
     this.rawMessages = {};
     this.arguments = {};
     this.eagerMessages = {};
+    svgContainer.selectAll("*").remove();
   }
 
   public setMetaModel(metaModel: KomposMetaModel) {

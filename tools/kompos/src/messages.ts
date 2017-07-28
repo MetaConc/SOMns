@@ -363,7 +363,7 @@ export interface Variable {
 
 export interface TimeTravelFrame {
   stack: StackTraceResponse;
-  scope: ScopesResponse
+  scope: ScopesResponse;
   variables: VariablesResponse[]; 
 }
 

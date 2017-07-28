@@ -13,7 +13,6 @@ import { Activity, TraceDataUpdate } from "./execution-data";
 import { ActivityNode } from "./system-view-data";
 import { KomposMetaModel } from "./meta-model";
 import { ProcessView } from "./process-view";
-import { dbgLog } from "./source";
 
 declare var ctrl: Controller;
 declare var zenscroll: any;
@@ -662,7 +661,6 @@ export class View {
   }
 
   public displayVariables(varRef: number, vars: Variable[]) {
-    dbgLog(this.getScopeId(varRef));
     const scopeEntry = document.getElementById(this.getScopeId(varRef));
 
     for (const v of vars) {

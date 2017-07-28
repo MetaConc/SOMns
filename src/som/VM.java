@@ -85,7 +85,8 @@ public final class VM {
   private static final int MAX_THREADS = 0x7fff;
 
   public VM(final VmOptions vmOptions, final boolean avoidExitForTesting) {
-    this.avoidExitForTesting = avoidExitForTesting;
+    this.avoidExitForTesting = avoidExitForTesting || VmSettings.TIME_TRAVELLING;
+
     options = vmOptions;
 
     actorPool = new ForkJoinPool(VmSettings.NUM_THREADS,
@@ -440,7 +441,9 @@ public final class VM {
     }
 
     Value returnCode = engine.eval(SomLanguage.START);
-    shutdownAndExit(returnCode.as(Integer.class));
+    if(!avoidExitForTesting){
+      shutdownAndExit(returnCode.as(Integer.class));
+    }
   }
 
   public MixinDefinition loadModule(final String filename) throws IOException {

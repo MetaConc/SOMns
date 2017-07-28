@@ -5,7 +5,7 @@ import { Controller }   from "./controller";
 import { Debugger }     from "./debugger";
 import { SourceMessage, SymbolMessage, StoppedMessage, StackTraceResponse,
   ScopesResponse, VariablesResponse, ProgramInfoResponse, InitializationResponse,
-  Source, Method, TimeTravelResponse } from "./messages";
+  Source, Method, TimeTravelResponse, TimeTravelFrame } from "./messages";
 import { LineBreakpoint, SectionBreakpoint, getBreakpointId,
   createLineBreakpoint, createSectionBreakpoint } from "./breakpoints";
 import { dbgLog }       from "./source";
@@ -14,7 +14,7 @@ import { VmConnection } from "./vm-connection";
 import { Activity, ExecutionData, TraceDataUpdate } from "./execution-data";
 import { ActivityNode } from "./system-view-data";
 import { KomposMetaModel } from "./meta-model";
-import { TimeTravellingDebugger, ControllerBehaviour , DefaultBehaviour } from "./time-travelling";
+import { TimeTravellingDebugger, ControllerStrategy , DefaultStrategy } from "./time-travelling";
 
 /**
  * The controller binds the domain model and the views, and mediates their
@@ -25,7 +25,7 @@ export class UiController extends Controller {
   private view: View;
   private data: ExecutionData;
   private timeDbg: TimeTravellingDebugger;
-  private behaviour: ControllerBehaviour;
+  private behaviour: ControllerStrategy;
 
   private actProm = {};
   private actPromResolve = {};
@@ -36,7 +36,7 @@ export class UiController extends Controller {
     this.timeDbg = new TimeTravellingDebugger(this);
     this.data = new ExecutionData();
     this.view = new View();
-    this.behaviour = new DefaultBehaviour(this.vmConnection, this.view);
+    this.behaviour = new DefaultStrategy(this.vmConnection, this.view);
   }
 
   private reset() {
@@ -153,44 +153,49 @@ export class UiController extends Controller {
     }
   }
 
+  /*
+   * Stack trace is visualized after the activityPromise is resolved: once a traceUpdate arrives with information about this activity
+   */
   public onStackTrace(msg: StackTraceResponse) {
     this.ensureActivityPromise(msg.activityId);
 
     this.actProm[msg.activityId].then((act: Activity) => {
-      this.data.getActivity(msg.activityId).running = false;
-
-      console.assert(act.id === msg.activityId);
-
-      this.view.switchActivityDebuggerToSuspendedState(act);
-
-      // Can happen when the application is exiting, or perhaps the activity
-      if (msg.stackFrames.length < 1) {
-        return;
-      }
-
-      const topFrameId = msg.stackFrames[0].id;
-      this.behaviour.requestScope(topFrameId);
-
-      const sourceId = this.dbg.getSourceId(msg.stackFrames[0].sourceUri);
-      const source = this.dbg.getSource(sourceId);
-
-      const newSource = this.view.displaySource(act, source, sourceId);
-
-      const ssId = this.dbg.getSectionIdFromFrame(sourceId, msg.stackFrames[0]);
-      const section = this.dbg.getSection(ssId);
-
-      this.view.displayStackTrace(sourceId, msg, topFrameId, act, ssId, section);
-      if (newSource) {
-        this.ensureBreakpointsAreIndicated(sourceId);
-      }
+      this.displayStackTrace(act, msg);
     });
+  }
+
+  private displayStackTrace(act: Activity, msg: StackTraceResponse) {
+    this.data.getActivity(msg.activityId).running = false;
+
+    console.assert(act.id === msg.activityId);
+
+    this.view.switchActivityDebuggerToSuspendedState(act);
+
+    // Can happen when the application is exiting, or perhaps the activity
+    if (msg.stackFrames.length < 1) {
+      return;
+    }
+
+    const topFrameId = msg.stackFrames[0].id;
+    this.behaviour.requestScope(topFrameId);
+
+    const sourceId = this.dbg.getSourceId(msg.stackFrames[0].sourceUri);
+    const source = this.dbg.getSource(sourceId);
+
+    const newSource = this.view.displaySource(act, source, sourceId);
+
+    const ssId = this.dbg.getSectionIdFromFrame(sourceId, msg.stackFrames[0]);
+    const section = this.dbg.getSection(ssId);
+
+    this.view.displayStackTrace(sourceId, msg, topFrameId, act, ssId, section);
+    if (newSource) {
+      this.ensureBreakpointsAreIndicated(sourceId);
+    }
   }
 
   public onScopes(msg: ScopesResponse) {
     for (let s of msg.scopes) {
-      dbgLog("scope1: " + s.variablesReference);
       this.behaviour.requestVariables(s.variablesReference);
-      dbgLog("scope2: " + s.variablesReference);
       this.view.displayScope(msg.variablesReference, s);
     }
   }
@@ -207,7 +212,6 @@ export class UiController extends Controller {
   }
 
   public onVariables(msg: VariablesResponse) {
-    dbgLog("variable: " + msg.variablesReference);
     this.view.displayVariables(msg.variablesReference, msg.variables);
   }
 
@@ -264,7 +268,10 @@ export class UiController extends Controller {
   public step(actId: string, step: string) {
     const activityId = getActivityIdFromView(actId);
     const act = this.data.getActivity(activityId);
-    this.behaviour.step(act, step);
+    if (act.running) { dbgLog("return from step"); return; }
+    act.running = true;
+    this.view.onContinueExecution(act);  
+    this.behaviour.step(act, step); 
   }
 
   public timeTravel(actorId: number, messageId: number){
@@ -275,7 +282,16 @@ export class UiController extends Controller {
     this.timeDbg.onTimeTravelResponse(msg);
   }
 
-  public switchBehaviour(behaviour: ControllerBehaviour){
+  public switchBehaviour(behaviour: ControllerStrategy){
     this.behaviour = behaviour;
+  }
+
+  public onTimeTravelFrame(frame: TimeTravelFrame) {
+    const act = this.data.getActivity(frame.stack.activityId);
+	  this.displayStackTrace(act, frame.stack);
+		this.onScopes(frame.scope);
+		for(let variable of frame.variables) {
+			this.onVariables(variable);		
+	  }
   }
 }

@@ -2,6 +2,7 @@ package tools.debugger.entities;
 
 import com.google.gson.annotations.SerializedName;
 
+import som.VM;
 import som.vm.NotYetImplementedException;
 import tools.concurrency.Tags;
 import tools.concurrency.Tags.ActivityCreation;
@@ -194,7 +195,46 @@ public enum SteppingType {
       susp.getEvent().prepareStepOver(1);
       susp.getActivityThread().setSteppingStrategy(this);
     }
+  },
+
+  /*
+   * inverse of step over
+   */
+  @SerializedName("stepBack")
+  STEP_BACK("stepBack", "Step back",
+      Group.BACKWARDS_STEPPING, "arrow-right-inverse", null) {
+    @Override
+    public void process(final Suspension susp) {
+      VM.errorPrintln("step back executed on back end");
+    }
+  },
+
+  /*
+   * Inverse of step to next turn;
+   */
+  @SerializedName("step to previous turn")
+  STEP_TO_PREVIOUS_TURN("stepToPreviousTurn", "Step to Previous Turn",
+      Group.BACKWARDS_STEPPING, "long-arrow-up", null, new ActivityType[] {ActivityType.ACTOR}) {
+    @Override
+    public void process(final Suspension susp) {
+      VM.errorPrintln("step to previous turn executed on back end");
+    }
+  },
+
+  /*
+   * Inverse of step to message receiver
+   * Might need turn as scope entity
+   */
+  @SerializedName("step to sender")
+  STEP_TO_SENDER("stepToSender", "Step to Sender",
+      Group.BACKWARDS_STEPPING, "long-arrow-left", new Class[] {EventualMessageSend.class}) {
+    @Override
+    public void process(final Suspension susp) {
+      VM.errorPrintln("step to sender executed on back end");
+    }
   };
+
+
 
   public enum Group {
     BASIC_CONTROLS("Basic Controls"),
@@ -202,7 +242,8 @@ public enum SteppingType {
     ACTIVITY_STEPPING("Activity Stepping"),
     ACTOR_STEPPING("Actor Stepping"),
     PROCESS_STEPPING("Process Stepping"),
-    TX_STEPPING("Transaction Stepping");
+    TX_STEPPING("Transaction Stepping"),
+    BACKWARDS_STEPPING("Backwards Stepping");
 
     public final String label;
 

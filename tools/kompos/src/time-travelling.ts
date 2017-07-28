@@ -1,5 +1,5 @@
 import { TimeTravelResponse, TimeTravelFrame } from "./messages";
-import { Controller } from "./controller";
+import { UiController } from "./ui-controller";
 import { VmConnection } from "./vm-connection";
 import { ProcessView } from "./process-view";
 import { View } from "./view"
@@ -8,14 +8,14 @@ import { Activity } from "./execution-data";
 
 export class TimeTravellingDebugger {
 	private timeTravelMode: boolean;
-	private controller: Controller;
+	private controller: UiController;
 
 	private frames: TimeTravelFrame[];
 	private current: number;
 	
 	timeTravel(activityId: number, messageId: number) {
 		if(!this.timeTravelMode) {
-			ctrl.switchBehaviour(new TimeTravelBehaviour(this));
+			ctrl.switchBehaviour(new TimeTravelStrategy(this));
 		}
 		ctrl.timeTravel(activityId, messageId);
 	}
@@ -29,30 +29,33 @@ export class TimeTravellingDebugger {
 
 	private displayTimeTravelFrame() {
 		if(this.current < this.frames.length){
-			const frame = this.frames[this.current];
-			this.controller.onStackTrace(frame.stack);
-			this.controller.onScopes(frame.scope)
-			for(let variable of frame.variables) {
-				for(let v of variable.variables) {
-					dbgLog("variable: " + variable.variablesReference + " " + v.name + " " + v.value);
-				}
-				this.controller.onVariables(variable);
-			}
+			this.controller.onTimeTravelFrame(this.frames[this.current]);
 		} else {
 			dbgLog("out of frames")
-		}
-		
+		}	
 	}
 
 	public step(_act: Activity, step: string) {
-		if(step == "stepOver") {
-			this.current++;
-			this.displayTimeTravelFrame();
-		}
 		dbgLog("called step: " + step);
+		switch(step) { 
+			case "stepOver": { 
+				this.current++;
+				this.displayTimeTravelFrame();
+				break; 
+			} 
+			case "stepBack": { 
+				this.current--;
+				this.displayTimeTravelFrame();
+				break; 
+			} 
+			default: { 
+				//statements; 
+				break; 
+			} 
+		} 
 	}
 
-	constructor(controller: Controller) {
+	constructor(controller: UiController) {
 		this.controller = controller;
 		this.timeTravelMode = false;
 		ProcessView.timeDbg = this;
@@ -60,13 +63,13 @@ export class TimeTravellingDebugger {
 }
 
 
-export abstract class ControllerBehaviour {
+export abstract class ControllerStrategy {
 	public abstract requestScope(number): void;
 	public abstract requestVariables(number): void;
 	public abstract step(Activity, string): void;
 }
 
-export class DefaultBehaviour extends ControllerBehaviour {
+export class DefaultStrategy extends ControllerStrategy {
 	private vmConnection: VmConnection;
 	private view: View
 
@@ -85,16 +88,12 @@ export class DefaultBehaviour extends ControllerBehaviour {
 	}
 
 	
-  public step(act: Activity, step: string) {
-    
-    if (act.running) { dbgLog("return from step"); return; }
-    act.running = true;
+  public step(act: Activity, step: string) {   
     this.vmConnection.sendDebuggerAction(step, act);
-    this.view.onContinueExecution(act);
   }
 }
 
-export class TimeTravelBehaviour extends ControllerBehaviour {
+export class TimeTravelStrategy extends ControllerStrategy {
 	private timeTravelling: TimeTravellingDebugger;
 
 	constructor(timeTravelling: TimeTravellingDebugger) {

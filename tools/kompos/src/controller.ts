@@ -3,7 +3,7 @@ import { SourceMessage, StoppedMessage, SymbolMessage, InitializationResponse,
   VariablesResponse, TimeTravelResponse } from "./messages";
 import { VmConnection } from "./vm-connection";
 import { Activity } from "./execution-data";
-import { ControllerBehaviour } from "./time-travelling";
+import { ControllerStrategy } from "./time-travelling";
 
 /** A basic controller, providing an interface, but not providing any behavior. */
 export class Controller {
@@ -34,5 +34,5 @@ export class Controller {
   public onTracingData(_data: DataView) {}
 
   public onToggleSectionBreakpoint(_sectionId: string, _type: string) {}
-  public switchBehaviour(_behaviour: ControllerBehaviour){}
+  public switchBehaviour(_behaviour: ControllerStrategy){}
 }
