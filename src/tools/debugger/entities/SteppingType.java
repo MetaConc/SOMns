@@ -227,7 +227,7 @@ public enum SteppingType {
    */
   @SerializedName("step to sender")
   STEP_TO_SENDER("stepToSender", "Step to Sender",
-      Group.BACKWARDS_STEPPING, "long-arrow-left", new Class[] {EventualMessageSend.class}) {
+      Group.BACKWARDS_STEPPING, "long-arrow-left", null, new ActivityType[] {ActivityType.ACTOR}) {
     @Override
     public void process(final Suspension susp) {
       VM.errorPrintln("step to sender executed on back end");

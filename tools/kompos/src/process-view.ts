@@ -25,6 +25,8 @@ const highlightedWidth = 5; // width of turn borders when highlighted
 let svgContainer; // global canvas, stores actor <g> elements
 let defs;         // global container to store all markers
 
+let processView: ProcessView; // global variable to perform lookups on time travel requests and steps
+
 let color = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6",
              "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99",
              "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262",
@@ -69,8 +71,7 @@ class ActorHeading {
   }
 
   public getTurn(turnId: number){
-    const turn = this.turnMap[turnId];
-    return turn;
+    return this.turnMap[turnId];
   }
 
   public getContainer() {
@@ -143,9 +144,9 @@ class ActorHeading {
 
 /** A turn happens every time an actor processes a message.
    Turns store their incoming message and each outgoing message. */
-class TurnNode {
-  private readonly actor: ActorHeading;
-  private readonly incoming: EmptyMessage;
+export class TurnNode {
+  public readonly actor: ActorHeading;
+  public readonly incoming: EmptyMessage;
   private readonly outgoing: Message[];
   private readonly count: number;
   public  readonly x:     number;
@@ -300,15 +301,16 @@ class TurnNode {
 
     $(document).on("click", ".timetravel", function (e) {
       e.stopImmediatePropagation();
+      const actorId = e.currentTarget.attributes["data-actor-id"].value;
+      const turnId = e.currentTarget.attributes["data-message-id"].value;
       ProcessView.timeDbg.timeTravel(
-        e.currentTarget.attributes["data-actor-id"].value, 
-        e.currentTarget.attributes["data-message-id"].value);
+        processView.actors[actorId].getTurn(turnId));
     });
     return circle;
   }
 }
 
-class EmptyMessage {
+export class EmptyMessage {
   public highlightOn() {}
   public highlightOff() {}
   public changeVisibility(_visible: boolean) {}
@@ -324,9 +326,9 @@ class EmptyMessage {
     this can change if the turns shift or are enlarged
     when undoing a shift the original shift is unknown, so we shift back to the old position
     message can be shifted at both sender and receiver. */
-class Message extends EmptyMessage {
+export class Message extends EmptyMessage {
   private text:          string;
-  private sender:        TurnNode;
+  public sender:         TurnNode;
   private target:        TurnNode;
   private messageToSelf: boolean; // is both the sender and receiver the same object
 
@@ -494,13 +496,13 @@ class Message extends EmptyMessage {
 /** The ProcessView stores all actors currently in use.
     Only one turn can be highlighted at a time. */
 export class ProcessView {
-  private static highlighted:TurnNode;
-  public static timeDbg:     TimeTravellingDebugger;
-  public actors:             IdMap<ActorHeading>; 
-  public scopes:             IdMap<DynamicScope>; // received scopes
-  public arguments:          IdMap<Arguments>;
-  public rawMessages:        IdMap<RawMessage>; // we don't have full information of these messages, we miss the receiver or the arguments
-  public eagerMessages:      IdMap<RawMessage[]>; // message who arrived before all the data of the turn they where send in.
+  private static highlighted: TurnNode;
+  public static timeDbg:      TimeTravellingDebugger;
+  public actors:              IdMap<ActorHeading>; 
+  public scopes:              IdMap<DynamicScope>; // received scopes
+  public arguments:           IdMap<Arguments>;
+  public rawMessages:         IdMap<RawMessage>; // we don't have full information of these messages, we miss the receiver or the arguments
+  public eagerMessages:       IdMap<RawMessage[]>; // message who arrived before all the data of the turn they where send in.
   
   private metaModel: KomposMetaModel;
   private numActors: number;
@@ -522,6 +524,8 @@ export class ProcessView {
     this.rawMessages = {};
     this.arguments = {};
     this.eagerMessages = {};
+
+    processView = this;
   }
 
   public reset() {

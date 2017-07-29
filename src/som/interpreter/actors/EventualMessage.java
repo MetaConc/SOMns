@@ -129,11 +129,10 @@ public abstract class EventualMessage {
       Database database = Database.getDatabaseInstance();
       Session session = database.startSession();
       try {
-        if(messageId == 0) {
+        if (messageId == 0) {
           // This is the start message
           return;
         }
-        Actor targetActor = EventualMessage.getActorCurrentMessageIsExecutionOn();
         database.storeDirectMessageTurn(session, messageId, this);
       } catch (Exception e) {
         e.printStackTrace();

@@ -139,7 +139,7 @@ export function createSectionBreakpointData(sourceUri: string, line: number,
 
 export type Respond = InitializeConnection | UpdateBreakpoint |
   StepMessage | StackTraceRequest | ScopesRequest | VariablesRequest |
-  ProgramInfoRequest | TraceDataRequest | TimeTravel;
+  ProgramInfoRequest | TraceDataRequest | TimeTravelRequest;
 
 export interface InitializeConnection {
   action: "InitializeConnection";
@@ -236,8 +236,8 @@ export interface TraceDataRequest {
   action: "TraceDataRequest";
 }
 
-export interface TimeTravel {
-  action: "timeTravel",
+export interface TimeTravelRequest {
+  action: "TimeTravelRequest",
   actorId: number,
   messageId: number
 }

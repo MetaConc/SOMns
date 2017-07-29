@@ -180,9 +180,9 @@ export class VmConnection {
     });
   }
 
-  public sendTimeTravel(actorId: number, messageId: number) {
+  public sendTimeTravelRequest(actorId: number, messageId: number) {
     this.send({
-      action: "timeTravel",
+      action: "TimeTravelRequest",
       actorId: actorId,
       messageId: messageId
     });

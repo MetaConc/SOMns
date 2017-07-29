@@ -151,7 +151,7 @@ public class TimeTravellingDebugger {
 
     if (suspension.getEvent().getLocation() == SteppingLocation.AFTER_CALL) {
       // The message has finished executing, send all stacktraces to the front end
-      TimeTravelResponse response = new TimeTravelResponse(requestId, frames.toArray(new TimeTravelFrame[0]));
+      TimeTravelResponse response = new TimeTravelResponse(frames.toArray(new TimeTravelFrame[0]));
       vm.getWebDebugger().sendTimeTravelResponse(response);
     } else {
       // The message has not finished executing, perform a step over

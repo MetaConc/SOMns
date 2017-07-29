@@ -275,7 +275,7 @@ export class UiController extends Controller {
   }
 
   public timeTravel(actorId: number, messageId: number){
-    this.vmConnection.sendTimeTravel(actorId, messageId);
+    this.vmConnection.sendTimeTravelRequest(actorId, messageId);
   }
 
   public onTimeTravelResponse(msg: TimeTravelResponse) {

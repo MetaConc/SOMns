@@ -233,19 +233,16 @@ public final class Database {
     return ref;
   }
 
-  private DatabaseInfo.DatabaseState storeSObject(final Session session, final SObjectWithClass object) {
+  private void storeSObject(final Session session, final SObjectWithClass object) {
     DatabaseInfo info = object.getDatabaseInfo();
     info.getLock();
-    DatabaseInfo.DatabaseState old = info.getState();
-    switch(old) {
+    switch(info.getState()) {
       case not_stored:
         storeBaseObject(session, object, info);
         break;
       case valid:
-        info.releaseLock();
         break;
       case outdated:
-        info.releaseLock();
         StatementResult result = session.run(
             "MATCH (old: SObject) where ID(old) = {oldRef}"
                 + " MATCH (old) - [:HAS_ROOT] -> (root:SObject)"
@@ -257,7 +254,7 @@ public final class Database {
         storeSlots(session, object);
         break;
     }
-    return old;
+    info.releaseLock();
   }
 
   // Store object (slots) together with class.
@@ -273,26 +270,15 @@ public final class Database {
             + " return SObject",
             parameters("SClassId", sClass.getDatabaseInfo().getRef(), "type", SomValueType.SAbstractObject.name(), "version", 0));
     info.setRoot(getIdFromStatementResult(result.single().get("SObject")));
-    info.releaseLock();
     storeSlots(session, object);
   }
 
-  // Far reference point to SObjects.
-  // Either the object is already in the database, in which case the far ref points to the root object
-  // Or the object is not in the database and we add it.
-  // Since far references point to objects in other actors we need locks.
+  // Far reference point to objects, add or find the object in the database, create point to it.
+  // Since far references point to objects in other actors we need locks?.
   private Object storeSFarReference(final Session session, final SFarReference farRef) {
+    System.out.println("far ref");
     final Object val = farRef.getValue();
-    assert (val instanceof SObjectWithClass);
-    SObjectWithClass value = (SObject) val;
-    DatabaseInfo info = value.getDatabaseInfo();
-    info.getLock();
-    if (info.getState() == DatabaseState.not_stored) {
-      storeBaseObject(session, value, info);
-    }
-    info.releaseLock();
-    Object targetRef = info.getRoot();
-
+    Object targetRef = storeValue(session, val);
     StatementResult result = session.run(
         "MATCH (target) where ID(target)={targetId}"
             + " CREATE (farRef: SFarReference) - [:FAR_REFERENCE_TO]->(target)"
@@ -370,6 +356,9 @@ public final class Database {
     }
   }
 
+  /*
+   * Store value and return database ref to object
+   */
   private Object storeValue(final Session session, final Object value) {
     StatementResult result;
     if (value instanceof SFarReference) {

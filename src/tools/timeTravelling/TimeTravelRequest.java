@@ -7,11 +7,11 @@ import tools.debugger.FrontendConnector;
 import tools.debugger.message.Message.IncommingMessage;
 
 // sould be moved to tools.debugger.message in main branch
-public class TimeTravelMessage extends IncommingMessage {
+public class TimeTravelRequest extends IncommingMessage {
   private long actorId;
   private long messageId;
 
-  public TimeTravelMessage(final long actorId, final long messageId) {
+  public TimeTravelRequest(final long actorId, final long messageId) {
 
     this.actorId = actorId;
     this.messageId = messageId;

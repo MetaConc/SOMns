@@ -1,55 +1,102 @@
 import { TimeTravelResponse, TimeTravelFrame } from "./messages";
 import { UiController } from "./ui-controller";
 import { VmConnection } from "./vm-connection";
-import { ProcessView } from "./process-view";
 import { View } from "./view"
 import { dbgLog } from "./source";
 import { Activity } from "./execution-data";
+import { TurnNode, Message , ProcessView} from "./process-view";
 
 export class TimeTravellingDebugger {
 	private timeTravelMode: boolean;
 	private controller: UiController;
 
 	private frames: TimeTravelFrame[];
-	private current: number;
+	private frameIdx: number;
+	private current: TurnNode;
 	
-	timeTravel(activityId: number, messageId: number) {
+	timeTravel(node: TurnNode) {
 		if(!this.timeTravelMode) {
 			ctrl.switchBehaviour(new TimeTravelStrategy(this));
 		}
-		ctrl.timeTravel(activityId, messageId);
+		this.current = node;
+		ctrl.timeTravel(node.actor.getActivityId(), node.getId());
 	}
 
 	public onTimeTravelResponse(msg: TimeTravelResponse) {
-		dbgLog("success");
 		this.frames = msg.frames;
-		this.current = 0;
+		this.frameIdx = 0;
 		this.displayTimeTravelFrame();		
 	}
 
+	/*
+	 * Pauses activity, displays stack, displays scopes, displays variables
+	 */
 	private displayTimeTravelFrame() {
-		if(this.current < this.frames.length){
-			this.controller.onTimeTravelFrame(this.frames[this.current]);
-		} else {
-			dbgLog("out of frames")
-		}	
+		this.controller.onTimeTravelFrame(this.frames[this.frameIdx]);
+	}
+
+	private illegalStep(){
+		dbgLog("called illegal step");
+		this.displayTimeTravelFrame();		
 	}
 
 	public step(_act: Activity, step: string) {
 		dbgLog("called step: " + step);
 		switch(step) { 
 			case "stepOver": { 
-				this.current++;
-				this.displayTimeTravelFrame();
+				this.frameIdx++;
+				if(this.frameIdx<this.frames.length-1){
+					this.displayTimeTravelFrame();
+				} else {
+					this.frameIdx--;
+					this.illegalStep();
+				}
 				break; 
 			} 
 			case "stepBack": { 
-				this.current--;
-				this.displayTimeTravelFrame();
+				this.frameIdx--;
+				if(this.frameIdx>=0){
+					this.displayTimeTravelFrame();
+				} else {
+					this.frameIdx++;
+					this.illegalStep();
+				} 
 				break; 
+			}
+			case "stepToNextTurn": {
+				const node = this.current.actor.getTurn(this.current.getId()+1);
+				if(node != null) {
+					ProcessView.changeHighlight(node);
+					this.timeTravel(node);
+				} else {
+					this.illegalStep();
+				} 
+				break;
+			}
+			case "stepToPreviousTurn": {
+				const node = this.current.actor.getTurn(this.current.getId()-1);
+				if(node != null) {
+					ProcessView.changeHighlight(node);
+					this.timeTravel(node);
+				} else {
+					this.illegalStep();
+				}
+				break;
+			}
+			case "stepToSender": {
+				const msg = this.current.incoming;
+				// if message is not the empty message we can step to sender
+				if(msg instanceof Message) {
+					const node = (<Message> msg).sender;
+					ProcessView.changeHighlight(node);
+					this.timeTravel(node);
+				} else {
+					this.illegalStep();
+				}
+				break;
 			} 
 			default: { 
-				//statements; 
+				this.illegalStep();
 				break; 
 			} 
 		} 
