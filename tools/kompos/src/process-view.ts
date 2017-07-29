@@ -301,7 +301,6 @@ export class TurnNode {
 
     $(document).on("click", ".timetravel", function (e) {
       e.stopImmediatePropagation();
-      $(this).popover('toggle');
       const actorId = e.currentTarget.attributes["data-actor-id"].value;
       const turnId = e.currentTarget.attributes["data-message-id"].value;
       ProcessView.timeDbg.timeTravel(
@@ -563,26 +562,19 @@ export class ProcessView {
 
   private newMessages(newMessages: SendOp[]) {
     for (const msg of newMessages) {
-      
-      if (!(this.metaModel.isActorMessage(msg)||this.metaModel.isPromiseMessage(msg))) {
-        // ignore all non-actor message sends
-        continue;
-      }
-
       if(this.metaModel.isActorMessage(msg)) {
         const messageId = <number> msg.entity;
         const senderActor = this.actors[msg.creationActivity.id];
         const targetActor = this.actors[(<Activity> msg.target).id];
         if(messageId == 0){ // start message
-          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage()), {messageId: 0, methodName: "starts"});
+          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage()), {messageId: 0, methodName: "start"});
           return;
         }
         var rawMessage = new RawMessage(messageId, senderActor, msg.turnId, msg);
         rawMessage.setTarget(targetActor);
         this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
-      }
-      if(this.metaModel.isPromiseMessage(msg)) {
+      } else if(this.metaModel.isPromiseMessage(msg)) {
         const messageId = <number> msg.entity;
         var rawMessage = new RawMessage(messageId, this.actors[(<Activity> msg.creationActivity).id], msg.turnId, msg)
         this.rawMessages[messageId]=rawMessage;

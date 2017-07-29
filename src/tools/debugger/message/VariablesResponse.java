@@ -47,10 +47,6 @@ public final class VariablesResponse extends Response {
       this.namedVariables = named;
       this.indexedVariables = indexed;
     }
-
-    public void print() {
-      System.out.println("variable: " + name + " value: " + value);
-    }
   }
 
   public static VariablesResponse create(final long globalVarRef, final int requestId,
@@ -122,12 +118,5 @@ public final class VariablesResponse extends Response {
       id = 0;
     }
     return new Variable(name, Types.toDebuggerString(val), id, named, indexed);
-  }
-
-  public void print() {
-    System.out.println("variableResponse: " + variablesReference);
-    for(Variable v : variables) {
-      v.print();
-    };
   }
 }

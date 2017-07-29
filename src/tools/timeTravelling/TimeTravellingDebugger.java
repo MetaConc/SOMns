@@ -122,12 +122,11 @@ public class TimeTravellingDebugger {
    */
   public void replayMessage(final Actor timeTravelingActor, final EventualMessage msg) {
     frames = new ArrayList<TimeTravelFrame>();
-    // msg.setIsMessageReceiverBreakpoint(true);
+    msg.setIsMessageReceiverBreakpoint(true);
     timeTravelingActor.send(msg, vm.getActorPool());
   }
 
   public void sendStoppedMessage(final Suspension suspension) {
-    //System.out.print(suspension.getEvent().getLocation());
     // for each possible stopping point in the turn:
     //  get the stack trace
     //  get the scopes from the first frame in the stack
@@ -141,7 +140,6 @@ public class TimeTravellingDebugger {
       scope = ScopesResponse.create(frame.id, suspension, requestId);
       for (Scope s : scope.scopes) {
        VariablesResponse var = VariablesResponse.create(s.variablesReference, 0, suspension);
-        //var.print();
         variables.add(var);
       }
     }

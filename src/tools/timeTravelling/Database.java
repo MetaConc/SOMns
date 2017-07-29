@@ -452,7 +452,7 @@ public final class Database {
     arguments[0] = target;
     SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
-    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
+    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, false, false);
   }
 
   private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
@@ -462,7 +462,7 @@ public final class Database {
     arguments[0] = targetPromise;
     SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
-    PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, true, false); // pause before executing the message
+    PromiseSendMessage msg = EventualMessage.PromiseSendMessage.createForTimeTravel(selector, arguments, absorbingActor, resolver, onReceive, false, false);
 
     Value targetNode = readTarget(session, causalMessageId);
     Object targetValue = readValue(session, targetNode);
@@ -477,7 +477,7 @@ public final class Database {
     SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
     SPromise promiseRegisteredOn = readSPromise(session, messageNode.id());
-    PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, true, false, promiseRegisteredOn); // pause before executing the message
+    PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, true, false, promiseRegisteredOn);
 
     Object resolution = readCallbackResolution(session, causalMessageId);
     msg.resolve(resolution, timeTravelingActor, absorbingActor);
