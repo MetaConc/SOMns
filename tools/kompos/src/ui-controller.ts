@@ -268,14 +268,18 @@ export class UiController extends Controller {
   public step(actId: string, step: string) {
     const activityId = getActivityIdFromView(actId);
     const act = this.data.getActivity(activityId);
-    if (act.running) { dbgLog("return from step"); return; }
+    if (act.running) { return; }
     act.running = true;
     this.view.onContinueExecution(act);  
     this.behaviour.step(act, step); 
   }
 
-  public timeTravel(actorId: number, messageId: number){
+  public timeTravel(actorId: number, messageId: number) {
     this.vmConnection.sendTimeTravelRequest(actorId, messageId);
+  }
+
+  public resumeActivity(act: Activity) {
+    this.view.onContinueExecution(act);
   }
 
   public onTimeTravelResponse(msg: TimeTravelResponse) {

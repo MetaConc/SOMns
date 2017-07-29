@@ -16,7 +16,10 @@ export class TimeTravellingDebugger {
 	
 	timeTravel(node: TurnNode) {
 		if(!this.timeTravelMode) {
+			this.timeTravelMode = true;
 			ctrl.switchBehaviour(new TimeTravelStrategy(this));
+		} else { // we came from another node, remove the highlighting from that activity
+			this.controller.resumeActivity(this.current.actor.activity);
 		}
 		this.current = node;
 		ctrl.timeTravel(node.actor.getActivityId(), node.getId());

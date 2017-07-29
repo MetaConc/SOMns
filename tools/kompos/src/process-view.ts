@@ -45,7 +45,7 @@ const lineGenerator: any =
 class ActorHeading {
   private readonly turns:     TurnNode[];
   private readonly turnMap:   IdMap<TurnNode>;
-  private readonly activity:  Activity;
+  public readonly activity:  Activity;
   public  readonly x:         number;
   private readonly y:         number;
   public  readonly color:     string;
@@ -301,6 +301,7 @@ export class TurnNode {
 
     $(document).on("click", ".timetravel", function (e) {
       e.stopImmediatePropagation();
+      $(this).popover('toggle');
       const actorId = e.currentTarget.attributes["data-actor-id"].value;
       const turnId = e.currentTarget.attributes["data-message-id"].value;
       ProcessView.timeDbg.timeTravel(
