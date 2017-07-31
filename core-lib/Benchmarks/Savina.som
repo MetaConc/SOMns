@@ -2614,4 +2614,231 @@ class Savina usingPlatform: platform andHarness: harness = Value (
       run problemSize: '20:12:4'
     )
   )
+
+  public class APSP numWorkers: N blockSize: B maxEdgeWeight: W = Benchmark <: Value (
+  | private N = N.
+    private B = B. 
+    private W = W.
+    private numBlocksInDim = N / B.
+  |
+  )(
+
+    public class ApspFloydWarshallActor new: blockId graph: graphData res: completionRes= (
+    | 
+      private completionRes = completionRes.
+      private blockId = blockId.
+      private numNeighbors = (2 * (numBlocksInDim - 1)).
+      private rowOffset = (blockId / numBlocksInDim) * B.
+      private colOffset = (blockId % numBlocksInDim) * B.
+      private neighbors = Vector new.
+      private k ::= -1.
+      neighborDataPerIteration = Dictionary new.
+      private receivedNeighbors ::= false.
+      private currentIterData ::= getBlock: graphData block: blockId.
+    |
+    ) (
+      public result: otherk  blockId: otherBid data: initData = (
+        |haveAllData|
+        receivedNeighbors ifFalse: [
+          ('Block-' + blockId + 'hasnt received neighbors yet') println.
+          system error: 'error'.
+        ].
+
+        haveAllData:: storeIterationData: otherk blockId: otherBid data: initData.
+        haveAllData ifTrue:[
+          k:: k+1.
+          performComputation.
+          notifyNeighbors.
+          neighborDataPerIteration removeAll.
+
+          k = (N - 1) ifTrue:[
+            completionRes resolve: true.
+            (*Actor is done, resolve promise*)
+          ]
+        ]
+      )
+
+      public start = (
+        notifyNeighbors.
+      )
+
+      public neighbor: nbors = (
+        receivedNeighbors:: true.
+        neighbors appendAll: nbors.
+      )
+
+      private performComputation = (
+        |prevIterData|
+        prevIterData:: currentIterData.
+        currentIterData:: TransferArray new: B.
+        currentIterData doIndexes: [:i|
+          currentIterData at: i put: (TransferArray new: B withAll: 0).
+        ].
+        
+        1 to: B do: [:i|
+          1 to: B do: [:j |
+          | gi gj newIterData|
+            gi:: rowOffset + i - 1.
+            gj:: colOffset + j - 1.
+            newIterData:: ((elementAt: gi Col: k SrcIter: (k - 1) prevIter: prevIterData) + (elementAt: k Col: gj SrcIter: (k - 1) prevIter: prevIterData)).
+            (currentIterData at: i) at: j put: (newIterData min: ((prevIterData at: i) at: j)).
+          ] 
+        ].
+      )
+
+      elementAt: row Col: col SrcIter: srcIter prevIter: prevIterData = (
+        |destBlockId localRow localCol blockData|
+        destBlockId:: (((row) / B) * numBlocksInDim) + ((col) / B).
+        localRow:: row % B + 1.
+        localCol:: col % B + 1.
+
+        destBlockId = blockId ifTrue: [
+          ^ (prevIterData at: localRow) at: localCol.
+        ] ifFalse:[
+          
+          blockData:: neighborDataPerIteration at: destBlockId.
+          ^ (blockData at: localRow) at: localCol.
+        ].
+      )
+
+      private storeIterationData: otherk blockId: otherBid data: initData = (
+        neighborDataPerIteration at: otherBid put: initData.
+        ^ ((neighborDataPerIteration size) = numNeighbors).
+      )
+
+      private notifyNeighbors = (
+        neighbors do: [:n|
+          n <-: result: k  blockId: blockId data: currentIterData.
+        ]
+      )
+    )
+
+    private generateGraph = (
+      | localData random |
+      random:: Random new.
+      localData:: TransferArray new: N.
+      localData doIndexes: [:i|
+        localData at: i put: (TransferArray new: N withAll: 0).
+      ].
+      localData doIndexes: [:i | 
+        i to: N do: [ :j |
+          | r |
+          r:: ((random next: W) + 1).
+          (localData at: i) at: j put: (r).
+          (localData at: j) at: i put: (r).
+        ] 
+      ].
+      ^ localData.
+    )
+
+    private getBlock: srcData block: blockId = (
+      |localData blockPerDim globalStartRow globalStartCol|
+        
+      
+      localData:: TransferArray new: B.
+      localData doIndexes: [:i|
+        localData at: i put: (TransferArray new: B withAll: 0).
+      ].
+
+      blockPerDim:: N / B.
+      globalStartRow:: (blockId / numBlocksInDim) * B.
+      globalStartCol:: (blockId % numBlocksInDim) * B.
+      localData doIndexes: [:i | 
+        
+        (localData at: i) doIndexes: [ :j |
+          (localData at: i) at: j put: ((srcData at: (i + globalStartRow)) at: (j + globalStartCol)).
+        ]
+      ].
+      
+      ^ localData.
+    )
+
+    private print: arr = (
+      arr do: [ :a |
+        a do: [ :e |
+          ('' + e + '\t') print.
+        ].
+        '' println.
+      ].
+    )
+
+    public benchmark = (
+      | graphData blockActors group  completionPP|
+
+            group:: nil.
+      graphData:: generateGraph.
+      
+      blockActors:: Array new: numBlocksInDim.
+      blockActors doIndexes: [:i|
+        blockActors at: i put: (Array new: numBlocksInDim).
+      ].
+
+      blockActors doIndexes: [:i| 
+        
+        (blockActors at: i) doIndexes: [ :j |
+        |blockId apspActor prom|
+          blockId:: (((i - 1) * numBlocksInDim) + (j - 1)).
+          prom:: actors createPromisePair.
+
+          group
+          ifNil:    [ group:: prom promise ]
+          ifNotNil: [ group:: group, prom promise ].
+
+          apspActor:: (actors createActorFromValue: ApspFloydWarshallActor) <-: new: blockId graph: graphData res: (prom resolver).
+          (blockActors at: i) at: j put: apspActor.
+        ]  
+      ].
+      
+      (*create links to neighbors*)
+
+      1 to: (numBlocksInDim) do: [ :bi|
+        1 to: (numBlocksInDim) do: [ :bj|
+        |neighbors tarray|
+          neighbors:: Vector new.
+
+          1 to: (numBlocksInDim) do: [ :r |
+            (r = bi) ifFalse: [
+              neighbors append: ((blockActors at: r) at: bj).
+            ].  
+          ].
+
+          1 to: (numBlocksInDim) do: [ :c |
+            (c = bj) ifFalse: [
+              neighbors append: ((blockActors at: bi) at: c).
+            ]  
+          ].
+          tarray:: TransferArray new: (neighbors size).
+          neighbors asArray copyFrom: 1 to: (neighbors size) to: tarray.
+          ((blockActors at: bi) at: bj) <-: neighbor: tarray.
+        ]
+      ].
+
+      1 to: (numBlocksInDim) do: [ :bi|
+        1 to: (numBlocksInDim) do: [ :bj|
+          ((blockActors at: bi) at: bj) <-: start.
+        ]
+      ].
+
+      completionPP:: actors createPromisePair.
+      (*using promise group dicretly as result does not work for some reason*)
+      group whenResolved: [ :r|
+        completionPP resolve: true.
+      ]. 
+
+      ^ completionPP promise.
+    )
+
+    public verifyResult: result = (
+      ^ result
+    )
+  ) : (
+    public newInstance: problemSize = ( | problem |
+      problem:: problemSize split: ':'.
+      ^ self numWorkers: (problem at: 1) asInteger
+              blockSize: (problem at: 2) asInteger
+          maxEdgeWeight: (problem at: 3) asInteger
+    )
+    (*'300:50:100' takes long*)
+    public setupVerifiedRun: run = ( run problemSize: '100:50:50' )
+  )
 )
