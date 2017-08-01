@@ -2841,4 +2841,167 @@ class Savina usingPlatform: platform andHarness: harness = Value (
     (*'300:50:100' takes long*)
     public setupVerifiedRun: run = ( run problemSize: '100:50:50' )
   )
+
+
+
+  public class MatMul numWorker: numWorker dataLenght: dataLenght threshold: threshold = Benchmark <: Value (
+  | private NumWorker = numWorker.
+    private DataLenght = dataLenght.
+    private BlockThreshold = threshold.
+    private Priorities = 10.
+    private numBlocks = DataLenght * DataLenght.
+  |
+  )(
+    
+
+    class Master new: completionRes = (
+      | private completionRes = completionRes.
+        workers = Array new: NumWorker.
+        numWorkersTerminated ::= 0.
+        numWorkSent ::= 0.
+        numWorkCompleted ::= 0.
+        A = TransferArray new: DataLenght.
+        B = TransferArray new: DataLenght.
+        C = TransferArray new: DataLenght.
+      |
+      1 to: DataLenght do: [:i|
+        A at: i put: (TransferArray new: DataLenght).
+        B at: i put: (TransferArray new: DataLenght).
+        C at: i put: (TransferArray new: DataLenght). 
+      ].
+
+      1 to: DataLenght do: [:i| 
+        1 to: DataLenght do: [:j|
+          (A at: i) at: j put: (i - 1).
+          (B at: i) at: j put: (j - 1).
+          (C at: i) at: j put: 0.
+        ] 
+      ].
+
+    ) (
+      public start = (
+        workers doIndexes: [ :i |
+          | w |
+          w:: (actors createActorFromValue: Worker) <-: new: self id: (i - 1) A: A B: B C: C.
+          workers at: i put: w.
+        ].
+
+        sendWork: 0 srA: 0 scA: 0 srB: 0 scB: 0 srC: 0 scC: 0 numBlocks: numBlocks dim: DataLenght.
+      )
+      
+      public sendWork: prio srA: srA scA: scA srB: srB scB: scB srC: srC scC: scC numBlocks: numB dim: dim= (
+        | workerIdx |
+        (*('sending work ' + prio + ' ' + dim+ ' ' + numB) println.*)
+        workerIdx:: (srC +scC) % NumWorker.
+        (workers at: (workerIdx + 1)) <-: work: prio srA: srA scA: scA srB: srB scB: scB srC: srC scC: scC numBlocks: numB dim: dim.
+        numWorkSent:: numWorkSent + 1.
+      )
+
+      public done = (
+        numWorkCompleted:: numWorkCompleted + 1.
+        numWorkCompleted = numWorkSent ifTrue: [
+          workers do: [ :w |
+            w <-: stop.
+          ]
+        ]
+      )
+
+      public stop: C2 = (
+        numWorkersTerminated:: numWorkersTerminated + 1.
+
+        1 to: DataLenght do: [:i| 
+          1 to: DataLenght do: [:j|
+            (C at: i) at: j put: (((C at: i) at: j) + ((C2 at: i) at: j))
+          ] 
+        ].
+
+
+
+        numWorkersTerminated = NumWorker ifTrue: [
+          (*terminate*)
+          (*print: C.*)
+          completionRes resolve: true.     
+        ]
+      )
+    )
+
+    class Worker new: master id: id A: A B: B C: C = (
+    | private master = master.
+      private id = id.
+      private A = A.
+      private B = B.
+      private C = C.
+    |
+    ) (
+      public work: prio srA: srA scA: scA srB: srB scB: scB srC: srC scC: scC numBlocks: numB dim: dim= (
+        |newPrio zerDim newDim newNumBlocks endR endC|
+        newPrio:: prio + 1.
+        numB > BlockThreshold ifTrue: [
+          zerDim:: 0.
+          newDim:: dim/2.
+          newNumBlocks:: numBlocks / 4.
+
+          master <-: sendWork: newPrio srA: srA + zerDim scA: scA + zerDim srB: srB + zerDim scB: scB + zerDim srC: srC + zerDim scC: scC + zerDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + zerDim scA: scA + newDim srB: srB + newDim scB: scB + zerDim srC: srC + zerDim scC: scC + zerDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + zerDim scA: scA + zerDim srB: srB + zerDim scB: scB + newDim srC: srC + zerDim scC: scC + newDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + zerDim scA: scA + newDim srB: srB + newDim scB: scB + newDim srC: srC + zerDim scC: scC + newDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + newDim scA: scA + zerDim srB: srB + zerDim scB: scB + zerDim srC: srC + newDim scC: scC + zerDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + newDim scA: scA + newDim srB: srB + newDim scB: scB + zerDim srC: srC + newDim scC: scC + zerDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + newDim scA: scA + zerDim srB: srB + zerDim scB: scB + newDim srC: srC + newDim scC: scC + newDim numBlocks: newNumBlocks dim: newDim.
+          master <-: sendWork: newPrio srA: srA + newDim scA: scA + newDim srB: srB + newDim scB: scB + newDim srC: srC + newDim scC: scC + newDim numBlocks: newNumBlocks dim: newDim.
+
+          (*split*)
+        ] ifFalse: [
+          endR:: srC + dim.
+          endC:: scC + dim.
+
+          (srC + 1) to: endR do: [ :i|
+            (scC + 1) to: endC do: [ :j|
+              1 to: dim do: [ :k| 
+                (C at: i) at: j put: (((C at: i) at: j) + (((A at: i) at: (scA + k)) * ((B at: (srB + k)) at: j)))
+                (*C(i)(j) += A(i)(scA + k) * B(srB + k)(j)*)
+              ]  
+            ]
+          ].
+        ].
+
+        master <-: done.
+      )
+
+      public stop = (
+        master <-: stop: C.
+      )
+    )
+
+    private print: arr = (
+          '' println.
+          arr do: [ :a |
+            a do: [ :e |
+              ('' + e + '\t') print.
+            ].
+            '' println.
+          ].
+        )
+
+    public benchmark = (
+      | master completionPP |
+      completionPP:: actors createPromisePair.
+      
+      master:: (actors createActorFromValue: Master) <-: new: completionPP resolver.
+      master <-: start.
+
+      ^ completionPP promise
+    )
+
+    public verifyResult: result = (
+      ^ result
+    )
+  ) : (
+    public newInstance: problemSize = ( |problem|
+      problem:: problemSize split: ':'.
+      ^ self numWorker: (problem at: 1) asInteger
+            dataLenght: (problem at: 2) asInteger
+             threshold: (problem at: 3) asInteger )
+    public setupVerifiedRun: run = ( run problemSize: '20:1024:16384' )
+  )
 )
