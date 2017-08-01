@@ -22,7 +22,8 @@ public class VmSettings {
   public static boolean PROMISE_RESOLUTION;
   public static boolean PROMISE_RESOLVED_WITH;
   public static final boolean REPLAY;
-  public static boolean TIME_TRAVELLING;
+  public static boolean TIME_TRAVELLING; // is this is time travel run
+  public static boolean TIME_TRAVELLING_RECORDING; // is SOM currently doing the in initial run
 
   public static final boolean TRUFFLE_DEBUGGER_ENABLED;
 
@@ -47,6 +48,7 @@ public class VmSettings {
     REPLAY = getBool("som.replay", false);
     DISABLE_TRACE_FILE = getBool("som.disableTraceFile", false) || REPLAY;
     TIME_TRAVELLING = getBool("som.time_travel", false);
+    TIME_TRAVELLING_RECORDING = TIME_TRAVELLING;
 
     String atConfig = System.getProperty("som.actorTracingCfg", "");
     List<String> al = Arrays.asList(atConfig.split(":"));

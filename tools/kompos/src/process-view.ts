@@ -65,6 +65,9 @@ class ActorHeading {
   }
 
   public addTurn(turn: TurnNode) {
+    const previous = this.turns[this.turns.length-1];
+    if(previous != null) {previous.next = turn;}
+    turn.previous = previous;
     this.turns.push(turn);
     this.turnMap[turn.getId()]=turn;
     return this.turns.length;
@@ -151,6 +154,8 @@ export class TurnNode {
   private readonly count: number;
   public  readonly x:     number;
   public  readonly y:     number;
+  public previous: TurnNode;
+  public next: TurnNode;
   private readonly visualization:  d3.Selection<SVGElement>;
   private popover:        JQuery;
 

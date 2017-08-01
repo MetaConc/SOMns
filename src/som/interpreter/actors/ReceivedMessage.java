@@ -14,7 +14,6 @@ import som.interpreter.actors.SPromise.SResolver;
 import som.interpreter.nodes.MessageSendNode.AbstractMessageSendNode;
 import som.vm.VmSettings;
 import som.vmobjects.SSymbol;
-import tools.timeTravelling.AbsorbingSResolver;
 
 
 public class ReceivedMessage extends ReceivedRootNode {
@@ -36,7 +35,7 @@ public class ReceivedMessage extends ReceivedRootNode {
     EventualMessage msg = (EventualMessage) SArguments.rcvr(frame);
     boolean promiseResolutionBreakpoint = false;
 
-    if (msg.getResolver() != null && !(msg.getResolver() instanceof AbsorbingSResolver)) {
+    if (msg.getResolver() != null) {
       promiseResolutionBreakpoint = msg.getResolver().getPromise().isTriggerPromiseResolutionBreakpoint();
     }
 
@@ -98,7 +97,7 @@ public class ReceivedMessage extends ReceivedRootNode {
       boolean promiseResolutionBreakpoint = false;
 
       SResolver resolver = msg.getResolver();
-      if (resolver != null && !(resolver instanceof AbsorbingSResolver)) {
+      if (resolver != null) {
         promiseResolutionBreakpoint = msg.getResolver().getPromise().isTriggerPromiseResolutionBreakpoint();
       }
 

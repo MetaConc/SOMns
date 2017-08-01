@@ -67,7 +67,7 @@ export class TimeTravellingDebugger {
 				break; 
 			}
 			case "stepToNextTurn": {
-				const node = this.current.actor.getTurn(this.current.getId()+1);
+				const node = this.current.next;
 				if(node != null) {
 					ProcessView.changeHighlight(node);
 					this.timeTravel(node);
@@ -77,7 +77,7 @@ export class TimeTravellingDebugger {
 				break;
 			}
 			case "stepToPreviousTurn": {
-				const node = this.current.actor.getTurn(this.current.getId()-1);
+				const node = this.current.previous;
 				if(node != null) {
 					ProcessView.changeHighlight(node);
 					this.timeTravel(node);

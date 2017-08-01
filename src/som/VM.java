@@ -490,4 +490,10 @@ public final class VM {
   public boolean isPlatformObject(final SObjectWithClass t) {
     return t.getSOMClass() == objectSystem.getPlatformClass();
   }
+
+  public void reportActorFinished() {
+    if (VM.timeTravellingDebugger != null) {
+      VM.timeTravellingDebugger.replayFinished();
+    }
+  }
 }

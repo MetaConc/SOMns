@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.oracle.truffle.api.debug.DebuggerSession.SteppingLocation;
 import com.oracle.truffle.api.nodes.RootNode;
 
 import som.VM;
@@ -63,9 +62,9 @@ public class TimeTravellingDebugger {
   public void prepareForTimeTravel() {
     // clear the revivedObjects to not work with the state of the previous session
     revivedObjects = new HashMap<Object, SAbstractObject>();
-    if (VmSettings.TIME_TRAVELLING) {
+    if (VmSettings.TIME_TRAVELLING_RECORDING) {
       ActorExecutionTrace.forceSwapBuffers();
-      VmSettings.TIME_TRAVELLING = false;
+      VmSettings.TIME_TRAVELLING_RECORDING = false;
       VmSettings.ACTOR_TRACING = false;
       VmSettings.MEMORY_TRACING = false;
       VmSettings.PROMISE_CREATION = false;
@@ -136,7 +135,7 @@ public class TimeTravellingDebugger {
     StackFrame frame = trace.getFirstFrame();
     ArrayList<VariablesResponse> variables = new ArrayList<VariablesResponse>();
     ScopesResponse scope = null;
-    if(frame != null) {
+    if (frame != null) {
       scope = ScopesResponse.create(frame.id, suspension, requestId);
       for (Scope s : scope.scopes) {
        VariablesResponse var = VariablesResponse.create(s.variablesReference, 0, suspension);
@@ -144,17 +143,15 @@ public class TimeTravellingDebugger {
       }
     }
     frames.add(new TimeTravelFrame(trace, scope, variables.toArray(new VariablesResponse[0])));
+    SteppingType.STEP_OVER.process(suspension);
+    suspension.resume();
+  }
 
-
-
-    if (suspension.getEvent().getLocation() == SteppingLocation.AFTER_CALL) {
-      // The message has finished executing, send all stacktraces to the front end
+  public void replayFinished() {
+    if(VmSettings.TIME_TRAVELLING && !VmSettings.TIME_TRAVELLING_RECORDING) {
+      // we are time travelling and we have finished recording, a turn is finished => send to front end
       TimeTravelResponse response = new TimeTravelResponse(frames.toArray(new TimeTravelFrame[0]));
       vm.getWebDebugger().sendTimeTravelResponse(response);
-    } else {
-      // The message has not finished executing, perform a step over
-      SteppingType.STEP_OVER.process(suspension);
     }
-    suspension.resume();
   }
 }

@@ -230,6 +230,7 @@ public class Actor implements Activity {
         }
       } finally {
         ObjectTransitionSafepoint.INSTANCE.unregister();
+        this.vm.reportActorFinished();
       }
 
       t.currentlyExecutingActor = null;
@@ -266,7 +267,7 @@ public class Actor implements Activity {
               msg.getTargetSourceSection());
           ActorExecutionTrace.recordArguments(msg.getSelector(), msg.getMessageId());
         }
-        if (VmSettings.TIME_TRAVELLING) {
+        if (VmSettings.TIME_TRAVELLING_RECORDING) {
           msg.storeTurnInDb();
         }
         msg.execute();
