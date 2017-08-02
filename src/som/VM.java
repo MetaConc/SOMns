@@ -441,7 +441,7 @@ public final class VM {
     }
 
     Value returnCode = engine.eval(SomLanguage.START);
-    if(!avoidExitForTesting){
+    if (!avoidExitForTesting) {
       shutdownAndExit(returnCode.as(Integer.class));
     }
   }

@@ -285,7 +285,7 @@ export class TurnNode {
     circle.attr({
       "data-toggle"   : "popover",
       "data-trigger"  : "click",
-      "title"         : this.incoming.getText() + " " + this.incoming.getMessageId(),
+      "title"         : this.incoming.getText(),
       "animation"     : "false",
       "data-html"     : "true",
       "data-animation": "false",
@@ -571,20 +571,20 @@ export class ProcessView {
     for (const msg of newMessages) {
       if(this.metaModel.isActorMessage(msg)) {
         const messageId = <number> msg.entity;
-        const senderActor = this.actors[msg.creationActivity.id];
         const targetActor = this.actors[(<Activity> msg.target).id];
         if(messageId == 0){ // start message
+          const senderActor = this.actors[msg.creationActivity.id];
           const args = {messageId: 0, methodName: "start", sendingActorId: 0, sendingTurnId: -1};
           new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage(), args), args);
           return;
         }
-        var rawMessage = new RawMessage(messageId, senderActor, msg.turnId, msg);
+        var rawMessage = new RawMessage(messageId, msg);
         rawMessage.setTarget(targetActor);
         this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
       } else if(this.metaModel.isPromiseMessage(msg)) {
         const messageId = <number> msg.entity;
-        var rawMessage = new RawMessage(messageId, this.actors[(<Activity> msg.creationActivity).id], msg.turnId, msg)
+        var rawMessage = new RawMessage(messageId, msg)
         this.rawMessages[messageId]=rawMessage;
         rawMessage.resolve(this);
       }
@@ -631,17 +631,13 @@ export class ProcessView {
 
   class RawMessage {
     public messageId: number;
-    private senderActor: ActorHeading;
-    private sendingTurnId: number;
     private targetActor: ActorHeading;
     private arguments: Arguments;
     private sendOp: SendOp;
 
-    constructor(messageId: number, senderActor: ActorHeading, sendingTurnId: number, sendOp: SendOp) {
+    constructor(messageId: number, sendOp: SendOp) {
       this.messageId = messageId;
-      this.senderActor = senderActor;
       this.sendOp = sendOp;
-      this.sendingTurnId = sendingTurnId;
     }
 
     setTarget(targetActor: ActorHeading) {
@@ -662,21 +658,21 @@ export class ProcessView {
       // all information of the message is available. 
       if(this.targetActor != null && this.arguments != null) {
         delete data.rawMessages[this.messageId];
-        const sendingTurn = this.senderActor.getTurn(this.sendingTurnId);
-        dbgLog("current: actor: " + this.senderActor.getActivityId() + " " + this.sendingTurnId);
-        dbgLog("new: actor: " + args.sendingActorId + " " + args.sendingTurnId);
+        const senderActor = data.actors[this.arguments.sendingActorId];
+        const sendingTurn = senderActor.getTurn(this.arguments.sendingTurnId);
+        
         if(sendingTurn == null){
             // sending turn is not drawn yet
-            const messageWaitingForTurn = data.eagerMessages[this.sendingTurnId];
+            const messageWaitingForTurn = data.eagerMessages[this.arguments.sendingTurnId];
 
             // add it to the list of message waiting for this turn, if list does not exist create it
             if(messageWaitingForTurn==null){
-              data.eagerMessages[this.sendingTurnId]=[this];
+              data.eagerMessages[this.arguments.sendingTurnId]=[this];
             } else {
               messageWaitingForTurn.push(this);
             }
         }
-        new Message(this.senderActor, this.targetActor, this.sendOp, sendingTurn, this.arguments);
+        new Message(senderActor, this.targetActor, this.sendOp, sendingTurn, this.arguments);
 
         // my turn is now drawn, all message waiting for me can be resolved, afterwards delete the list
         const messagesWaitingForMe = data.eagerMessages[this.messageId];

@@ -148,7 +148,7 @@ public class TimeTravellingDebugger {
   }
 
   public void replayFinished() {
-    if(VmSettings.TIME_TRAVELLING && !VmSettings.TIME_TRAVELLING_RECORDING) {
+    if (VmSettings.TIME_TRAVELLING && !VmSettings.TIME_TRAVELLING_RECORDING) {
       // we are time travelling and we have finished recording, a turn is finished => send to front end
       TimeTravelResponse response = new TimeTravelResponse(frames.toArray(new TimeTravelFrame[0]));
       vm.getWebDebugger().sendTimeTravelResponse(response);

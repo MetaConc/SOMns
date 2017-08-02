@@ -452,7 +452,7 @@ public final class Database {
     arguments[0] = target;
     SResolver resolver = readSResolver(session, messageNode.id());
     RootCallTarget onReceive = timeTravellingDebugger.getRootNode(causalMessageId).getCallTarget();
-    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, -1, false, false);
+    return new DirectMessage(timeTravelingActor, selector, arguments, absorbingActor, resolver, onReceive, 0, -1, false, false);
   }
 
   private PromiseSendMessage readPromiseSendMessage(final Session session, final Node messageNode, final long causalMessageId) {
@@ -467,7 +467,7 @@ public final class Database {
     Value targetNode = readTarget(session, causalMessageId);
     Object targetValue = readValue(session, targetNode);
     SFarReference target = new SFarReference(timeTravelingActor, targetValue); // the target of our message needs to be owned by the time travel actor
-    msg.resolve(target, timeTravelingActor, absorbingActor, -1);
+    msg.resolve(target, timeTravelingActor, absorbingActor, -1, -1);
     return msg;
   }
 
@@ -480,7 +480,7 @@ public final class Database {
     PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, true, false, promiseRegisteredOn);
 
     Object resolution = readCallbackResolution(session, causalMessageId);
-    msg.resolve(resolution, timeTravelingActor, absorbingActor, -1);
+    msg.resolve(resolution, timeTravelingActor, absorbingActor, -1, -1);
     return msg;
   }
 
@@ -492,7 +492,7 @@ public final class Database {
   }
 
   private SPromise readSPromise(final Session session, final long messageId) {
-    final Node promiseNode = session.run( "MATCH (message) where ID(message)={messageId}"
+    final Node promiseNode = session.run("MATCH (message) where ID(message)={messageId}"
         + " MATCH (message) - [:HAS_PROMISE]->(promise: SPromise) RETURN promise",
         parameters("messageId", messageId)).single().get("promise").asNode();
     return readSPromise(promiseNode);
@@ -505,10 +505,10 @@ public final class Database {
   }
 
   private SResolver readSResolver(final Session session, final long messageId) {
-    final StatementResult result = session.run( "MATCH (message) where ID(message)={messageId}"
+    final StatementResult result = session.run("MATCH (message) where ID(message)={messageId}"
         + " MATCH (message) - [:HAS_RESOLVER]->(resolver: SResolver) - [:RESOLVER_OF] -> (promise: SPromise) RETURN promise",
         parameters("messageId", messageId));
-    if(result.hasNext()){
+    if(result.hasNext()) {
       Node promiseNode = result.next().get("promise").asNode();
       return SPromise.createResolver(readSPromise(promiseNode));
     }

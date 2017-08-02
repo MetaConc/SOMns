@@ -191,12 +191,13 @@ public class EventualSendNode extends ExprWithTagsNode {
 
       if (VmSettings.TIME_TRAVELLING) {
         msg = new DirectMessage(target, selector, args,
-            owner, resolver, onReceive, owner.getCurrentMessage().messageId,
+            owner, resolver, onReceive, owner.getId(),
+            owner.getCurrentMessage().messageId,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new DirectMessage(target, selector, args,
-            owner, resolver, onReceive, -1,
+            owner, resolver, onReceive, -1, -1,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }
@@ -214,12 +215,14 @@ public class EventualSendNode extends ExprWithTagsNode {
       PromiseSendMessage msg;
       if (VmSettings.TIME_TRAVELLING) {
         msg = new PromiseSendMessage(selector, args,
-            rcvr.getOwner(), resolver, onReceive, rcvr.getOwner().getCurrentMessage().messageId,
+            rcvr.getOwner(), resolver, onReceive,
+            rcvr.getOwner().getId(),
+            rcvr.getOwner().getCurrentMessage().messageId,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new PromiseSendMessage(selector, args,
-            rcvr.getOwner(), resolver, onReceive, -1,
+            rcvr.getOwner(), resolver, onReceive, -1, -1,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }
@@ -278,12 +281,13 @@ public class EventualSendNode extends ExprWithTagsNode {
       DirectMessage msg;
       if(VmSettings.TIME_TRAVELLING) {
         msg = new DirectMessage(current, selector, args, current,
-            resolver, onReceive, current.getCurrentMessage().messageId,
+            resolver, onReceive, current.getId(),
+            current.getCurrentMessage().messageId,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new DirectMessage(current, selector, args, current,
-            resolver, onReceive, -1,
+            resolver, onReceive, -1, -1,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }
@@ -319,12 +323,13 @@ public class EventualSendNode extends ExprWithTagsNode {
       DirectMessage msg;
       if(VmSettings.TIME_TRAVELLING) {
         msg = new DirectMessage(current, selector, args, current,
-            null, onReceive, current.getCurrentMessage().messageId,
+            null, onReceive, current.getId(),
+            current.getCurrentMessage().messageId,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new DirectMessage(current, selector, args, current,
-            null, onReceive, -1,
+            null, onReceive, -1, -1,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }

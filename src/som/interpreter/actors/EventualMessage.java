@@ -41,11 +41,13 @@ public abstract class EventualMessage {
    * Indicates which message caused the turn that send this message.
    * Is necessary to perform time travel stepping operations.
    */
+  protected long sendingActorId = -1;
   protected long sendingTurnId = -1;
 
   protected EventualMessage(final Object[] args,
       final SResolver resolver, final RootCallTarget onReceive,
-      final long sendingTurnId, final boolean triggerMessageReceiverBreakpoint,
+      final long sendingActorId, final long sendingTurnId,
+      final boolean triggerMessageReceiverBreakpoint,
       final boolean triggerPromiseResolverBreakpoint) {
     this.args     = args;
     this.resolver = resolver;
@@ -53,6 +55,7 @@ public abstract class EventualMessage {
     this.triggerMessageReceiverBreakpoint = triggerMessageReceiverBreakpoint;
     this.triggerPromiseResolverBreakpoint = triggerPromiseResolverBreakpoint;
     this.messageId = TracingActivityThread.newEntityId();
+    this.sendingActorId = sendingActorId;
     this.sendingTurnId = sendingTurnId;
     assert onReceive.getRootNode() instanceof ReceivedMessage || onReceive.getRootNode() instanceof ReceivedCallback;
   }
@@ -87,10 +90,10 @@ public abstract class EventualMessage {
 
     public DirectMessage(final Actor target, final SSymbol selector,
         final Object[] arguments, final Actor sender, final SResolver resolver,
-        final RootCallTarget onReceive, final long sendingTurnId,
+        final RootCallTarget onReceive, final long sendingActorId, final long sendingTurnId,
         final boolean triggerMessageReceiverBreakpoint,
         final boolean triggerPromiseResolverBreakpoint) {
-      super(arguments, resolver, onReceive, sendingTurnId,
+      super(arguments, resolver, onReceive, sendingActorId, sendingTurnId,
           triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
       this.selector = selector;
       this.sender   = sender;
@@ -187,15 +190,17 @@ public abstract class EventualMessage {
     protected final Actor originalSender; // initial owner of the arguments
 
     public PromiseMessage(final Object[] arguments, final Actor originalSender,
-        final SResolver resolver, final RootCallTarget onReceive, final long senderTurnId,
+        final SResolver resolver, final RootCallTarget onReceive,
+        final long senderActorId, final long senderTurnId,
         final boolean triggerMessageReceiverBreakpoint,
         final boolean triggerPromiseResolverBreakpoint) {
-      super(arguments, resolver, onReceive, senderTurnId,
+      super(arguments, resolver, onReceive, senderActorId, senderTurnId,
           triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
       this.originalSender = originalSender;
     }
 
-    public abstract void resolve(Object rcvr, Actor target, Actor sendingActor, final long sendingTurnId);
+    public abstract void resolve(Object rcvr, Actor target, Actor sendingActor,
+        final long sendingActorId, final long sendingTurnId);
 
     @Override
     public final Actor getSender() {
@@ -218,17 +223,19 @@ public abstract class EventualMessage {
 
     protected PromiseSendMessage(final SSymbol selector,
         final Object[] arguments, final Actor originalSender,
-        final SResolver resolver, final RootCallTarget onReceive, final long sendingTurnId,
+        final SResolver resolver, final RootCallTarget onReceive,
+        final long sendingActorId, final long sendingTurnId,
         final boolean triggerMessageReceiverBreakpoint, final boolean triggerPromiseResolverBreakpoint) {
-      super(arguments, originalSender, resolver, onReceive, sendingTurnId, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
+      super(arguments, originalSender, resolver, onReceive, sendingActorId, sendingTurnId,
+          triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
       this.selector = selector;
       assert (args[0] instanceof SPromise);
       this.originalTarget = (SPromise) args[0];
     }
 
     @Override
-    public void resolve(final Object rcvr, final Actor target, final Actor sendingActor, final long sendingTurnId) {
-      this.sendingTurnId = sendingTurnId;
+    public void resolve(final Object rcvr, final Actor target, final Actor sendingActor,
+        final long sendingActorId, final long sendingTurnId) {
       determineAndSetTarget(rcvr, target, sendingActor);
     }
 
@@ -279,7 +286,8 @@ public abstract class EventualMessage {
     public static PromiseSendMessage createForTimeTravel(final SSymbol selector,
         final Object[] arguments, final Actor originalSender, final SResolver resolver,
         final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint, final boolean triggerPromiseResolverBreakpoint) {
-      return new PromiseSendMessage(selector, arguments, originalSender, resolver, onReceive, -1, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
+      return new PromiseSendMessage(selector, arguments, originalSender, resolver, onReceive,
+          -1, -1, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
     }
 
     @Override
@@ -310,13 +318,15 @@ public abstract class EventualMessage {
     public PromiseCallbackMessage(final Actor owner, final SBlock callback,
         final SResolver resolver, final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint,
         final boolean triggerPromiseResolverBreakpoint, final SPromise promiseRegisteredOn) {
-      super(new Object[] {callback, null}, owner, resolver, onReceive, -2,
+      super(new Object[] {callback, null}, owner, resolver, onReceive, -1, -1,
           triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
       this.promise = promiseRegisteredOn;
     }
 
     @Override
-    public void resolve(final Object rcvr, final Actor target, final Actor sendingActor, final long sendingTurnId) {
+    public void resolve(final Object rcvr, final Actor target, final Actor sendingActor,
+        final long sendingActorId, final long sendingTurnId) {
+      this.sendingActorId = sendingActorId;
       this.sendingTurnId = sendingTurnId;
       setPromiseValue(rcvr, sendingActor);
     }
@@ -437,6 +447,10 @@ public abstract class EventualMessage {
   public abstract void storeInDb(Database database, Session session);
   // This turn caused by this message needs to be stored in db, the type of data depends on message
   public abstract void storeTurnInDb();
+
+  public long getSendingActorId() {
+    return sendingActorId;
+  }
 
   public long getSendingTurnId() {
     return sendingTurnId;

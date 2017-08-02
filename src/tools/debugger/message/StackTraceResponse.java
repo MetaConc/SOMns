@@ -46,8 +46,8 @@ public final class StackTraceResponse extends Response {
     }
   }
 
-  public StackFrame getFirstFrame(){
-    if(stackFrames != null && stackFrames.length>0){
+  public StackFrame getFirstFrame() {
+    if (stackFrames != null && stackFrames.length > 0) {
       return stackFrames[0];
     } else {
       return null;
