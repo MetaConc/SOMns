@@ -314,6 +314,7 @@ class Kernel vmMirror: vmMirror = Object <: Value (
 
     (* Comparing *)
     public = argument = ( ^ vmMirror string: self equals: argument )
+    public ~= other = ( ^ (self = other) not )
 
     (* substring: from 'start' to (and including) 'end'. *)
     private primSubstringFrom: start to: end = ( ^ vmMirror string: self
@@ -650,6 +651,8 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     )
 
     public first = ( ^ isEmpty ifTrue: [nil] ifFalse: [storage at: firstIdx] )
+
+    public last = ( ^ isEmpty ifTrue: [nil] ifFalse: [storage at: (lastIdx - 1)] )
 
     (* Iterating *)
     public do: block = (

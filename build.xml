@@ -225,6 +225,10 @@
       <exec executable="tests/dym/test.sh" failonerror="true"></exec>
     </target>
 
+    <target name="file-tests" depends="compile">
+      <exec executable="tests/files/test.sh" failonerror="true"></exec>
+    </target>
+
     <target name="replay-tests" depends="compile">
       <exec executable="tests/replay/test.sh" failonerror="true">
           <arg value="1" />
@@ -246,6 +250,6 @@
         </java>
     </target>
 
-    <target name="tests" depends="core-tests,replay-tests,coverage">
+    <target name="tests" depends="core-tests,replay-tests,file-tests,coverage">
     </target>
 </project>

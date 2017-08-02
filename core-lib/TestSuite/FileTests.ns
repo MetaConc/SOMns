@@ -1,0 +1,125 @@
+class FileTests usingPlatform: platform = Value ( 
+  | private actors    = platform actors. 
+    private Array     = platform kernel Array. 
+    private TransferArray= platform kernel TransferArray. 
+    private system    = platform system. 
+    private Dictionary= platform collections Dictionary.
+    private om = platform mirrors ObjectMirror.
+    private Files = platform files.
+    private fdes = Files FileDescriptor.
+    private fpath = Files FilePath.
+    private fpat = Files FilePattern.
+  | 
+)( 
+  class Tests new: path = (
+    |path = path.
+    |
+  )( 
+    public utils=(
+      |a b|
+      a:: fpath for: (path + '/test/A').
+      assert: a exists message: 'exists'.
+      assert: (a size = 3644) message: 'size'.
+      assert: a lastModified ~= nil message: 'lastModified'.
+      b:: (fpath for: (a containingDirectory pattern)). 
+      assert: b entries size = 3 message: 'entries'.
+    )
+
+    public createDeleteFile = (
+      |f|
+      f:: fpath for: (path + '/temp/A').
+      (fpath for: (f containingDirectory pattern)) createDirectoryIfFail: [:r| assert: false].
+      assert: (f exists not) message: 'should not exist yet'.
+      f open: #readwrite ifFail: [:r| assert: false message: 'should not happen'].
+      assert: (f exists).
+      f deleteFileIfFail: [:r |].
+      assert: (f exists not).
+    )
+
+    public createDeleteDirectory = (
+      |f|
+      f:: fpath for: (path + '/temp/A').
+      assert: (f exists not).
+      f createDirectoryIfFail: [:r| assert: false].
+      assert: (f exists).
+      f deleteDirectoryIfFail: [:r |].
+      assert: (f exists not).
+    )
+
+    public readwrite=(
+      |f d|
+      f:: fpath for: (path + '/tmp').
+      assert: (f exists not).
+      d:: f open: #readwrite ifFail: [:r | assert: false].
+
+      assert: d size = 0 message: 'file not empty'.
+
+      0 to: 255 do:[ :i|
+        d buffer at: (i+1) put: (i - 128).
+      ].
+
+      d write: 256 at: 0 ifFail: [:r|].
+      assert: d size = 256.
+      assert: 256 = (d readAt: 0 ifFail: [:r |]).
+
+      0 to: 255 do:[ :i|
+        assert: ((d buffer at: (i+1)) = (i - 128))  message: 'not what was written'.
+      ].
+
+      d close.
+      
+      f deleteFileIfFail: [:r |].
+      assert: (f exists not).
+    )
+
+    public paths= (
+      |f cnt|
+      cnt:: 0.
+      f:: fpat for: (path + '/test/*').
+      f pathsDo: [ :p |
+        assert: p exists.
+        cnt:: cnt + 1.
+      ].
+      assert: cnt = 3.
+    )
+
+    public move =(
+      |f g|
+      f:: fpath for: (path + '/tmp').
+      f open: #readwrite ifFail: [:r|].
+
+      f copyNamed: 'tmp2'.
+      g:: fpath for: (path + '/tmp2').
+      assert: g exists && f exists.
+      assert: g size = f  size.
+
+      g deleteFileIfFail: [:r|].
+      assert: g exists not.
+
+      f moveAs: g.
+      assert: (g exists) && (f exists not).
+
+      g deleteFileIfFail: [:r|].
+    )
+  )
+
+  public main: args = ( 
+    |t|
+    assert: (args size >= 3).
+    t:: Tests new: (args at: 2).
+    (om reflecting: t) perform: (args at: 3) asSymbol.
+    ^ 0.
+  ) 
+
+  assert: block = (
+    block value ifFalse: [
+      self error: 'Assertion Failed'
+    ]
+  )
+
+  assert: block message: msg = (
+    block value ifFalse: [
+      self error: ('Assertion Failed: ' + msg)
+    ]
+  )
+)
