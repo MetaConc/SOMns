@@ -275,10 +275,18 @@ public class EventualSendNode extends ExprWithTagsNode {
           false, false, source);
       SResolver resolver = SPromise.createResolver(result);
 
-      DirectMessage msg = new DirectMessage(current, selector, args, current,
-          resolver, onReceive, current.getCurrentMessage().messageId,
-          messageReceiverBreakpoint.executeShouldHalt(),
-          promiseResolverBreakpoint.executeShouldHalt());
+      DirectMessage msg;
+      if(VmSettings.TIME_TRAVELLING) {
+        msg = new DirectMessage(current, selector, args, current,
+            resolver, onReceive, current.getCurrentMessage().messageId,
+            messageReceiverBreakpoint.executeShouldHalt(),
+            promiseResolverBreakpoint.executeShouldHalt());
+      } else {
+        msg = new DirectMessage(current, selector, args, current,
+            resolver, onReceive, -1,
+            messageReceiverBreakpoint.executeShouldHalt(),
+            promiseResolverBreakpoint.executeShouldHalt());
+      }
 
       if (VmSettings.ACTOR_TRACING) {
         ActorExecutionTrace.sendOperation(SendOp.ACTOR_MSG, msg.getMessageId(), current.getId());
@@ -308,10 +316,18 @@ public class EventualSendNode extends ExprWithTagsNode {
     public final Object toNearRefWithoutResultPromise(final Object[] args) {
       Actor current = EventualMessage.getActorCurrentMessageIsExecutionOn();
 
-      DirectMessage msg = new DirectMessage(current, selector, args, current,
-          null, onReceive, current.getCurrentMessage().messageId,
-          messageReceiverBreakpoint.executeShouldHalt(),
-          promiseResolverBreakpoint.executeShouldHalt());
+      DirectMessage msg;
+      if(VmSettings.TIME_TRAVELLING) {
+        msg = new DirectMessage(current, selector, args, current,
+            null, onReceive, current.getCurrentMessage().messageId,
+            messageReceiverBreakpoint.executeShouldHalt(),
+            promiseResolverBreakpoint.executeShouldHalt());
+      } else {
+        msg = new DirectMessage(current, selector, args, current,
+            null, onReceive, -1,
+            messageReceiverBreakpoint.executeShouldHalt(),
+            promiseResolverBreakpoint.executeShouldHalt());
+      }
 
       if (VmSettings.ACTOR_TRACING) {
         ActorExecutionTrace.sendOperation(SendOp.ACTOR_MSG, msg.getMessageId(), current.getId());
