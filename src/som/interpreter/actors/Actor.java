@@ -189,6 +189,13 @@ public class Actor implements Activity {
     mailboxExtension.append(msg);
   }
 
+  public EventualMessage getCurrentMessage() {
+    Thread t = Thread.currentThread();
+    assert(t instanceof ActorProcessingThread);
+    ActorProcessingThread thread = (ActorProcessingThread) t;
+    return thread.currentMessage;
+  }
+
   /**
    * Is scheduled on the fork/join pool and executes messages for a specific
    * actor.
@@ -265,7 +272,7 @@ public class Actor implements Activity {
         if (VmSettings.ACTOR_TRACING) {
           ActorExecutionTrace.scopeStart(DynamicScopeType.TURN, msg.getMessageId(),
               msg.getTargetSourceSection());
-          ActorExecutionTrace.recordArguments(msg.getSelector(), msg.getMessageId());
+          ActorExecutionTrace.recordArguments(msg.getSelector(), msg.getMessageId(), msg.getSender().getId(), msg.getSendingTurnId());
         }
         if (VmSettings.TIME_TRAVELLING_RECORDING) {
           msg.storeTurnInDb();

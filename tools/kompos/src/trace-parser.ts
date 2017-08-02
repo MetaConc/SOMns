@@ -196,9 +196,11 @@ export class TraceParser {
       // only one marker for arguments, we don't need to reread it
       const messageId = this.readLong(data, i+1);
       const methodId = data.getInt16(i+9);
-      this.execData.addArguments(new Arguments(messageId, this.execData.getSymbol(methodId)));    
+      const sendingActorId = this.readLong(data, i+11);
+      const sendingTurnId = this.readLong(data, i+19);
+      this.execData.addArguments(new Arguments(messageId, this.execData.getSymbol(methodId), sendingActorId, sendingTurnId));    
 
-      return i + 11;
+      return i + 27;
   }
 
   public parseTrace(data: DataView) {

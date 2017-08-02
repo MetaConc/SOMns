@@ -350,9 +350,9 @@ public class ActorExecutionTrace {
     }
   }
 
-  public static void recordArguments(final SSymbol methodName, final long messageId) {
+  public static void recordArguments(final SSymbol methodName, final long messageId, final long sendingActorId, final long sendingTurnId) {
     TracingActivityThread t = getThread();
-    t.getBuffer().recordArguments(methodName, messageId);
+    t.getBuffer().recordArguments(methodName, messageId, sendingActorId, sendingTurnId);
   }
 
   private static class TraceWorkerThread extends Thread {

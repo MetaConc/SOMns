@@ -154,12 +154,13 @@ export class TurnNode {
   private readonly count: number;
   public  readonly x:     number;
   public  readonly y:     number;
-  public previous: TurnNode;
-  public next: TurnNode;
+  public previous: TurnNode; // chronologically previous turn, previous turn executed by this actor
+  public next: TurnNode; // chronologically next turn, next turn executed by this actor
+
   private readonly visualization:  d3.Selection<SVGElement>;
   private popover:        JQuery;
 
-  constructor(actor: ActorHeading, message: EmptyMessage) {
+  constructor(actor: ActorHeading, message: EmptyMessage, _args: Arguments) {
     this.actor = actor;
     this.incoming = message; // possible no message
     this.outgoing = [];
@@ -284,7 +285,7 @@ export class TurnNode {
     circle.attr({
       "data-toggle"   : "popover",
       "data-trigger"  : "click",
-      "title"         : this.incoming.getText(),
+      "title"         : this.incoming.getText() + " " + this.incoming.getMessageId(),
       "animation"     : "false",
       "data-html"     : "true",
       "data-animation": "false",
@@ -308,6 +309,7 @@ export class TurnNode {
       e.stopImmediatePropagation();
       const actorId = e.currentTarget.attributes["data-actor-id"].value;
       const turnId = e.currentTarget.attributes["data-message-id"].value;
+      dbgLog(turnId);
       ProcessView.timeDbg.timeTravel(
         processView.actors[actorId].getTurn(turnId));
     });
@@ -352,7 +354,7 @@ export class Message extends EmptyMessage {
     this.sendOp = sendOp;
     this.sender = senderTurn;
     this.text = args.methodName;
-    this.target = new TurnNode(targetActor, this);
+    this.target = new TurnNode(targetActor, this, args);
 
     this.messageToSelf = senderActor === targetActor;
     this.order = this.sender.addMessage(this);
@@ -572,7 +574,8 @@ export class ProcessView {
         const senderActor = this.actors[msg.creationActivity.id];
         const targetActor = this.actors[(<Activity> msg.target).id];
         if(messageId == 0){ // start message
-          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage()), {messageId: 0, methodName: "start"});
+          const args = {messageId: 0, methodName: "start", sendingActorId: 0, sendingTurnId: -1};
+          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage(), args), args);
           return;
         }
         var rawMessage = new RawMessage(messageId, senderActor, msg.turnId, msg);
@@ -629,16 +632,16 @@ export class ProcessView {
   class RawMessage {
     public messageId: number;
     private senderActor: ActorHeading;
-    private turnId: number;
+    private sendingTurnId: number;
     private targetActor: ActorHeading;
     private arguments: Arguments;
     private sendOp: SendOp;
 
-    constructor(messageId: number, senderActor: ActorHeading, turnId: number, sendOp: SendOp) {
+    constructor(messageId: number, senderActor: ActorHeading, sendingTurnId: number, sendOp: SendOp) {
       this.messageId = messageId;
       this.senderActor = senderActor;
       this.sendOp = sendOp;
-      this.turnId = turnId;
+      this.sendingTurnId = sendingTurnId;
     }
 
     setTarget(targetActor: ActorHeading) {
@@ -659,14 +662,16 @@ export class ProcessView {
       // all information of the message is available. 
       if(this.targetActor != null && this.arguments != null) {
         delete data.rawMessages[this.messageId];
-        const sendingTurn = this.senderActor.getTurn(this.turnId);
+        const sendingTurn = this.senderActor.getTurn(this.sendingTurnId);
+        dbgLog("current: actor: " + this.senderActor.getActivityId() + " " + this.sendingTurnId);
+        dbgLog("new: actor: " + args.sendingActorId + " " + args.sendingTurnId);
         if(sendingTurn == null){
             // sending turn is not drawn yet
-            const messageWaitingForTurn = data.eagerMessages[this.turnId];
+            const messageWaitingForTurn = data.eagerMessages[this.sendingTurnId];
 
             // add it to the list of message waiting for this turn, if list does not exist create it
             if(messageWaitingForTurn==null){
-              data.eagerMessages[this.turnId]=[this];
+              data.eagerMessages[this.sendingTurnId]=[this];
             } else {
               messageWaitingForTurn.push(this);
             }

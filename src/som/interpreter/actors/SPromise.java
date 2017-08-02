@@ -201,7 +201,7 @@ public class SPromise extends SObjectWithClass {
     // msgs to the promise
 
     assert owner != null;
-    msg.resolve(result, owner, current);
+    msg.resolve(result, owner, current, current.getCurrentMessage().messageId);
 
     // update the message flag for the message breakpoint at receiver side
     msg.setIsMessageReceiverBreakpoint(isBreakpointOnPromiseResolution);

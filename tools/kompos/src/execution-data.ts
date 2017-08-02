@@ -545,9 +545,13 @@ export class ExecutionData {
 export class Arguments {
   public messageId:        number;
   public methodName:       string;
+  public sendingActorId:   number;
+  public sendingTurnId:    number;
 
-  constructor(messageId: number, methodName: string) {
+  constructor(messageId: number, methodName: string, sendingActorId: number, sendingTurnId: number) {
     this.messageId = messageId;
     this.methodName = methodName;
+    this.sendingActorId = sendingActorId;
+    this.sendingTurnId = sendingTurnId;
   }
 }

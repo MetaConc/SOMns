@@ -255,12 +255,14 @@ public class TraceBuffer {
 
   // method name
   // id of promise to link back to the message
-  public void recordArguments(final SSymbol methodName, final long messageId) {
-    int requiredSpace = 11;
+  public void recordArguments(final SSymbol methodName, final long messageId, final long sendingActorId, final long sendingTurnId) {
+    int requiredSpace = 27;
     final int start = storage.position();
     storage.put(Marker.ARGUMENTS);
     storage.putLong(messageId);
     storage.putShort(methodName.getSymbolId());
+    storage.putLong(sendingActorId);
+    storage.putLong(sendingTurnId);
     assert storage.position() == start + requiredSpace;
   }
 
