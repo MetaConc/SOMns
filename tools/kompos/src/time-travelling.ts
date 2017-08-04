@@ -44,7 +44,6 @@ export class TimeTravellingDebugger {
 	}
 
 	public step(_act: Activity, step: string) {
-		dbgLog("called step: " + step);
 		switch(step) { 
 			case "stepOver": { 
 				this.frameIdx++;

@@ -2,7 +2,6 @@
 */
 import * as d3 from "d3";
 import { IdMap } from "./messages";
-import { dbgLog } from "./source";
 import { getEntityId, nodeFromTemplate} from "./view";
 import { Activity, TraceDataUpdate, SendOp , DynamicScope, Arguments} from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
@@ -309,7 +308,6 @@ export class TurnNode {
       e.stopImmediatePropagation();
       const actorId = e.currentTarget.attributes["data-actor-id"].value;
       const turnId = e.currentTarget.attributes["data-message-id"].value;
-      dbgLog(turnId);
       ProcessView.timeDbg.timeTravel(
         processView.actors[actorId].getTurn(turnId));
     });
@@ -466,10 +464,7 @@ export class Message extends EmptyMessage {
       .attr("width", markerSize)
       .style("fill", this.target.getColor())
       .style("stroke", "black")
-      .style("visibility", this.visibility)
-      .on("click", function() {
-        dbgLog("clicked marker");
-      });
+      .style("visibility", this.visibility);
   }
 
   private drawMessageToSelf() {
