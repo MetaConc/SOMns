@@ -34,6 +34,11 @@ import som.vm.Symbols;
 import som.vm.constants.Classes;
 import som.vm.constants.Nil;
 import som.vmobjects.SAbstractObject;
+import som.vmobjects.SArray;
+import som.vmobjects.SArray.PartiallyEmptyArray;
+import som.vmobjects.SArray.SImmutableArray;
+import som.vmobjects.SArray.SMutableArray;
+import som.vmobjects.SArray.STransferArray;
 import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
 import som.vmobjects.SObject;
@@ -92,7 +97,14 @@ public final class Database {
     Double,
     Boolean,
     String,
-    SClass;
+    SClass,
+    Array;
+  }
+
+  private enum ArrayType {
+    mutable,
+    immutable,
+    transfer;
   }
 
   private Object getIdFromStatementResult(final Value value) {
@@ -354,6 +366,74 @@ public final class Database {
     }
   }
 
+  private Object storeSArray(final Session session, final SArray array) {
+    Object parentRef;
+    ArrayType type;
+
+    //TODO here
+    if(array instanceof STransferArray) {
+      type = ArrayType.transfer;
+    } else if (array instanceof SMutableArray) {
+      type = ArrayType.mutable;
+    } else if (array instanceof SImmutableArray) {
+      type = ArrayType.immutable;
+    } else {
+      throw new RuntimeException("unexpected array type while storing");
+    }
+
+    if(array.isEmptyType()){
+      parentRef = storeSArrayHeader(session, (int) array.getStoragePlain(), type);
+    } else if(array.isBooleanType()) {
+      boolean[] storage = (boolean[]) array.getStoragePlain();
+      parentRef = storeSArrayHeader(session, storage.length, type);
+      for (int i = 0; i < storage.length; i++) {
+        storeSArrayElem(session, parentRef, i, storage[i]);
+      }
+    } else if(array.isDoubleType()) {
+      double[] storage = (double[]) array.getStoragePlain();
+      parentRef = storeSArrayHeader(session, storage.length, type);
+      for (int i = 0; i < storage.length; i++) {
+        storeSArrayElem(session, parentRef, i, storage[i]);
+      }
+    } else if(array.isLongType()) {
+      long[] storage = (long[]) array.getStoragePlain();
+      parentRef = storeSArrayHeader(session, storage.length, type);
+      for (int i = 0; i < storage.length; i++) {
+        storeSArrayElem(session, parentRef, i, storage[i]);
+      }
+    } else if(array.isPartiallyEmptyType()) {
+      Object[] storage = ((PartiallyEmptyArray) array.getStoragePlain()).getStorage();
+      parentRef = storeSArrayHeader(session, storage.length, type);
+      for (int i = 0; i < storage.length; i++) {
+        storeSArrayElem(session, parentRef, i, storage[i]);
+      }
+    } else if(array.isObjectType()) {
+      Object[] storage = (Object[]) array.getStoragePlain();
+      parentRef = storeSArrayHeader(session, storage.length, type);
+      for (int i = 0; i < storage.length; i++) {
+        storeSArrayElem(session, parentRef, i, storage[i]);
+      }
+    } else {
+      throw new RuntimeException("unexpected array value type while storing");
+    }
+    return parentRef;
+  }
+
+  private Object storeSArrayHeader(final Session session, final int length, final ArrayType arrayType){
+    StatementResult result = session.run(
+        "CREATE (arrayHeader: SArray {length: {length}, type: {type}, arrayType: {arrayType}}) return arrayHeader",
+        parameters("length", length, "type", SomValueType.Array.name(), "arrayType", arrayType.name()));
+    return getIdFromStatementResult(result.single().get("arrayHeader"));
+  }
+
+  private void storeSArrayElem(final Session session, final Object parentId, final int arrayIdx, final Object arrayElem) {
+    Object ref = storeValue(session, arrayElem);
+    session.run(
+        "MATCH (parent) where ID(parent)={parentId}"
+            + " MATCH (elem) where ID(elem) = {elemRef}"
+            + "CREATE (elem) - [:ARRAY_ELEM {idx: {idx}}] -> (parent)",
+            parameters("parentId", parentId, "elemRef", ref, "idx", arrayIdx));
+  }
   /*
    * Store value and return database ref to object
    */
@@ -385,8 +465,11 @@ public final class Database {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Boolean.name()));
     } else if (value instanceof String) {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.String.name()));
+    } else if (value instanceof SArray) {
+      SArray array = (SArray) value;
+      return storeSArray(session, array);
     } else {
-      throw new RuntimeException("unexpected argument type while storing " + value.getClass());
+      throw new RuntimeException("unexpected value type while storing " + value.getClass());
     }
     return getIdFromStatementResult(result.single().get("value"));
   }
@@ -516,7 +599,7 @@ public final class Database {
   private SResolver readSResolver(final Session session, final Node resolverNode) {
     StatementResult result = session.run("MATCH (resolver: SResolver) where ID(resolver)={resolverId} "
         + " MATCH (resolver) - [:RESOLVER_OF]->(promise:SPromise) RETURN promise",
-       parameters("resolverId", resolverNode.id()));
+        parameters("resolverId", resolverNode.id()));
     SPromise promise = readSPromise(result.single().get("promise").asNode());
     return SPromise.createResolver(promise);
   }
@@ -606,6 +689,34 @@ public final class Database {
     }
   }
 
+  private SArray readArray(final Session session, final Node node) {
+    int length = node.get("length").asInt();
+    ArrayType arrayType = ArrayType.valueOf(node.get("arrayType").asString());
+    Object[] storage = new Object[length];
+    fillArray(session, node.id(), storage);
+    switch(arrayType) {
+      case transfer:
+        return new STransferArray(storage, Classes.transferArrayClass);
+      case mutable:
+        return new SMutableArray(storage, Classes.valueArrayClass);
+      case immutable:
+        return new SImmutableArray(storage, Classes.arrayClass);
+      default:
+        throw new RuntimeException("unexpected array type while reading: " + arrayType.name());
+    }
+  }
+
+  private void fillArray(final Session session, final Object arrayRef, final Object[] array) {
+    StatementResult result = session.run("MATCH (array: SArray) where ID(array)={arrayRef} MATCH (arrayElem) - [idx:ARRAY_ELEM]-> (array) return arrayElem, idx",
+        parameters("arrayRef", arrayRef));
+    List<Record> recordList = result.list();
+    for (Record record : recordList) {
+      Object arrayElement = readValue(session, record.get("arrayElem"));
+      int idx = record.get("idx").get("idx").asInt();
+      array[idx] = arrayElement;
+    }
+  }
+
   private Object readValue(final Session session, final Value value) {
     SomValueType type = SomValueType.valueOf(value.get("type").asString());
     switch(type){
@@ -614,7 +725,7 @@ public final class Database {
       case SPromise:
         return readSPromise(value.asNode());
       case SResolver:
-         return readSResolver(session, value.asNode());
+        return readSResolver(session, value.asNode());
       case SAbstractObject:
         return readSObject(session, value.asNode());
       case SClass:
@@ -627,8 +738,10 @@ public final class Database {
         return value.get("value").asBoolean();
       case String:
         return value.get("value").asString();
+      case Array:
+        return readArray(session, value.asNode());
       default:
-        throw new RuntimeException("unexpected value typ;e while reading: " + type.name());
+        throw new RuntimeException("unexpected value type while reading: " + type.name());
     }
   }
 }
