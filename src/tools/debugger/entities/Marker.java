@@ -34,5 +34,5 @@ public class Marker {
   public static final byte IMPL_THREAD_CURRENT_ACTIVITY = 21;
 
   public static final byte PROMISE_MSG_SEND     = 22;
-  public static final byte ARGUMENTS     = 23;
+  public static final byte TURN_INFO     = 23;
 }

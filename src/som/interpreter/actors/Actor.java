@@ -272,7 +272,7 @@ public class Actor implements Activity {
         if (VmSettings.ACTOR_TRACING) {
           ActorExecutionTrace.scopeStart(DynamicScopeType.TURN, msg.getMessageId(),
               msg.getTargetSourceSection());
-          ActorExecutionTrace.recordArguments(msg.getSelector(), msg.getMessageId(), msg.getSendingActorId(), msg.getSendingTurnId());
+          ActorExecutionTrace.recordTurn(msg.getSelector(), msg.getMessageId(), msg.getSendingActorId(), msg.getSendingTurnId());
         }
         if (VmSettings.TIME_TRAVELLING_RECORDING) {
           msg.storeTurnInDb();

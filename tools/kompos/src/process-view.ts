@@ -3,7 +3,7 @@
 import * as d3 from "d3";
 import { IdMap } from "./messages";
 import { getEntityId, nodeFromTemplate} from "./view";
-import { Activity, TraceDataUpdate, SendOp , DynamicScope, Arguments} from "./execution-data";
+import { Activity, TraceDataUpdate, SendOp , DynamicScope, TurnInfo} from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
 //import { getLightTangoColor, PADDING } from "./system-view"; // TODO after thesis: uncomment line
 import { PADDING } from "./system-view"; // TODO after thesis: remove line
@@ -159,7 +159,7 @@ export class TurnNode {
   private readonly visualization:  d3.Selection<SVGElement>;
   private popover:        JQuery;
 
-  constructor(actor: ActorHeading, message: EmptyMessage, _args: Arguments) {
+  constructor(actor: ActorHeading, message: EmptyMessage) {
     this.actor = actor;
     this.incoming = message; // possible no message
     this.outgoing = [];
@@ -347,12 +347,12 @@ export class Message extends EmptyMessage {
   private readonly sendOp: SendOp;
 
   constructor(senderActor: ActorHeading, targetActor: ActorHeading,
-      sendOp: SendOp, senderTurn: TurnNode, args: Arguments) {
+      sendOp: SendOp, senderTurn: TurnNode, turnInfo: TurnInfo) {
     super();
     this.sendOp = sendOp;
     this.sender = senderTurn;
-    this.text = args.methodName;
-    this.target = new TurnNode(targetActor, this, args);
+    this.text = turnInfo.methodName;
+    this.target = new TurnNode(targetActor, this);
 
     this.messageToSelf = senderActor === targetActor;
     this.order = this.sender.addMessage(this);
@@ -502,7 +502,7 @@ export class ProcessView {
   public static timeDbg:      TimeTravellingDebugger;
   public actors:              IdMap<ActorHeading>; 
   public scopes:              IdMap<DynamicScope>; // received scopes
-  public arguments:           IdMap<Arguments>;
+  public turnInfos:           IdMap<TurnInfo>;
   public rawMessages:         IdMap<RawMessage>; // we don't have full information of these messages, we miss the receiver or the arguments
   public eagerMessages:       IdMap<RawMessage[]>; // message who arrived before all the data of the turn they where send in.
   
@@ -524,7 +524,7 @@ export class ProcessView {
     this.scopes = {};
     this.numActors = 0;
     this.rawMessages = {};
-    this.arguments = {};
+    this.turnInfos = {};
     this.eagerMessages = {};
 
     processView = this;
@@ -535,7 +535,7 @@ export class ProcessView {
     this.actors = {};
     this.scopes = {};
     this.rawMessages = {};
-    this.arguments = {};
+    this.turnInfos = {};
     this.eagerMessages = {};
     svgContainer.selectAll("*").remove();
   }
@@ -548,7 +548,7 @@ export class ProcessView {
     this.newActivities(data.activities);
     this.newMessages(data.sendOps);
     this.newScopes(data.scopes);
-    this.newArguments(data.arguments);
+    this.newTurns(data.turnInfos);
   }
 
   private newActivities(newActivities: Activity[]) {
@@ -569,8 +569,8 @@ export class ProcessView {
         const targetActor = this.actors[(<Activity> msg.target).id];
         if(messageId == 0){ // start message
           const senderActor = this.actors[msg.creationActivity.id];
-          const args = {messageId: 0, methodName: "start", sendingActorId: 0, sendingTurnId: -1};
-          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage(), args), args);
+          const turnInfo = {messageId: 0, methodName: "start", sendingActorId: 0, sendingTurnId: -1};
+          new Message(senderActor, targetActor, msg, new TurnNode(senderActor, new EmptyMessage()), turnInfo);
           return;
         }
         var rawMessage = new RawMessage(messageId, msg);
@@ -598,10 +598,10 @@ export class ProcessView {
     }
   }
 
-  private newArguments(args: Arguments[]) {
-    for (const arg of args){
-      this.arguments[arg.messageId]=arg;
-      const msg = this.rawMessages[arg.messageId];
+  private newTurns(tInfos: TurnInfo[]) {
+    for (const turnInfo of tInfos){
+      this.turnInfos[turnInfo.messageId]=turnInfo;
+      const msg = this.rawMessages[turnInfo.messageId];
       if(msg!=null){
         msg.resolve(this);
       } 
@@ -627,7 +627,7 @@ export class ProcessView {
   class RawMessage {
     public messageId: number;
     private targetActor: ActorHeading;
-    private arguments: Arguments;
+    private turnInfos: TurnInfo;
     private sendOp: SendOp;
 
     constructor(messageId: number, sendOp: SendOp) {
@@ -645,29 +645,29 @@ export class ProcessView {
         delete data.scopes[this.messageId];
         this.targetActor = data.actors[(<Activity> scope.creationActivity).id];
       }
-      const args = data.arguments[this.messageId];
-      if(args != null){
-        delete data.arguments[this.messageId];
-        this.arguments = args;
+      const turnInfo = data.turnInfos[this.messageId];
+      if(turnInfo != null){
+        delete data.turnInfos[this.messageId];
+        this.turnInfos = turnInfo;
       }    
       // all information of the message is available. 
-      if(this.targetActor != null && this.arguments != null) {
+      if(this.targetActor != null && this.turnInfos != null) {
         delete data.rawMessages[this.messageId];
-        const senderActor = data.actors[this.arguments.sendingActorId];
-        const sendingTurn = senderActor.getTurn(this.arguments.sendingTurnId);
+        const senderActor = data.actors[this.turnInfos.sendingActorId];
+        const sendingTurn = senderActor.getTurn(this.turnInfos.sendingTurnId);
         
         if(sendingTurn == null){
             // sending turn is not drawn yet
-            const messageWaitingForTurn = data.eagerMessages[this.arguments.sendingTurnId];
+            const messageWaitingForTurn = data.eagerMessages[this.turnInfos.sendingTurnId];
 
             // add it to the list of message waiting for this turn, if list does not exist create it
             if(messageWaitingForTurn==null){
-              data.eagerMessages[this.arguments.sendingTurnId]=[this];
+              data.eagerMessages[this.turnInfos.sendingTurnId]=[this];
             } else {
               messageWaitingForTurn.push(this);
             }
         }
-        new Message(senderActor, this.targetActor, this.sendOp, sendingTurn, this.arguments);
+        new Message(senderActor, this.targetActor, this.sendOp, sendingTurn, this.turnInfos);
 
         // my turn is now drawn, all message waiting for me can be resolved, afterwards delete the list
         const messagesWaitingForMe = data.eagerMessages[this.messageId];

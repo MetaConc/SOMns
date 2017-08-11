@@ -211,8 +211,6 @@ public final class Database {
     storeArgument(session, messageRef, 1, target); // promise callback message have 2 arguments: callback and the value which resolved the promise
   }
 
-
-
   private Object storeSClass(final Session session, final SClass sClass) {
     DatabaseInfo info = sClass.getDatabaseInfo();
     info.getLock();
@@ -480,7 +478,7 @@ public final class Database {
     PromiseCallbackMessage msg = new PromiseCallbackMessage(owner, callback, resolver, onReceive, true, false, promiseRegisteredOn);
 
     Object resolution = readCallbackResolution(session, causalMessageId);
-    msg.resolve(resolution, timeTravelingActor, absorbingActor, -1, -1);
+    msg.resolve(resolution, timeTravelingActor, absorbingActor, 0, 0);
     return msg;
   }
 
@@ -590,7 +588,7 @@ public final class Database {
         return Classes.nilClass;
       }
       SClass outer = reviveClass(factoryNames, idx + 1);
-      revivedClass = ClassInstantiationNode.instantiate(outer, VM.getTimeTravellingDebugger().getFactory(factoryName));
+      revivedClass = ClassInstantiationNode.instantiate(outer, timeTravellingDebugger.getFactory(factoryName));
       timeTravellingDebugger.reportRevivedSClass(factoryName, revivedClass);
     }
     return revivedClass;

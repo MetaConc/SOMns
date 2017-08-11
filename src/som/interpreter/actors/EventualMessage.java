@@ -41,8 +41,8 @@ public abstract class EventualMessage {
    * Indicates which message caused the turn that send this message.
    * Is necessary to perform time travel stepping operations.
    */
-  protected long sendingActorId = -1;
-  protected long sendingTurnId = -1;
+  protected long sendingActorId = 0;
+  protected long sendingTurnId = 0;
 
   protected EventualMessage(final Object[] args,
       final SResolver resolver, final RootCallTarget onReceive,
@@ -287,7 +287,7 @@ public abstract class EventualMessage {
         final Object[] arguments, final Actor originalSender, final SResolver resolver,
         final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint, final boolean triggerPromiseResolverBreakpoint) {
       return new PromiseSendMessage(selector, arguments, originalSender, resolver, onReceive,
-          -1, -1, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
+          0, 0, triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
     }
 
     @Override
@@ -318,7 +318,7 @@ public abstract class EventualMessage {
     public PromiseCallbackMessage(final Actor owner, final SBlock callback,
         final SResolver resolver, final RootCallTarget onReceive, final boolean triggerMessageReceiverBreakpoint,
         final boolean triggerPromiseResolverBreakpoint, final SPromise promiseRegisteredOn) {
-      super(new Object[] {callback, null}, owner, resolver, onReceive, -1, -1,
+      super(new Object[] {callback, null}, owner, resolver, onReceive, 0, 0,
           triggerMessageReceiverBreakpoint, triggerPromiseResolverBreakpoint);
       this.promise = promiseRegisteredOn;
     }

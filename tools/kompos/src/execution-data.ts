@@ -327,7 +327,7 @@ export class TraceDataUpdate {
   public readonly activities:      Activity[];
   public readonly scopes:          DynamicScope[];
   public readonly passiveEntities: PassiveEntity[];
-  public readonly arguments:       Arguments[];
+  public readonly turnInfos:       TurnInfo[];
 
   public readonly sendOps:    SendOp[];
   public readonly receiveOps: ReceiveOp[];
@@ -336,7 +336,7 @@ export class TraceDataUpdate {
     this.activities = [];
     this.scopes     = [];
     this.passiveEntities = [];
-    this.arguments = [];
+    this.turnInfos = [];
 
     this.sendOps    = [];
     this.receiveOps = [];
@@ -467,8 +467,8 @@ export class ExecutionData {
     this.rawReceives.push(receive);
   }
 
-  public addArguments(args: Arguments) {
-    this.newData.arguments.push(args);
+  public addTurnInfo(turnInfo: TurnInfo) {
+    this.newData.turnInfos.push(turnInfo);
   }
 
   public getNewestDataSinceLastUpdate(): TraceDataUpdate {
@@ -542,7 +542,7 @@ export class ExecutionData {
   }
 }
 
-export class Arguments {
+export class TurnInfo {
   public messageId:        number;
   public methodName:       string;
   public sendingActorId:   number;

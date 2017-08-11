@@ -197,7 +197,7 @@ public class EventualSendNode extends ExprWithTagsNode {
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new DirectMessage(target, selector, args,
-            owner, resolver, onReceive, -1, -1,
+            owner, resolver, onReceive, 0, 0,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }
@@ -222,7 +222,7 @@ public class EventualSendNode extends ExprWithTagsNode {
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new PromiseSendMessage(selector, args,
-            rcvr.getOwner(), resolver, onReceive, -1, -1,
+            rcvr.getOwner(), resolver, onReceive, 0, 0,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }
@@ -287,7 +287,7 @@ public class EventualSendNode extends ExprWithTagsNode {
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new DirectMessage(current, selector, args, current,
-            resolver, onReceive, -1, -1,
+            resolver, onReceive, 0, 0,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }
@@ -329,7 +329,7 @@ public class EventualSendNode extends ExprWithTagsNode {
             promiseResolverBreakpoint.executeShouldHalt());
       } else {
         msg = new DirectMessage(current, selector, args, current,
-            null, onReceive, -1, -1,
+            null, onReceive, 0, 0,
             messageReceiverBreakpoint.executeShouldHalt(),
             promiseResolverBreakpoint.executeShouldHalt());
       }

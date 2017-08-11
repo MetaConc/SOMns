@@ -1,7 +1,7 @@
 import { EntityDef, ActivityType, EntityType, DynamicScopeType,
   PassiveEntityType, SendOpType, ReceiveOpType } from "./messages";
 import { ExecutionData, RawSourceCoordinate, RawActivity, RawScope,
-  RawPassiveEntity, RawSendOp, RawReceiveOp, Arguments } from "./execution-data";
+  RawPassiveEntity, RawSendOp, RawReceiveOp, TurnInfo } from "./execution-data";
 import { KomposMetaModel } from "./meta-model";
 
 enum TraceRecords {
@@ -15,14 +15,14 @@ enum TraceRecords {
   ReceiveOp,
   ImplThread,
   ImplThreadCurrentActivity,
-  Arguments
+  TurnInfo
 }
 
 const SOURCE_SECTION_SIZE = 8;
 
 const IMPL_THREAD_MARKER = 20;
 const IMPL_THREAD_CURRENT_ACTIVITY_MARKER = 21;
-const ARGUMENT_MARKER = 23;
+const TURN_INFO_MARKER = 23;
 
 const RECORD_SIZE = {
   ActivityCreation   : 11 + SOURCE_SECTION_SIZE,
@@ -108,7 +108,7 @@ export class TraceParser {
 
     this.parseTable[IMPL_THREAD_MARKER] = TraceRecords.ImplThread;
     this.parseTable[IMPL_THREAD_CURRENT_ACTIVITY_MARKER] = TraceRecords.ImplThreadCurrentActivity;
-    this.parseTable[ARGUMENT_MARKER] = TraceRecords.Arguments;
+    this.parseTable[TURN_INFO_MARKER] = TraceRecords.TurnInfo;
   }
 
   /** Read a long within JS int range */
@@ -192,13 +192,13 @@ export class TraceParser {
     return i + RECORD_SIZE.ReceiveOp;
   }
 
-  private readArguments(i: number, data: DataView) : number {
-      // only one marker for arguments, we don't need to reread it
+  private readTurn(i: number, data: DataView) : number {
+      // only one marker for turnInfo, we don't need to reread it
       const messageId = this.readLong(data, i+1);
       const methodId = data.getInt16(i+9);
       const sendingActorId = this.readLong(data, i+11);
       const sendingTurnId = this.readLong(data, i+19);
-      this.execData.addArguments(new Arguments(messageId, this.execData.getSymbol(methodId), sendingActorId, sendingTurnId));    
+      this.execData.addTurnInfo(new TurnInfo(messageId, this.execData.getSymbol(methodId), sendingActorId, sendingTurnId));    
 
       return i + 27;
   }
@@ -253,8 +253,8 @@ export class TraceParser {
           i += RECORD_SIZE.ImplThreadCurrentActivity;
           break;
         }
-        case TraceRecords.Arguments: {
-          i = this.readArguments(i, data);
+        case TraceRecords.TurnInfo: {
+          i = this.readTurn(i, data);
           break;
         }
         default:
