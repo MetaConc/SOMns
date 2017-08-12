@@ -245,7 +245,6 @@ public final class Database {
 
   private void storeSObject(final Session session, final SObjectWithClass object) {
     DatabaseInfo info = object.getDatabaseInfo();
-    info.getLock();
     switch(info.getState()) {
       case not_stored:
         storeBaseObject(session, object, info);
@@ -264,7 +263,6 @@ public final class Database {
         storeSlots(session, object);
         break;
     }
-    info.releaseLock();
   }
 
   // Store object (slots) together with class.
@@ -283,17 +281,9 @@ public final class Database {
     storeSlots(session, object);
   }
 
-  // Far reference point to objects, add or find the object in the database, create point to it.
-  // Since far references point to objects in other actors we need locks?.
+  // Far reference point to objects, far references can never be used in the same turn. Do not store the value.
   private Object storeSFarReference(final Session session, final SFarReference farRef) {
-    System.out.println("far ref");
-    final Object val = farRef.getValue();
-    Object targetRef = storeValue(session, val);
-    StatementResult result = session.run(
-        "MATCH (target) where ID(target)={targetId}"
-            + " CREATE (farRef: SFarReference) - [:FAR_REFERENCE_TO]->(target)"
-            + " return farRef",
-            parameters("targetId", targetRef));
+    StatementResult result = session.run("CREATE (farRef: SFarReference) return farRef");
     return getIdFromStatementResult(result.single().get("farRef"));
   }
 
@@ -370,7 +360,6 @@ public final class Database {
     Object parentRef;
     ArrayType type;
 
-    //TODO here
     if(array instanceof STransferArray) {
       type = ArrayType.transfer;
     } else if (array instanceof SMutableArray) {
@@ -628,12 +617,7 @@ public final class Database {
   }
 
   private SFarReference readSFarReference(final Session session, final Node object) {
-    StatementResult result = session.run("MATCH (farRef: SFarReference) where ID(farRef)={farRefId}" +
-        "MATCH (farRef) - [:FAR_REFERENCE_TO]->(target)" +
-        "return target", parameters());
-    Record record = result.single();
-    Object target = readValue(session, record.get("target"));
-    return new SFarReference(absorbingActor, target);
+    return new SFarReference(absorbingActor, 0);
   }
 
   private SClass getClassOfSObject(final Session session, final Object objectId) {
