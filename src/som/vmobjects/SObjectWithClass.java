@@ -64,7 +64,7 @@ public abstract class SObjectWithClass extends SAbstractObject implements Truffl
   }
 
   public void performedWrite() {
-    if (VmSettings.TIME_TRAVELLING) {
+    if (VmSettings.timeTravelling) {
       databaseInfo.performedWrite();
     }
   }

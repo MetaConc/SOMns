@@ -93,11 +93,11 @@ public class ActorExecutionTrace {
   private static TraceWorkerThread workerThread = new TraceWorkerThread();
 
   static {
-    if (VmSettings.MEMORY_TRACING) {
+    if (VmSettings.memoryTracing) {
       setUpGCMonitoring();
     }
 
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
         emptyBuffers.add(ByteBuffer.allocate(BUFFER_SIZE));
       }

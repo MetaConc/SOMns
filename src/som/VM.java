@@ -85,7 +85,7 @@ public final class VM {
   private static final int MAX_THREADS = 0x7fff;
 
   public VM(final VmOptions vmOptions, final boolean avoidExitForTesting) {
-    this.avoidExitForTesting = avoidExitForTesting || VmSettings.TIME_TRAVELLING;
+    this.avoidExitForTesting = avoidExitForTesting || VmSettings.timeTravelling;
 
     options = vmOptions;
 
@@ -265,7 +265,7 @@ public final class VM {
       code = 1;
     }
     engine.dispose();
-    if (VmSettings.MEMORY_TRACING) {
+    if (VmSettings.memoryTracing) {
       ActorExecutionTrace.reportPeakMemoryUsage();
     }
     System.exit(code);
@@ -354,7 +354,7 @@ public final class VM {
     mainActor = Actor.createActor(this);
     vmMirror  = objectSystem.initialize();
 
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       ActorExecutionTrace.recordMainActor(mainActor, objectSystem);
     }
   }
@@ -413,12 +413,13 @@ public final class VM {
       Instrument webDebuggerInst = instruments.get(WebDebugger.ID);
       webDebuggerInst.setEnabled(true);
 
-      if (VmSettings.TIME_TRAVELLING) {
-        timeTravellingDebugger = new TimeTravellingDebugger(this);
-        Database.instantiateDatabase(this, timeTravellingDebugger);
-      }
       webDebugger = webDebuggerInst.lookup(WebDebugger.class);
       webDebugger.startServer(debugger, this);
+    }
+
+    if (VmSettings.timeTravelling) {
+      timeTravellingDebugger = new TimeTravellingDebugger(this);
+      Database.instantiateDatabase(this, timeTravellingDebugger);
     }
 
     if (options.coverageEnabled) {

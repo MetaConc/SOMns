@@ -35,7 +35,7 @@ public class SPromise extends SObjectWithClass {
     if (VmSettings.REPLAY) {
       return new SReplayPromise(owner, triggerPromiseResolutionBreakpoint,
           triggerExplicitPromiseResolverBreakpoint, explicitPromise, section);
-    } else if (VmSettings.PROMISE_CREATION) {
+    } else if (VmSettings.promiseCreation) {
       return new STracingPromise(owner, triggerPromiseResolutionBreakpoint,
           triggerExplicitPromiseResolverBreakpoint, explicitPromise, section);
     } else {
@@ -146,7 +146,7 @@ public class SPromise extends SObjectWithClass {
     SPromise remote = SPromise.createPromise(target,
         triggerPromiseResolutionBreakpoint,
         triggerExplicitPromiseResolverBreakpoint, explicitPromise, null);
-    if (VmSettings.PROMISE_RESOLUTION) {
+    if (VmSettings.promiseResolution) {
       ActorExecutionTrace.promiseChained(getPromiseId(), remote.getPromiseId());
     }
     if (isCompleted()) {
@@ -403,7 +403,7 @@ public class SPromise extends SObjectWithClass {
         final boolean isBreakpointOnPromiseResolution) {
       assert !(result instanceof SPromise);
 
-      if (VmSettings.PROMISE_RESOLUTION) {
+      if (VmSettings.promiseResolution) {
         if (VmSettings.REPLAY) {
           // Promises resolved by the TimerPrim will appear as if they have been resolved by the main actor.
           if (TimerPrim.isTimerThread(Thread.currentThread())) {

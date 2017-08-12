@@ -360,7 +360,7 @@ public final class Database {
     Object parentRef;
     ArrayType type;
 
-    if(array instanceof STransferArray) {
+    if (array instanceof STransferArray) {
       type = ArrayType.transfer;
     } else if (array instanceof SMutableArray) {
       type = ArrayType.mutable;
@@ -370,33 +370,33 @@ public final class Database {
       throw new RuntimeException("unexpected array type while storing");
     }
 
-    if(array.isEmptyType()){
+    if (array.isEmptyType()) {
       parentRef = storeSArrayHeader(session, (int) array.getStoragePlain(), type);
-    } else if(array.isBooleanType()) {
+    } else if (array.isBooleanType()) {
       boolean[] storage = (boolean[]) array.getStoragePlain();
       parentRef = storeSArrayHeader(session, storage.length, type);
       for (int i = 0; i < storage.length; i++) {
         storeSArrayElem(session, parentRef, i, storage[i]);
       }
-    } else if(array.isDoubleType()) {
+    } else if (array.isDoubleType()) {
       double[] storage = (double[]) array.getStoragePlain();
       parentRef = storeSArrayHeader(session, storage.length, type);
       for (int i = 0; i < storage.length; i++) {
         storeSArrayElem(session, parentRef, i, storage[i]);
       }
-    } else if(array.isLongType()) {
+    } else if (array.isLongType()) {
       long[] storage = (long[]) array.getStoragePlain();
       parentRef = storeSArrayHeader(session, storage.length, type);
       for (int i = 0; i < storage.length; i++) {
         storeSArrayElem(session, parentRef, i, storage[i]);
       }
-    } else if(array.isPartiallyEmptyType()) {
+    } else if (array.isPartiallyEmptyType()) {
       Object[] storage = ((PartiallyEmptyArray) array.getStoragePlain()).getStorage();
       parentRef = storeSArrayHeader(session, storage.length, type);
       for (int i = 0; i < storage.length; i++) {
         storeSArrayElem(session, parentRef, i, storage[i]);
       }
-    } else if(array.isObjectType()) {
+    } else if (array.isObjectType()) {
       Object[] storage = (Object[]) array.getStoragePlain();
       parentRef = storeSArrayHeader(session, storage.length, type);
       for (int i = 0; i < storage.length; i++) {
@@ -408,7 +408,7 @@ public final class Database {
     return parentRef;
   }
 
-  private Object storeSArrayHeader(final Session session, final int length, final ArrayType arrayType){
+  private Object storeSArrayHeader(final Session session, final int length, final ArrayType arrayType) {
     StatementResult result = session.run(
         "CREATE (arrayHeader: SArray {length: {length}, type: {type}, arrayType: {arrayType}}) return arrayHeader",
         parameters("length", length, "type", SomValueType.Array.name(), "arrayType", arrayType.name()));
@@ -578,7 +578,7 @@ public final class Database {
     final StatementResult result = session.run("MATCH (message) where ID(message)={messageId}"
         + " MATCH (message) - [:HAS_RESOLVER]->(resolver: SResolver) - [:RESOLVER_OF] -> (promise: SPromise) RETURN promise",
         parameters("messageId", messageId));
-    if(result.hasNext()) {
+    if (result.hasNext()) {
       Node promiseNode = result.next().get("promise").asNode();
       return SPromise.createResolver(readSPromise(promiseNode));
     }

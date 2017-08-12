@@ -161,7 +161,7 @@ public abstract class ChannelPrimitives {
       try {
         super.run();
       } finally {
-        assert VmSettings.ACTOR_TRACING;
+        assert VmSettings.actorTracing;
         ActorExecutionTrace.activityCompletion(ActivityType.PROCESS);
       }
     }
@@ -287,7 +287,7 @@ public abstract class ChannelPrimitives {
     public final SChannel newChannel(final Object module) {
       SChannel result = SChannel.create();
 
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         ActorExecutionTrace.passiveEntityCreation(PassiveEntityType.CHANNEL,
             result.getId(), ActorExecutionTrace.getPrimitiveCaller(sourceSection));
       }

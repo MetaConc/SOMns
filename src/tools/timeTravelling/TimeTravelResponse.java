@@ -19,7 +19,7 @@ public class TimeTravelResponse extends OutgoingMessage {
     private ScopesResponse scope;
     private VariablesResponse[] variables;
 
-    public TimeTravelFrame(final StackTraceResponse trace, final ScopesResponse scope, final VariablesResponse[] variables){
+    public TimeTravelFrame(final StackTraceResponse trace, final ScopesResponse scope, final VariablesResponse[] variables) {
       this.stack = trace;
       this.scope = scope;
       this.variables = variables;

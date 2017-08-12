@@ -69,7 +69,7 @@ public abstract class AbstractPromiseResolutionNode extends TernaryExpressionNod
       final boolean isBreakpointOnPromiseResolution) {
     assert resolver.assertNotCompleted();
     SPromise promiseToBeResolved = resolver.getPromise();
-    if (VmSettings.PROMISE_RESOLUTION) {
+    if (VmSettings.promiseResolution) {
       ActorExecutionTrace.promiseChained(promiseValue.getPromiseId(), promiseToBeResolved.getPromiseId());
     }
 

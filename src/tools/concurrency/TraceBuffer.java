@@ -27,7 +27,7 @@ import tools.debugger.entities.SendOp;
 public class TraceBuffer {
 
   public static TraceBuffer create() {
-    assert VmSettings.ACTOR_TRACING;
+    assert VmSettings.actorTracing;
     if (VmSettings.TRUFFLE_DEBUGGER_ENABLED) {
       return new SyncedTraceBuffer();
     } else {

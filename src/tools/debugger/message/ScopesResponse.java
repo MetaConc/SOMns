@@ -89,7 +89,6 @@ public final class ScopesResponse extends Response {
         "Got a " + invokable.getClass().getSimpleName() +
         " here. Means we need to add support";
     }
-    //System.out.println("scopes: " + globalFrameId);
     return new ScopesResponse(globalFrameId, scopes.toArray(new Scope[0]), requestId);
   }
 }

@@ -41,7 +41,7 @@ public abstract class TracingActivityThread extends ForkJoinWorkerThread {
 
   public TracingActivityThread(final ForkJoinPool pool) {
     super(pool);
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       traceBuffer = TraceBuffer.create();
       threadId = threadIdGen.getAndIncrement();
       nextEntityId = 1 + (threadId << TraceData.ENTITY_ID_BITS);
@@ -107,7 +107,7 @@ public abstract class TracingActivityThread extends ForkJoinWorkerThread {
   @Override
   protected void onStart() {
     super.onStart();
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       traceBuffer.init(ActorExecutionTrace.getEmptyBuffer(), threadId);
       ActorExecutionTrace.registerThread(this);
     }
@@ -115,7 +115,7 @@ public abstract class TracingActivityThread extends ForkJoinWorkerThread {
 
   @Override
   protected void onTermination(final Throwable exception) {
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       traceBuffer.returnBuffer();
       ActorExecutionTrace.unregisterThread(this);
     }
@@ -127,7 +127,7 @@ public abstract class TracingActivityThread extends ForkJoinWorkerThread {
   }
 
   public static long newEntityId() {
-    if (VmSettings.ACTOR_TRACING && Thread.currentThread() instanceof TracingActivityThread) {
+    if (VmSettings.actorTracing && Thread.currentThread() instanceof TracingActivityThread) {
       TracingActivityThread t = TracingActivityThread.currentThread();
       return t.generateEntityId();
     } else {

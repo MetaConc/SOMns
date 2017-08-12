@@ -52,7 +52,7 @@ public final class TaskThreads {
           WebDebugger dbg = SomLanguage.getVM(target.getRootNode()).getWebDebugger();
           dbg.prepareSteppingUntilNextRootNode();
         }
-        if (VmSettings.ACTOR_TRACING) {
+        if (VmSettings.actorTracing) {
           ActorExecutionTrace.currentActivity(this);
         }
 

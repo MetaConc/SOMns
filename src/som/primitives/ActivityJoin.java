@@ -47,7 +47,7 @@ public class ActivityJoin {
         haltNode.executeEvaluated(frame, result);
       }
 
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         ActorExecutionTrace.receiveOperation(ReceiveOp.TASK_JOIN, task.getId());
       }
       return result;

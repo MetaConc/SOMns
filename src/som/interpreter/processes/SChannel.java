@@ -14,7 +14,7 @@ import tools.concurrency.TracingChannel.TracingChannelOutput;
 public class SChannel extends SAbstractObject {
 
   public static SChannel create() {
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       return new TracingChannel();
     } else {
       return new SChannel();
@@ -58,7 +58,7 @@ public class SChannel extends SAbstractObject {
   public static class SChannelInput extends SAbstractObject {
     public static SChannelInput create(final SynchronousQueue<Object> cell,
         final SChannel channel) {
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         return new TracingChannelInput(cell, channel);
       } else {
         return new SChannelInput(cell, channel);
@@ -102,7 +102,7 @@ public class SChannel extends SAbstractObject {
   public static class SChannelOutput extends SAbstractObject {
     public static SChannelOutput create(final SynchronousQueue<Object> cell,
         final SChannel channel) {
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         return new TracingChannelOutput(cell, channel);
       } else {
         return new SChannelOutput(cell, channel);

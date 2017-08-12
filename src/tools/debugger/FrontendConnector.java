@@ -253,7 +253,7 @@ public class FrontendConnector {
   }
 
   public void awaitClient() {
-    assert VmSettings.ACTOR_TRACING && VmSettings.TRUFFLE_DEBUGGER_ENABLED;
+    assert VmSettings.actorTracing && VmSettings.TRUFFLE_DEBUGGER_ENABLED;
     assert clientConnected != null;
     assert messageSocket == null && traceSocket == null;
     assert traceHandler.getConnection() != null;
@@ -288,7 +288,7 @@ public class FrontendConnector {
   }
 
   public void sendTracingData() {
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       ActorExecutionTrace.forceSwapBuffers();
     }
   }

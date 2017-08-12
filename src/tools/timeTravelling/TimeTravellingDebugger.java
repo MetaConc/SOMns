@@ -16,7 +16,6 @@ import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
 import som.vmobjects.SSymbol;
 import tools.concurrency.ActorExecutionTrace;
-import tools.debugger.FrontendConnector;
 import tools.debugger.entities.SteppingType;
 import tools.debugger.frontend.Suspension;
 import tools.debugger.message.ScopesResponse;
@@ -43,7 +42,6 @@ public class TimeTravellingDebugger {
 
   /*
    */
-  private FrontendConnector connector;
   private ArrayList<TimeTravelFrame> frames;
 
   public TimeTravellingDebugger(final VM vm) {
@@ -55,21 +53,17 @@ public class TimeTravellingDebugger {
     revivedClasses = new HashMap<SSymbol, SClass>();
   }
 
-  public void setConnector(final FrontendConnector connector) {
-   this.connector = connector;
-  }
-
   public void prepareForTimeTravel() {
     // clear the revivedObjects to not work with the state of the previous session
     revivedObjects = new HashMap<Object, SAbstractObject>();
-    if (VmSettings.TIME_TRAVELLING_RECORDING) {
+    if (VmSettings.timeTravellingRecording) {
       ActorExecutionTrace.forceSwapBuffers();
-      VmSettings.TIME_TRAVELLING_RECORDING = false;
-      VmSettings.ACTOR_TRACING = false;
-      VmSettings.MEMORY_TRACING = false;
-      VmSettings.PROMISE_CREATION = false;
-      VmSettings.PROMISE_RESOLUTION = false;
-      VmSettings.PROMISE_RESOLVED_WITH = false;
+      VmSettings.timeTravellingRecording = false;
+      VmSettings.actorTracing = false;
+      VmSettings.memoryTracing = false;
+      VmSettings.promiseCreation = false;
+      VmSettings.promiseResolution = false;
+      VmSettings.promiseResolvedWith = false;
       vm.getWebDebugger().setStrategy(new TimeTravelStrategy(this));
       }
   }
@@ -148,7 +142,7 @@ public class TimeTravellingDebugger {
   }
 
   public void replayFinished() {
-    if (VmSettings.TIME_TRAVELLING && !VmSettings.TIME_TRAVELLING_RECORDING) {
+    if (VmSettings.timeTravelling && !VmSettings.timeTravellingRecording) {
       // we are time travelling and we have finished recording, a turn is finished => send to front end
       TimeTravelResponse response = new TimeTravelResponse(frames.toArray(new TimeTravelFrame[0]));
       vm.getWebDebugger().sendTimeTravelResponse(response);

@@ -40,7 +40,7 @@ public abstract class CreateActorPrim extends BinaryComplexOperation {
     Actor actor = Actor.createActor(vm);
     SFarReference ref = new SFarReference(actor, argument);
 
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       assert argument instanceof SClass;
       final SClass actorClass = (SClass) argument;
       ActorExecutionTrace.activityCreation(ActivityType.ACTOR, actor.getId(),

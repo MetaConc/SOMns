@@ -49,7 +49,7 @@ public abstract class ActivitySpawn {
   private static SomForkJoinTask createTask(final Object[] argArray,
       final boolean stopOnRoot, final SBlock block, final SourceSection section) {
     SomForkJoinTask task;
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       task = new TracedForkJoinTask(argArray, stopOnRoot);
       ActorExecutionTrace.activityCreation(ActivityType.TASK, task.getId(),
           block.getMethod().getSignature(), section);
@@ -62,7 +62,7 @@ public abstract class ActivitySpawn {
   private static SomThreadTask createThread(final Object[] argArray,
       final boolean stopOnRoot, final SBlock block, final SourceSection section) {
     SomThreadTask thread;
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       thread = new TracedThreadTask(argArray, stopOnRoot);
       ActorExecutionTrace.activityCreation(ActivityType.THREAD, thread.getId(),
           block.getMethod().getSignature(), section);
@@ -74,7 +74,7 @@ public abstract class ActivitySpawn {
 
   private static Process createProcess(final SObjectWithClass obj,
       final SourceSection origin, final boolean stopOnRoot) {
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       TracingProcess result = new TracingProcess(obj, stopOnRoot);
       ActorExecutionTrace.activityCreation(ActivityType.PROCESS,
           result.getId(), result.getProcObject().getSOMClass().getName(), origin);

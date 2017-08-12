@@ -159,7 +159,7 @@ public final class PromisePrims {
 
       PromiseCallbackMessage pcm = new PromiseCallbackMessage(rcvr.getOwner(),
           block, resolver, blockCallTarget, false, promiseResolverBreakpoint.executeShouldHalt(), rcvr);
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         ActorExecutionTrace.sendOperation(SendOp.PROMISE_MSG, pcm.getMessageId(), rcvr.getPromiseId());
       }
       registerNode.register(rcvr, pcm, current);
@@ -221,7 +221,7 @@ public final class PromisePrims {
       PromiseCallbackMessage msg = new PromiseCallbackMessage(rcvr.getOwner(),
           block, resolver, blockCallTarget, false,
           promiseResolverBreakpoint.executeShouldHalt(), rcvr);
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         ActorExecutionTrace.sendOperation(SendOp.PROMISE_MSG, msg.getMessageId(), rcvr.getPromiseId());
       }
       registerNode.register(rcvr, msg, current);
@@ -292,7 +292,7 @@ public final class PromisePrims {
       PromiseCallbackMessage onResolved = new PromiseCallbackMessage(rcvr.getOwner(), resolved, resolver, resolverTarget, false, promiseResolverBreakpoint.executeShouldHalt(), rcvr);
       PromiseCallbackMessage onError    = new PromiseCallbackMessage(rcvr.getOwner(), error,    resolver, errorTarget,    false, promiseResolverBreakpoint.executeShouldHalt(), rcvr);
 
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         ActorExecutionTrace.sendOperation(SendOp.PROMISE_MSG, onResolved.getMessageId(), rcvr.getPromiseId());
         ActorExecutionTrace.sendOperation(SendOp.PROMISE_MSG, onError.getMessageId(), rcvr.getPromiseId());
       }

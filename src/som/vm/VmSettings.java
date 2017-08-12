@@ -10,20 +10,20 @@ public class VmSettings {
   // TODO: revise naming of flags
   public static final boolean FAIL_ON_MISSING_OPTIMIZATIONS;
   public static final boolean DEBUG_MODE;
-  public static boolean ACTOR_TRACING;
-  public static boolean MEMORY_TRACING;
+  public static boolean actorTracing;
+  public static boolean memoryTracing;
   public static final String  TRACE_FILE;
   public static final boolean DISABLE_TRACE_FILE;
   public static final boolean INSTRUMENTATION;
   public static final boolean DYNAMIC_METRICS;
   public static final boolean DNU_PRINT_STACK_TRACE;
   public static final boolean MESSAGE_PARAMETERS;
-  public static boolean PROMISE_CREATION;
-  public static boolean PROMISE_RESOLUTION;
-  public static boolean PROMISE_RESOLVED_WITH;
+  public static boolean promiseCreation;
+  public static boolean promiseResolution;
+  public static boolean promiseResolvedWith;
   public static final boolean REPLAY;
-  public static boolean TIME_TRAVELLING; // is this is time travel run
-  public static boolean TIME_TRAVELLING_RECORDING; // is SOM currently doing the in initial run
+  public static boolean timeTravelling; // is this is time travel run
+  public static boolean timeTravellingRecording; // is SOM currently doing the in initial run
 
   public static final boolean TRUFFLE_DEBUGGER_ENABLED;
 
@@ -44,24 +44,24 @@ public class VmSettings {
     TRUFFLE_DEBUGGER_ENABLED = getBool("som.truffleDebugger", false);
 
     TRACE_FILE      = System.getProperty("som.traceFile", System.getProperty("user.dir") + "/traces/trace");
-    MEMORY_TRACING = getBool("som.memoryTracing",   false);
+    memoryTracing = getBool("som.memoryTracing",   false);
     REPLAY = getBool("som.replay", false);
     DISABLE_TRACE_FILE = getBool("som.disableTraceFile", false) || REPLAY;
-    TIME_TRAVELLING = getBool("som.time_travel", false);
-    TIME_TRAVELLING_RECORDING = TIME_TRAVELLING;
+    timeTravelling = getBool("som.time_travel", false);
+    timeTravellingRecording = timeTravelling;
 
     String atConfig = System.getProperty("som.actorTracingCfg", "");
     List<String> al = Arrays.asList(atConfig.split(":"));
     boolean filter = (al.size() > 0 && !atConfig.isEmpty()) || getBool("som.actorTracing",   false);
 
     MESSAGE_PARAMETERS    = !al.contains("mp") && filter;
-    PROMISE_CREATION      = !al.contains("pc") && filter || TIME_TRAVELLING;
-    PROMISE_RESOLUTION    = PROMISE_CREATION && (!al.contains("pr")) && filter || TIME_TRAVELLING;
-    PROMISE_RESOLVED_WITH = !al.contains("prw") && filter || TIME_TRAVELLING;
+    promiseCreation      = !al.contains("pc") && filter || timeTravelling;
+    promiseResolution    = promiseCreation && (!al.contains("pr")) && filter || timeTravelling;
+    promiseResolvedWith = !al.contains("prw") && filter || timeTravelling;
 
 
-    ACTOR_TRACING = TRUFFLE_DEBUGGER_ENABLED || getBool("som.actorTracing", false) ||
-                    REPLAY || MESSAGE_PARAMETERS || PROMISE_CREATION || TIME_TRAVELLING;
+    actorTracing = TRUFFLE_DEBUGGER_ENABLED || getBool("som.actorTracing", false) ||
+                    REPLAY || MESSAGE_PARAMETERS || promiseCreation || timeTravelling;
 
     boolean dm = getBool("som.dynamicMetrics", false);
     DYNAMIC_METRICS = dm;

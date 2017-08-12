@@ -50,7 +50,7 @@ public class Actor implements Activity {
   public static Actor createActor(final VM vm) {
     if (VmSettings.REPLAY) {
       return new ReplayActor(vm);
-    } else if (VmSettings.ACTOR_TRACING) {
+    } else if (VmSettings.actorTracing) {
       return new TracingActor(vm);
     } else {
       return new Actor(vm);
@@ -191,7 +191,7 @@ public class Actor implements Activity {
 
   public EventualMessage getCurrentMessage() {
     Thread t = Thread.currentThread();
-    assert(t instanceof ActorProcessingThread);
+    assert (t instanceof ActorProcessingThread);
     ActorProcessingThread thread = (ActorProcessingThread) t;
     return thread.currentMessage;
   }
@@ -227,7 +227,7 @@ public class Actor implements Activity {
 
       t.currentlyExecutingActor = actor;
 
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         ActorExecutionTrace.currentActivity(actor);
       }
 
@@ -255,7 +255,7 @@ public class Actor implements Activity {
           }
         }
       } finally {
-        if (VmSettings.ACTOR_TRACING) {
+        if (VmSettings.actorTracing) {
           currentThread.createdMessages += size;
         }
       }
@@ -269,17 +269,17 @@ public class Actor implements Activity {
       }
 
       try {
-        if (VmSettings.ACTOR_TRACING) {
+        if (VmSettings.actorTracing) {
           ActorExecutionTrace.scopeStart(DynamicScopeType.TURN, msg.getMessageId(),
               msg.getTargetSourceSection());
           ActorExecutionTrace.recordTurn(msg.getSelector(), msg.getMessageId(), msg.getSendingActorId(), msg.getSendingTurnId());
         }
-        if (VmSettings.TIME_TRAVELLING_RECORDING) {
+        if (VmSettings.timeTravellingRecording) {
           msg.storeTurnInDb();
         }
         msg.execute();
       } finally {
-        if (VmSettings.ACTOR_TRACING) {
+        if (VmSettings.actorTracing) {
           ActorExecutionTrace.scopeEnd(DynamicScopeType.TURN);
         }
       }
@@ -295,7 +295,7 @@ public class Actor implements Activity {
           assert mailboxExtension == null;
           // complete execution after all messages are processed
           actor.isExecuting = false;
-          if (VmSettings.ACTOR_TRACING) {
+          if (VmSettings.actorTracing) {
             ActorExecutionTrace.clearCurrentActivity(actor);
           }
           size = 0;
@@ -350,7 +350,7 @@ public class Actor implements Activity {
 
     @Override
     protected void onTermination(final Throwable exception) {
-      if (VmSettings.ACTOR_TRACING) {
+      if (VmSettings.actorTracing) {
         long createdEntities = nextEntityId - 1 - (threadId << TraceData.ENTITY_ID_BITS);
 
         VM.printConcurrencyEntitiesReport("[Thread " + threadId + "]\tE#" + createdEntities);
@@ -364,7 +364,7 @@ public class Actor implements Activity {
   }
 
   public static final void reportStats() {
-    if (VmSettings.ACTOR_TRACING) {
+    if (VmSettings.actorTracing) {
       synchronized (statsLock) {
         VM.printConcurrencyEntitiesReport("[Total]\tE#" + numCreatedEntities);
       }
