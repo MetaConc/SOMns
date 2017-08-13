@@ -15,7 +15,6 @@ import som.vmobjects.SBlock;
 import som.vmobjects.SSymbol;
 import tools.concurrency.TracingActivityThread;
 import tools.timeTravelling.Database;
-import tools.timeTravelling.DatabaseInfo;
 
 
 public abstract class EventualMessage {
@@ -36,7 +35,7 @@ public abstract class EventualMessage {
    */
   protected final boolean triggerPromiseResolverBreakpoint;
 
-  protected DatabaseInfo databaseInfo = new DatabaseInfo();
+  protected Object databaseRef;
   /**
    * Indicates which message caused the turn that send this message.
    * Is necessary to perform time travel stepping operations.
@@ -131,7 +130,7 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storeDirectMessage(session, databaseInfo, messageId, selector, args,  resolver, onReceive);
+      database.storeDirectMessage(session, this, messageId, selector, args,  resolver, onReceive);
     }
 
     @Override
@@ -279,8 +278,8 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storePromiseSendMessage(session, messageId, databaseInfo, originalTarget,
-          selector, args, resolver, onReceive);
+      database.storePromiseSendMessage(session, this, messageId,
+          originalTarget, selector, args, resolver, onReceive);
     }
 
     public static PromiseSendMessage createForTimeTravel(final SSymbol selector,
@@ -364,7 +363,7 @@ public abstract class EventualMessage {
 
     @Override
     public void storeInDb(final Database database, final Session session) {
-      database.storePromiseCallbackMessage(session, databaseInfo, messageId, (SBlock) args[0], resolver, onReceive, promise, args[1]);
+      database.storePromiseCallbackMessage(session, this, messageId, (SBlock) args[0], resolver, onReceive, promise, args[1]);
     }
 
     @Override
@@ -439,8 +438,12 @@ public abstract class EventualMessage {
     this.triggerMessageReceiverBreakpoint = triggerBreakpoint;
   }
 
-  public DatabaseInfo getDatabaseInfo() {
-    return databaseInfo;
+  public Object getDatabaseRef() {
+    return databaseRef;
+  }
+
+  public void setDatabaseRef(final Object databaseRef) {
+    this.databaseRef = databaseRef;
   }
 
   // this message needs to be store in the database

@@ -29,6 +29,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
 
@@ -42,6 +44,7 @@ import som.interpreter.nodes.dispatch.Dispatchable;
 import som.interpreter.objectstorage.ClassFactory;
 import som.interpreter.objectstorage.ObjectLayout;
 import som.vm.constants.Classes;
+import tools.timeTravelling.Database;
 
 
 // TODO: should we move more of that out of SClass and use the corresponding
@@ -267,5 +270,9 @@ public final class SClass extends SObjectWithClass {
   @Override
   public String toString() {
     return "Class(" + getName().getString() + ")";
+  }
+
+  public synchronized void storeInDb(final Database database, final Session session) {
+    database.storeSClass(session, this);
   }
 }

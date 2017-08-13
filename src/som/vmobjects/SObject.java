@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
@@ -40,12 +42,16 @@ import som.interpreter.objectstorage.ClassFactory;
 import som.interpreter.objectstorage.ObjectLayout;
 import som.interpreter.objectstorage.StorageLocation;
 import som.interpreter.objectstorage.StorageLocation.AbstractObjectStorageLocation;
+import som.vm.VmSettings;
 import som.vm.constants.Nil;
+import tools.timeTravelling.Database;
 
 public abstract class SObject extends SObjectWithClass {
 
   public static final int NUM_PRIMITIVE_FIELDS = 5;
   public static final int NUM_OBJECT_FIELDS    = 5;
+  private int version;
+  private Object rootRef;
 
   // TODO: when we got the possibility that we can hint to the compiler that a
   //       read is from a final field, we should remove this
@@ -273,6 +279,9 @@ public abstract class SObject extends SObjectWithClass {
     super(instanceClass, factory);
     assert factory.getInstanceLayout() == layout || layout.layoutForSameClasses(factory.getInstanceLayout());
     setLayoutInitially(layout);
+    if(VmSettings.timeTravellingRecording) {
+      this.version = 0;
+    }
   }
 
   public SObject(final boolean incompleteDefinition) {
@@ -284,6 +293,9 @@ public abstract class SObject extends SObjectWithClass {
     super(old);
     this.objectLayout = old.objectLayout;
     this.primitiveUsedMap = old.primitiveUsedMap;
+    if(VmSettings.timeTravellingRecording) {
+      this.version = 0;
+    }
 
     // TODO: these tests should be compilation constant based on the object layout, check whether this needs to be optimized
     // we copy the content here, because we know they are all values
@@ -560,5 +572,40 @@ public abstract class SObject extends SObjectWithClass {
     final Field firstField  = SMutableObject.class.getDeclaredField(field1);
     final Field secondField = SMutableObject.class.getDeclaredField(field2);
     return StorageLocation.getFieldOffset(secondField) - StorageLocation.getFieldOffset(firstField);
+  }
+
+  public boolean isDirty(final Database database, final Session session) {
+    boolean dirty = false;
+    for (Entry<SlotDefinition, StorageLocation> entry : objectLayout.getStorageLocations().entrySet()) {
+      dirty = dirty || entry.getValue().isDirty(database, session, this);
+    }
+    Object ref = getDatabaseRef();
+    if(ref == null) {
+      database.storeBaseObject(session, this);
+      return true;
+    } else if (dirty) {
+      database.storeRevisionObject(session, this, ref, version);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  public void update(final Object newRef) {
+    version++;
+    setDatabaseRef(newRef);
+  }
+
+  public Object getRoot() {
+    return rootRef;
+  }
+
+  public void setRoot(final Object rootRef) {
+     this.rootRef = rootRef;
+     update(rootRef);
+  }
+
+  public int getVersion() {
+    return version;
   }
 }

@@ -42,12 +42,7 @@ import som.vmobjects.SArray.STransferArray;
 import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
 import som.vmobjects.SObject;
-import som.vmobjects.SObject.SImmutableObject;
-import som.vmobjects.SObject.SMutableObject;
-import som.vmobjects.SObjectWithClass;
-import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import som.vmobjects.SSymbol;
-import tools.timeTravelling.DatabaseInfo.DatabaseState;
 import tools.timeTravelling.TimeTravellingActors.AbsorbingActor;
 import tools.timeTravelling.TimeTravellingActors.TimeTravelActor;
 
@@ -65,7 +60,7 @@ public final class Database {
     Session session = startSession();
     session.run("MATCH (a) DETACH DELETE a");
     StatementResult result = session.run("CREATE (nil:SClass {name: \"nil\"}) return nil");
-    Classes.nilClass.getDatabaseInfo().setRoot(getIdFromStatementResult(result.single().get("nil")));
+    Classes.nilClass.setDatabaseRef(getIdFromStatementResult(result.single().get("nil")));
     endSession(session);
   }
 
@@ -117,7 +112,7 @@ public final class Database {
 
   public void storeDirectMessageTurn(final Session session, final Long messageId, final DirectMessage msg) {
     Object ref = storeValue(session, msg.getArgs()[0]);
-    storeEventualMessage(session, msg);
+    msg.storeInDb(this, session);
 
     session.run(
         "MATCH (target) where ID(target) = {targetId}"
@@ -125,13 +120,13 @@ public final class Database {
             + " CREATE (turn: Turn {messageId: {messageId}}) - [:TARGET] -> (target)"
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("targetId", ref, "messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
+            parameters("targetId", ref, "messageId", messageId, "messageRef", msg.getDatabaseRef()));
   }
 
   public void storeSendMessageTurn(final Session session, final Long messageId, final PromiseSendMessage msg) {
     Object t = msg.getArgs()[0];
     Object targetRef = storeValue(session, t);
-    storeEventualMessage(session, msg);
+    msg.storeInDb(this, session);
 
     session.run(
         "MATCH (target) where ID(target) = {targetId}"
@@ -140,7 +135,7 @@ public final class Database {
             + " CREATE (turn) - [:MESSAGE]->(message)"
             + " return turn",
             parameters("targetId", targetRef, "messageId", messageId,
-                "messageRef", msg.getDatabaseInfo().getRef()));
+                "messageRef", msg.getDatabaseRef()));
   }
 
   public void storeCallbackMessageTurn(final Session session, final Long messageId, final PromiseCallbackMessage msg) {
@@ -148,25 +143,18 @@ public final class Database {
     assert (t instanceof SBlock);
     SBlock target = (SBlock) t;
     timeTravellingDebugger.reportSBlock(messageId, target);
-    storeEventualMessage(session, msg);
+    msg.storeInDb(this, session);
 
     session.run(
         "MATCH (message) where ID(message)={messageRef}"
             + " CREATE (turn: Turn {messageId: {messageId}}) - [:MESSAGE]->(message)"
             + " return turn",
-            parameters("messageId", messageId, "messageRef", msg.getDatabaseInfo().getRef()));
+            parameters("messageId", messageId, "messageRef", msg.getDatabaseRef()));
   }
 
-  private void storeEventualMessage(final Session session, final EventualMessage msg) {
-    if (msg.getDatabaseInfo().getState() != DatabaseState.valid) {
-      msg.storeInDb(this, session);
-    }
-  }
-
-  public void storeDirectMessage(final Session session, final DatabaseInfo info,
+  public void storeDirectMessage(final Session session, final DirectMessage msg,
       final long messageId, final SSymbol selector, final Object[] args,
       final SResolver resolver, final RootCallTarget onReceive) {
-
     RootNode rootNode = onReceive.getRootNode();
     timeTravellingDebugger.reportRootNode(messageId, rootNode);
 
@@ -176,16 +164,16 @@ public final class Database {
             parameters("messageName", selector.getString(), "messageId", messageId));
 
     Object messageRef = result.single().get("message").asNode().id();
-    info.setRoot(messageRef);
+    msg.setDatabaseRef(messageRef);
     for (int i = 1; i < args.length; i++) { // ARG[0] is target, ie target of the turn this message belongs to
       storeArgument(session, messageRef, i, args[i]);
     }
     storeSResolver(session, resolver, messageRef);
   }
 
-  public void storePromiseSendMessage(final Session session,
-      final long messageId, final DatabaseInfo info, final SPromise originalTarget,
-      final SSymbol selector, final Object[] args, final SResolver resolver, final RootCallTarget onReceive) {
+  public void storePromiseSendMessage(final Session session, final PromiseSendMessage msg,
+      final long messageId, final SPromise originalTarget, final SSymbol selector,
+      final Object[] args, final SResolver resolver, final RootCallTarget onReceive) {
     RootNode rootNode = onReceive.getRootNode();
     timeTravellingDebugger.reportRootNode(messageId, rootNode);
 
@@ -195,7 +183,7 @@ public final class Database {
             parameters("messageName", selector.getString(), "messageId", messageId));
 
     Object messageRef = result.single().get("message").asNode().id();
-    info.setRoot(messageRef);
+    msg.setDatabaseRef(messageRef);
     for (int i = 1; i < args.length; i++) { // ARG[0] is target, ie target of the turn this message belongs to
       storeArgument(session, messageRef, i, args[i]);
     }
@@ -203,7 +191,7 @@ public final class Database {
     storeSResolver(session, resolver, messageRef);
   }
 
-  public void storePromiseCallbackMessage(final Session session, final DatabaseInfo info,
+  public void storePromiseCallbackMessage(final Session session, final PromiseCallbackMessage msg,
       final long messageId, final SBlock callback, final SResolver resolver,
       final RootCallTarget onReceive, final SPromise promise, final Object target) {
 
@@ -217,57 +205,31 @@ public final class Database {
             parameters("messageId", messageId));
 
     Object messageRef = result.single().get("message").asNode().id();
-    info.setRoot(messageRef);
+    msg.setDatabaseRef(messageRef);
     storeSPromise(session, promise, messageRef);
     storeSResolver(session, resolver, messageRef);
     storeArgument(session, messageRef, 1, target); // promise callback message have 2 arguments: callback and the value which resolved the promise
   }
 
-  private Object storeSClass(final Session session, final SClass sClass) {
-    DatabaseInfo info = sClass.getDatabaseInfo();
-    info.getLock();
-    Object ref = info.getRef();
+  public void storeSClass(final Session session, final SClass sClass) {
+    Object ref = sClass.getDatabaseRef();
     if (ref == null) {
 
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
-      Object enclosingRef = storeSClass(session, enclosing);
+      enclosing.storeInDb(this, session);
       StatementResult result = session.run(
           "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
               + " CREATE (Child: SClass {factoryName: {factoryName}, type: {classType}}) - [:ENCLOSED_BY]-> (SClass)"
               + " return Child",
-              parameters("SClassId", enclosingRef, "factoryName", sClass.getName().getString(), "classType", SomValueType.SClass.name()));
+              parameters("SClassId", enclosing.getDatabaseRef(), "factoryName", sClass.getName().getString(), "classType", SomValueType.SClass.name()));
       ref = getIdFromStatementResult(result.single().get("Child"));
-      info.setRoot(ref);
-    }
-    info.releaseLock();
-    return ref;
-  }
-
-  private void storeSObject(final Session session, final SObjectWithClass object) {
-    DatabaseInfo info = object.getDatabaseInfo();
-    switch(info.getState()) {
-      case not_stored:
-        storeBaseObject(session, object, info);
-        break;
-      case valid:
-        break;
-      case outdated:
-        StatementResult result = session.run(
-            "MATCH (old: SObject) where ID(old) = {oldRef}"
-                + " MATCH (old) - [:HAS_ROOT] -> (root:SObject)"
-                + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:UPDATE] -> (old)"
-                + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
-                + " return SObject",
-                parameters("oldRef", info.getRef(), "type", SomValueType.SAbstractObject.name(), "version", info.getVersion()));
-        info.update(getIdFromStatementResult(result.single().get("SObject")));
-        storeSlots(session, object);
-        break;
+      sClass.setDatabaseRef(ref);
     }
   }
 
   // Store object (slots) together with class.
   // Class doesn't change, so the information about the class should only be stored once
-  private void storeBaseObject(final Session session, final SObjectWithClass object, final DatabaseInfo info) {
+  public void storeBaseObject(final Session session, final SObject object) {
     SClass sClass = object.getSOMClass();
     // only turns are stored in the db. If an object is created internally in a turn we might still need to store the class
     storeSClass(session, sClass);
@@ -276,9 +238,22 @@ public final class Database {
             + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:HAS_CLASS] -> (SClass)"
             + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
             + " return SObject",
-            parameters("SClassId", sClass.getDatabaseInfo().getRef(), "type", SomValueType.SAbstractObject.name(), "version", 0));
-    info.setRoot(getIdFromStatementResult(result.single().get("SObject")));
-    storeSlots(session, object);
+            parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", 0));
+    Object ref = getIdFromStatementResult(result.single().get("SObject"));
+    object.setRoot(ref);
+    linkSlots(session, object, ref);
+  }
+
+  public void storeRevisionObject(final Session session, final SObject object, final Object oldRef, final int version) {
+    StatementResult result = session.run(
+        "MATCH (old: SObject) - [:HAS_ROOT] -> (root:SObject) where ID(old) = {oldRef}"
+            + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:UPDATE] -> (old)"
+            + " CREATE (SObject) - [:HAS_ROOT] -> (root)"
+            + " return SObject",
+            parameters("oldRef", oldRef, "type", SomValueType.SAbstractObject.name(), "version", version));
+    Object ref = getIdFromStatementResult(result.single().get("SObject"));
+    object.update(ref);
+    linkSlots(session, object, ref);
   }
 
   // Far reference point to objects, far references can never be used in the same turn. Do not store the value.
@@ -293,54 +268,52 @@ public final class Database {
     session.run("MATCH (parent) where ID(parent) = {parentId}"
         + "MATCH (promise: SPromise) where ID(promise) = {promiseId}"
         + "CREATE (parent) - [:HAS_PROMISE] -> (promise)",
-        parameters("parentId", parentId, "promiseId", promise.getDatabaseInfo().getRef()));
+        parameters("parentId", parentId, "promiseId", promise.getDatabaseRef()));
   }
 
+  // called by promise in a synchronous manner
   public void storeSPromise(final Session session, final SPromise promise,
       final boolean explicitPromise) {
-
-    Object ref = promise.getDatabaseInfo().getRoot();
+    Object ref = promise.getDatabaseRef();
     if (ref == null) {
       StatementResult result = session.run("CREATE (promise: SPromise {promiseId: {promiseId}, explicitPromise: {explicitPromise}, type: {type}}) return promise",
           parameters("promiseId", promise.getPromiseId(), "explicitPromise", explicitPromise, "type", SomValueType.SPromise.name()));
       ref = getIdFromStatementResult(result.single().get("promise"));
-      promise.getDatabaseInfo().setRoot(ref);
+      promise.setDatabaseRef(ref);
     }
   }
 
   private void storeSResolver(final Session session, final SResolver resolver, final Object parentId) {
     if (resolver != null) {
-      Object resolverRef = storeSResolver(session, resolver);
+      resolver.storeInDb(this, session);
       session.run("MATCH (parent) where ID(parent) = {parentId}"
           + "MATCH (resolver: SResolver) where ID(resolver) = {resolverId}"
           + "CREATE (parent) - [:HAS_RESOLVER] -> (resolver)",
-          parameters("parentId", parentId, "resolverId", resolverRef));
+          parameters("parentId", parentId, "resolverId", resolver.getDatabaseRef()));
     }
   }
 
-  private Object storeSResolver(final Session session, final SResolver resolver) {
+  public void storeSResolver(final Session session, final SResolver resolver) {
     SPromise promise = resolver.getPromise();
     promise.storeInDb(this, session);
     StatementResult result = session.run(
         "MATCH (promise: SPromise) where ID(promise)={promiseId}" +
             "CREATE (resolver: SResolver)-[:RESOLVER_OF]->(promise) return resolver",
-            parameters("promiseId", promise.getDatabaseInfo().getRef()));
-    return getIdFromStatementResult(result.single().get("resolver"));
+            parameters("promiseId", promise.getDatabaseRef()));
+    resolver.setDatabaseRef(getIdFromStatementResult(result.single().get("resolver")));
   }
 
-  private void storeSlots(final Session session, final SObjectWithClass o) {
-    if (o instanceof SObject) {
-      final SObject object = (SObject) o;
-      final Object parentRef = object.getDatabaseInfo().getRef();
-      for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
-        Object ref = storeValue(session, entry.getValue().read(object));
-        if (ref != null) {
-          session.run(
-              "MATCH (parent) where ID(parent)={parentId}"
-                  + " MATCH (slot) where ID(slot) = {slotRef}"
-                  + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
-                  parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
-        }
+  // the slots have stored themselves while checking for dirty slots
+  // create relation between object header and slots
+  private void linkSlots(final Session session, final SObject object, final Object parentRef) {
+    for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
+      Object ref = entry.getValue().getDatabaseRef();
+      if (ref != null) {
+        session.run(
+            "MATCH (parent) where ID(parent)={parentId}"
+                + " MATCH (slot) where ID(slot) = {slotRef}"
+                + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
+                parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
       }
     }
   }
@@ -417,11 +390,33 @@ public final class Database {
 
   private void storeSArrayElem(final Session session, final Object parentId, final int arrayIdx, final Object arrayElem) {
     Object ref = storeValue(session, arrayElem);
-    session.run(
-        "MATCH (parent) where ID(parent)={parentId}"
-            + " MATCH (elem) where ID(elem) = {elemRef}"
-            + "CREATE (elem) - [:ARRAY_ELEM {idx: {idx}}] -> (parent)",
-            parameters("parentId", parentId, "elemRef", ref, "idx", arrayIdx));
+    if (ref != null) {
+      session.run(
+          "MATCH (parent) where ID(parent)={parentId}"
+              + " MATCH (elem) where ID(elem) = {elemRef}"
+              + "CREATE (elem) - [:ARRAY_ELEM {idx: {idx}}] -> (parent)",
+              parameters("parentId", parentId, "elemRef", ref, "idx", arrayIdx));
+    }
+  }
+
+  public Object storeLong(final Session session , final Long value) {
+    StatementResult result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Long.name()));
+    return getIdFromStatementResult(result.single().get("value"));
+  }
+
+  public Object storeDouble(final Session session , final Double value) {
+    StatementResult result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Double.name()));
+    return getIdFromStatementResult(result.single().get("value"));
+  }
+
+  public Object storeBoolean(final Session session , final Boolean value) {
+    StatementResult result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Boolean.name()));
+    return getIdFromStatementResult(result.single().get("value"));
+  }
+
+  public Object storeString(final Session session , final String value) {
+    StatementResult result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.String.name()));
+    return getIdFromStatementResult(result.single().get("value"));
   }
   /*
    * Store value and return database ref to object
@@ -433,19 +428,22 @@ public final class Database {
     } else if (value instanceof SPromise) {
       SPromise promise = (SPromise) value;
       promise.storeInDb(this, session);
-      return promise.getDatabaseInfo().getRef();
+      return promise.getDatabaseRef();
     } else if (value instanceof SResolver) {
-      return storeSResolver(session, (SResolver) value);
+      SResolver resolver = (SResolver) value;
+      resolver.storeInDb(this, session);
+      return resolver.getDatabaseRef();
     } else if (Nil.valueIsNil(value)) {
       // is it not useful to store null values, use closed world assumption. If value is not in the database, that value is nil
       return null;
-    } else if (value instanceof SMutableObject || value instanceof SImmutableObject || value instanceof SObjectWithoutFields) {
-      SObjectWithClass object = (SObjectWithClass) value;
-      storeSObject(session, object);
-      return object.getDatabaseInfo().getRef();
+    } else if (value instanceof SObject) {
+      SObject object = (SObject) value;
+      object.isDirty(this, session);
+      return object.getDatabaseRef();
     } else if (value instanceof SClass) {
       SClass sClass = (SClass) value;
-      return storeSClass(session, sClass);
+      sClass.storeInDb(this, session);
+      return sClass.getDatabaseRef();
     } else if (value instanceof Long) {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Long.name()));
     } else if (value instanceof Double) {

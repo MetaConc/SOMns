@@ -273,7 +273,7 @@ public class SPromise extends SObjectWithClass {
     return explicitPromise;
   }
 
-  public void storeInDb(final Database database, final Session session) {
+  public synchronized void storeInDb(final Database database, final Session session) {
     database.storeSPromise(session, this, explicitPromise);
   };
 
@@ -350,6 +350,12 @@ public class SPromise extends SObjectWithClass {
     public boolean assertNotCompleted() {
       return promise.assertNotCompleted();
     }
+
+    public synchronized void storeInDb(final Database database, final Session session) {
+      database.storeSResolver(session, this);
+    };
+
+
 
     /**
      * Handles the case when a promise is resolved with a proper value

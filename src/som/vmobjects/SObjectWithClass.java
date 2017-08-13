@@ -7,14 +7,12 @@ import com.oracle.truffle.api.interop.TruffleObject;
 
 import som.interop.SObjectInteropMessageResolutionForeign;
 import som.interpreter.objectstorage.ClassFactory;
-import som.vm.VmSettings;
-import tools.timeTravelling.DatabaseInfo;
 
 
 public abstract class SObjectWithClass extends SAbstractObject implements TruffleObject {
   @CompilationFinal protected SClass       clazz;
   @CompilationFinal protected ClassFactory classGroup; // the factory by which clazz was created
-  protected DatabaseInfo databaseInfo = new DatabaseInfo();
+  protected Object databaseRef;
 
 
   public SObjectWithClass(final SClass clazz, final ClassFactory classGroup) {
@@ -59,14 +57,12 @@ public abstract class SObjectWithClass extends SAbstractObject implements Truffl
     return SObjectInteropMessageResolutionForeign.ACCESS;
   }
 
-  public DatabaseInfo getDatabaseInfo() {
-    return databaseInfo;
+  public Object getDatabaseRef() {
+    return databaseRef;
   }
 
-  public void performedWrite() {
-    if (VmSettings.timeTravelling) {
-      databaseInfo.performedWrite();
-    }
+  public void setDatabaseRef(final Object databaseRef) {
+    this.databaseRef = databaseRef;
   }
 
   public static final class SObjectWithoutFields extends SObjectWithClass {

@@ -2,6 +2,8 @@ package som.interpreter.objectstorage;
 
 import java.lang.reflect.Field;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.profiles.IntValueProfile;
 
@@ -14,9 +16,19 @@ import som.interpreter.objectstorage.FieldReadNode.ReadUnwrittenFieldNode;
 import som.vm.constants.Nil;
 import som.vmobjects.SObject;
 import sun.misc.Unsafe;
+import tools.timeTravelling.Database;
 
 
 public abstract class StorageLocation {
+  // if an object is instantiated it is dirty.
+  public boolean dirty = true;
+  protected Object databaseRef = null;
+
+  public abstract boolean isDirty(Database db, Session session, SObject object);
+  public Object getDatabaseRef() {
+    return databaseRef;
+  }
+
   private static Unsafe loadUnsafe() {
     try {
       return Unsafe.getUnsafe();
@@ -124,13 +136,19 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       CompilerAsserts.neverPartOfCompilation("StorageLocation");
-      obj.performedWrite();
+      dirty = true;
       ObjectTransitionSafepoint.INSTANCE.writeUninitializedSlot(obj, slot, value);
     }
 
     @Override
     public FieldReadNode getReadNode(final boolean isSet) {
       return new ReadUnwrittenFieldNode(slot);
+    }
+
+    @Override
+    public boolean isDirty(final Database db, final Session session, final SObject object) {
+      // Nils are not stored in the db
+      return false;
     }
   }
 
@@ -151,7 +169,7 @@ public abstract class StorageLocation {
   }
 
   public static final class ObjectDirectStorageLocation
-      extends AbstractObjectStorageLocation {
+  extends AbstractObjectStorageLocation {
     private final long fieldOffset;
     public ObjectDirectStorageLocation(final ObjectLayout layout, final SlotDefinition slot,
         final int objFieldIdx) {
@@ -173,8 +191,47 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
-      obj.performedWrite();
+      dirty = true;
       unsafe.putObject(obj, fieldOffset, value);
+    }
+
+    @Override
+    public boolean isDirty(final Database database, final Session session, final SObject object) {
+      Object value = object.readSlot(slot);
+      if (value instanceof Boolean) {
+        if(dirty) {
+          if (isSet(object, null)) {
+            databaseRef = database.storeBoolean(session, (Boolean) value);
+            dirty = false;
+          }
+          return true;
+        }
+        return false;
+      } else if (value instanceof String) {
+        if(dirty) {
+          if (isSet(object, null)) {
+            databaseRef = database.storeString(session, (String) value);
+            dirty = false;
+          }
+          return true;
+        }
+        return false;
+      } else if (value instanceof SObject) {
+        SObject slotObject = (SObject) value;
+        slotObject.isDirty(database, session);
+
+        /*
+         * If both object A and object B refer to same C.
+         * A's reference to C is dirty if the ref in slotRef does not match the ref in C after the isDirty call on C.
+         */
+
+        Object slotObjectRef = slotObject.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotObjectRef);
+        databaseRef = slotObjectRef;
+        return isDirty;
+      }
+      System.out.println("is dirty on object storage location: " + object.readSlot(slot).getClass());
+      return false;
     }
   }
 
@@ -201,9 +258,15 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
-      obj.performedWrite();
+      dirty = true;
       Object[] arr = obj.getExtensionObjFields();
       arr[extensionIndex] = value;
+    }
+
+    @Override
+    public boolean isDirty(final Database db, final Session session, final SObject object) {
+      // TODO Auto-generated method stub
+      return false;
     }
   }
 
@@ -253,7 +316,7 @@ public abstract class StorageLocation {
   }
 
   public static final class DoubleDirectStoreLocation extends PrimitiveDirectStoreLocation
-      implements DoubleStorageLocation {
+  implements DoubleStorageLocation {
     private final IntValueProfile primMarkProfile = IntValueProfile.createIdentityProfile();
     public DoubleDirectStoreLocation(final ObjectLayout layout,
         final SlotDefinition slot, final int primField) {
@@ -287,7 +350,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
-      obj.performedWrite();
+      dirty = true;
       if (value instanceof Double) {
         writeDoubleSet(obj, (double) value);
         markAsSet(obj);
@@ -300,13 +363,25 @@ public abstract class StorageLocation {
 
     @Override
     public void writeDoubleSet(final SObject obj, final double value) {
-      obj.performedWrite();
+      dirty = true;
       unsafe.putDouble(obj, offset, value);
+    }
+
+    @Override
+    public boolean isDirty(final Database db, final Session session, final SObject object) {
+      if(dirty) {
+        if (isSet(object, primMarkProfile)) {
+          databaseRef = db.storeDouble(session, readDoubleSet(object));
+          dirty = false;
+        }
+        return true;
+      }
+      return false;
     }
   }
 
   public static final class LongDirectStoreLocation extends PrimitiveDirectStoreLocation
-      implements LongStorageLocation {
+  implements LongStorageLocation {
     private final IntValueProfile primMarkProfile = IntValueProfile.createIdentityProfile();
     public LongDirectStoreLocation(final ObjectLayout layout,
         final SlotDefinition slot, final int primField) {
@@ -340,7 +415,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
-      obj.performedWrite();
+      dirty = true;
       if (value instanceof Long) {
         writeLongSet(obj, (long) value);
         markAsSet(obj);
@@ -352,8 +427,20 @@ public abstract class StorageLocation {
 
     @Override
     public void writeLongSet(final SObject obj, final long value) {
-      obj.performedWrite();
+      dirty = true;
       unsafe.putLong(obj, offset, value);
+    }
+
+    @Override
+    public boolean isDirty(final Database db, final Session session, final SObject object) {
+      if(dirty) {
+        if (isSet(object, primMarkProfile)) {
+          databaseRef = db.storeLong(session, readLongSet(object));
+          dirty = false;
+        }
+        return true;
+      }
+      return false;
     }
   }
 
@@ -377,7 +464,7 @@ public abstract class StorageLocation {
   }
 
   public static final class LongArrayStoreLocation extends PrimitiveArrayStoreLocation
-      implements LongStorageLocation {
+  implements LongStorageLocation {
     private final IntValueProfile primMarkProfile = IntValueProfile.createIdentityProfile();
     public LongArrayStoreLocation(final ObjectLayout layout,
         final SlotDefinition slot, final int primField) {
@@ -411,7 +498,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
-      obj.performedWrite();
+      dirty = true;
       if (value instanceof Long) {
         writeLongSet(obj, (long) value);
         markAsSet(obj);
@@ -424,13 +511,19 @@ public abstract class StorageLocation {
 
     @Override
     public void writeLongSet(final SObject obj, final long value) {
-      obj.performedWrite();
+      dirty = true;
       obj.getExtendedPrimFields()[extensionIndex] = value;
+    }
+
+    @Override
+    public boolean isDirty(final Database db, final Session session, final SObject object) {
+      // TODO Auto-generated method stub
+      return false;
     }
   }
 
   public static final class DoubleArrayStoreLocation extends PrimitiveArrayStoreLocation
-      implements DoubleStorageLocation {
+  implements DoubleStorageLocation {
     public DoubleArrayStoreLocation(final ObjectLayout layout,
         final SlotDefinition slot, final int primField) {
       super(layout, slot, primField);
@@ -467,7 +560,7 @@ public abstract class StorageLocation {
     @Override
     public void write(final SObject obj, final Object value) {
       assert value != null;
-      obj.performedWrite();
+      dirty = true;;
       if (value instanceof Double) {
         writeDoubleSet(obj, (double) value);
         markAsSet(obj);
@@ -480,11 +573,17 @@ public abstract class StorageLocation {
 
     @Override
     public void writeDoubleSet(final SObject obj, final double value) {
-      obj.performedWrite();
+      dirty = true;
       final long[] arr = obj.getExtendedPrimFields();
       unsafe.putDouble(arr,
           (long) Unsafe.ARRAY_DOUBLE_BASE_OFFSET + Unsafe.ARRAY_DOUBLE_INDEX_SCALE * this.extensionIndex,
           value);
+    }
+
+    @Override
+    public boolean isDirty(final Database db, final Session session, final SObject object) {
+      // TODO Auto-generated method stub
+      return false;
     }
   }
 }
