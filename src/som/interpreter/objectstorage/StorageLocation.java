@@ -9,11 +9,15 @@ import com.oracle.truffle.api.profiles.IntValueProfile;
 
 import som.compiler.MixinDefinition.SlotDefinition;
 import som.interpreter.TruffleCompiler;
+import som.interpreter.actors.SFarReference;
+import som.interpreter.actors.SPromise;
+import som.interpreter.actors.SPromise.SResolver;
 import som.interpreter.objectstorage.FieldReadNode.ReadObjectFieldNode;
 import som.interpreter.objectstorage.FieldReadNode.ReadSetOrUnsetPrimitiveSlot;
 import som.interpreter.objectstorage.FieldReadNode.ReadSetPrimitiveSlot;
 import som.interpreter.objectstorage.FieldReadNode.ReadUnwrittenFieldNode;
 import som.vm.constants.Nil;
+import som.vmobjects.SArray;
 import som.vmobjects.SObject;
 import sun.misc.Unsafe;
 import tools.timeTravelling.Database;
@@ -197,41 +201,67 @@ public abstract class StorageLocation {
 
     @Override
     public boolean isDirty(final Database database, final Session session, final SObject object) {
+      assert(isSet(object, null));
       Object value = object.readSlot(slot);
       if (value instanceof Boolean) {
         if(dirty) {
-          if (isSet(object, null)) {
-            databaseRef = database.storeBoolean(session, (Boolean) value);
-            dirty = false;
-          }
+          databaseRef = database.storeBoolean(session, (Boolean) value);
+          dirty = false;
           return true;
+        } else {
+          return false;
         }
-        return false;
       } else if (value instanceof String) {
         if(dirty) {
-          if (isSet(object, null)) {
-            databaseRef = database.storeString(session, (String) value);
-            dirty = false;
-          }
+          databaseRef = database.storeString(session, (String) value);
+          dirty = false;
           return true;
+        } else {
+          return false;
         }
-        return false;
       } else if (value instanceof SObject) {
         SObject slotObject = (SObject) value;
         slotObject.isDirty(database, session);
-
         /*
          * If both object A and object B refer to same C.
          * A's reference to C is dirty if the ref in slotRef does not match the ref in C after the isDirty call on C.
          */
-
-        Object slotObjectRef = slotObject.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotObjectRef);
-        databaseRef = slotObjectRef;
+        Object slotRef = slotObject.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
+        return isDirty;
+      } else if (value instanceof SFarReference) {
+        SFarReference farRef = (SFarReference) value;
+        farRef.storeInDb(database, session);
+        Object slotRef = farRef.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
+        return isDirty;
+      } else if (value instanceof SPromise) {
+        SPromise promise = (SPromise) value;
+        promise.storeInDb(database, session);
+        Object slotRef = promise.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
+        return isDirty;
+      } else if (value instanceof SResolver) {
+        SResolver resolver = (SResolver) value;
+        resolver.storeInDb(database, session);
+        Object slotRef = resolver.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
+        return isDirty;
+      } else if (value instanceof SArray) {
+        SArray array = (SArray) value;
+        array.isDirty(database, session);
+        Object slotRef = array.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
         return isDirty;
       }
-      System.out.println("is dirty on object storage location: " + object.readSlot(slot).getClass());
-      return false;
+      else {
+        throw new RuntimeException("unexpected slot type in isDirty() of Sobject: " + slot.getName() + " " + object.getClass());
+      }
     }
   }
 
@@ -264,9 +294,10 @@ public abstract class StorageLocation {
     }
 
     @Override
-    public boolean isDirty(final Database db, final Session session, final SObject object) {
-      // TODO Auto-generated method stub
-      return false;
+    public boolean isDirty(final Database database, final Session session, final SObject object) {
+      assert(isSet(object, null));
+      SArray array = (SArray) read(object);
+      return array.isDirty(database, session);
     }
   }
 
@@ -461,6 +492,13 @@ public abstract class StorageLocation {
         return new ReadSetOrUnsetPrimitiveSlot(slot, layout);
       }
     }
+
+    @Override
+    public boolean isDirty(final Database database, final Session session, final SObject object) {
+      assert(isSet(object, null));
+      SArray array = (SArray) read(object);
+      return array.isDirty(database, session) || dirty;
+    }
   }
 
   public static final class LongArrayStoreLocation extends PrimitiveArrayStoreLocation
@@ -513,12 +551,6 @@ public abstract class StorageLocation {
     public void writeLongSet(final SObject obj, final long value) {
       dirty = true;
       obj.getExtendedPrimFields()[extensionIndex] = value;
-    }
-
-    @Override
-    public boolean isDirty(final Database db, final Session session, final SObject object) {
-      // TODO Auto-generated method stub
-      return false;
     }
   }
 
@@ -578,12 +610,6 @@ public abstract class StorageLocation {
       unsafe.putDouble(arr,
           (long) Unsafe.ARRAY_DOUBLE_BASE_OFFSET + Unsafe.ARRAY_DOUBLE_INDEX_SCALE * this.extensionIndex,
           value);
-    }
-
-    @Override
-    public boolean isDirty(final Database db, final Session session, final SObject object) {
-      // TODO Auto-generated method stub
-      return false;
     }
   }
 }

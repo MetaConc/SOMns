@@ -2,12 +2,19 @@ package som.vmobjects;
 
 import java.util.Arrays;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.profiles.ValueProfile;
 
+import som.interpreter.actors.SFarReference;
+import som.interpreter.actors.SPromise;
+import som.interpreter.actors.SPromise.SResolver;
 import som.vm.NotYetImplementedException;
 import som.vm.constants.Nil;
+import tools.timeTravelling.Database;
+import tools.timeTravelling.Database.ArrayType;
 
 /**
  * SArrays are implemented using a Strategy-like approach.
@@ -19,6 +26,8 @@ public abstract class SArray extends SAbstractObject {
 
   protected Object storage;
   protected final SClass clazz;
+
+  protected Object databaseRef;
 
   public SArray(final long length, final SClass clazz) {
     storage = (int) length;
@@ -114,6 +123,16 @@ public abstract class SArray extends SAbstractObject {
     return storage;
   }
 
+  public Object getDatabaseRef() {
+    return databaseRef;
+  }
+
+  public void setDatabaseRef(final Object databaseRef) {
+    this.databaseRef = databaseRef;
+  }
+
+  public abstract boolean isDirty(Database database, Session session);
+
   public static final ValueProfile PartiallyEmptyStorageType = ValueProfile.createClassProfile();
 
 
@@ -121,6 +140,7 @@ public abstract class SArray extends SAbstractObject {
     private final Object[] arr;
     private int emptyElements;
     private Type type;
+    private boolean dirty = true;
 
     public enum Type {
       EMPTY, PARTIAL_EMPTY, LONG, DOUBLE, BOOLEAN, OBJECT;
@@ -134,6 +154,13 @@ public abstract class SArray extends SAbstractObject {
       Arrays.fill(arr, Nil.nilObject);
       emptyElements = length - 1;
       arr[(int) idx] = val;
+      this.type = type;
+    }
+
+    // for time travel
+    public PartiallyEmptyArray(final Type type, final int length, final Object[] arr, final int empty) {
+      this.arr = arr;
+      this.emptyElements = empty;
       this.type = type;
     }
 
@@ -164,12 +191,17 @@ public abstract class SArray extends SAbstractObject {
     }
 
     public void set(final long idx, final Object val) {
+      this.dirty = true;
       arr[(int) idx] = val;
     }
 
     public void incEmptyElements() { emptyElements++; }
     public void decEmptyElements() { emptyElements--; }
     public boolean isFull() { return emptyElements == 0; }
+
+    public int getEmptyElements() {
+      return emptyElements;
+    }
 
     public PartiallyEmptyArray copy() {
       return new PartiallyEmptyArray(this);
@@ -179,6 +211,7 @@ public abstract class SArray extends SAbstractObject {
   public static final ValueProfile ObjectStorageType = ValueProfile.createClassProfile();
 
   public static class SMutableArray extends SArray {
+    private boolean dirty = true;
 
     /**
      * Creates and empty array, using the EMPTY strategy.
@@ -237,6 +270,7 @@ public abstract class SArray extends SAbstractObject {
     }
 
     public void txSet(final SMutableArray a) {
+      dirty = true;
       storage = a.storage;
     }
 
@@ -269,6 +303,7 @@ public abstract class SArray extends SAbstractObject {
         final long idx, final Object val) {
       assert type != PartiallyEmptyArray.Type.OBJECT;
       assert isEmptyType();
+      dirty = true;
       this.storage = new PartiallyEmptyArray(type, (int) storage, idx, val);
     }
 
@@ -290,16 +325,19 @@ public abstract class SArray extends SAbstractObject {
     }
 
     public final void transitionToEmpty(final long length) {
+      dirty = true;
       this.storage = (int) length;
     }
 
     public final void transitionTo(final Object newStorage) {
+      dirty = true;
       this.storage = newStorage;
     }
 
 //    private static final ValueProfile emptyStorageType = ValueProfile.createClassProfile();
 
     public final void transitionToObjectWithAll(final long length, final Object val) {
+      dirty = true;
       Object[] arr = new Object[(int) length];
       Arrays.fill(arr, val);
       final Object storage = arr;
@@ -307,6 +345,7 @@ public abstract class SArray extends SAbstractObject {
     }
 
     public final void transitionToLongWithAll(final long length, final long val) {
+      dirty = true;
       long[] arr = new long[(int) length];
       Arrays.fill(arr, val);
       final Object storage = arr;
@@ -314,6 +353,7 @@ public abstract class SArray extends SAbstractObject {
     }
 
     public final void transitionToDoubleWithAll(final long length, final double val) {
+      dirty = true;
       double[] arr = new double[(int) length];
       Arrays.fill(arr, val);
       final Object storage = arr;
@@ -321,6 +361,7 @@ public abstract class SArray extends SAbstractObject {
     }
 
     public final void transitionToBooleanWithAll(final long length, final boolean val) {
+      dirty = true;
       boolean[] arr = new boolean[(int) length];
       if (val) {
         Arrays.fill(arr, true);
@@ -348,6 +389,102 @@ public abstract class SArray extends SAbstractObject {
         this.storage = arr.getStorage();
       }
     }
+
+    public ArrayType getType() {
+      return ArrayType.mutable;
+    }
+
+    @Override
+    public boolean isDirty(final Database database, final Session session) {
+      ArrayType type = getType();
+      if (isEmptyType()) {
+        if(databaseRef == null) {
+          database.storeSEmptyArray(session, this, type);
+          dirty = false;
+          return true;
+        }
+      } else if (isPartiallyEmptyType()) {
+        PartiallyEmptyArray array = (PartiallyEmptyArray) storage;
+        if(isObjectArrayDirty(database, session, array.arr, array.dirty)) {
+          database.storePartiallyEmptyArray(session, this, type);
+          array.dirty = false;
+          return true;
+        }
+      } else if (isBooleanType()) {
+        if(dirty) {
+          database.storeBooleanArray(session, this, type);
+          dirty = false;
+          return true;
+        }
+      } else if (isDoubleType()) {
+        if(dirty) {
+          database.storeDoubleArray(session, this, type);
+          dirty = false;
+          return true;
+        }
+      } else if (isLongType()) {
+        if(dirty) {
+          database.storeLongArray(session, this, type);
+          dirty = false;
+          return true;
+        }
+      } else {
+        assert isObjectType();
+        if(isObjectArrayDirty(database, session, (Object[]) storage, dirty)) {
+          database.storeObjectArray(session, this, type);
+          dirty = false;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /*
+     * If primitive objects where updated the dirty flag is set.
+     * for non primitive we need to check
+     * This strategy is unable to see when an object has been updated and changed by a second party, solving this requires keeping a ref and compairing this ref with the one after the isDirty call.
+     * too large a change for my time remaining
+     */
+    public static boolean isObjectArrayDirty(final Database database, final Session session, final Object[] array, final boolean dirty) {
+      boolean isDirty = dirty;
+      for(int i = 0; i<array.length; i++) {
+        Object value = array[i];
+        if ((value instanceof Boolean) || (value instanceof Long) || (value instanceof Double) || (value instanceof String)) {
+          break;
+        } else if (value instanceof SObject) {
+          SObject slotObject = (SObject) value;
+          isDirty = slotObject.isDirty(database, session) || isDirty;
+        } else if (value instanceof SFarReference) {
+          SFarReference farRef = (SFarReference) value;
+          Object oldRef = farRef.getDatabaseRef();
+          farRef.storeInDb(database, session);
+          Object slotRef = farRef.getDatabaseRef();
+          isDirty = (oldRef != slotRef) || isDirty;
+        } else if (value instanceof SPromise) {
+          SPromise promise = (SPromise) value;
+          Object oldRef = promise.getDatabaseRef();
+          promise.storeInDb(database, session);
+          Object slotRef = promise.getDatabaseRef();
+          isDirty = (oldRef != slotRef) || isDirty;
+        } else if (value instanceof SResolver) {
+          SResolver resolver = (SResolver) value;
+          Object oldRef = resolver.getDatabaseRef();
+          resolver.storeInDb(database, session);
+          Object slotRef = resolver.getDatabaseRef();
+          isDirty = (oldRef != slotRef) || isDirty;
+        } else if (value instanceof SArray) {
+          SArray interArray = (SArray) value;
+          isDirty = interArray.isDirty(database, session) || isDirty;
+        } else {
+          throw new RuntimeException("unexpected type in object array");
+        }
+      }
+      return isDirty;
+    }
+
+    public void setDirty() {
+      dirty = true;
+    }
   }
 
   public static final class SImmutableArray extends SArray {
@@ -357,12 +494,27 @@ public abstract class SArray extends SAbstractObject {
 
     @Override
     public boolean isValue() { return true; }
+
+    @Override
+    public boolean isDirty(final Database database, final Session session) {
+      if (databaseRef == null) {
+        database.storeSArray(session, this, ArrayType.immutable);
+        return true;
+      } else {
+        return false;
+      }
+    }
   }
 
   public static final class STransferArray extends SMutableArray {
     public STransferArray(final long length, final SClass clazz) { super(length, clazz); }
     public STransferArray(final Object storage, final SClass clazz) { super(storage, clazz); }
     public STransferArray(final STransferArray old, final SClass clazz) { super(cloneStorage(old), clazz); }
+
+    @Override
+    public ArrayType getType() {
+      return ArrayType.transfer;
+    }
 
     private static Object cloneStorage(final STransferArray old) {
       if (old.isEmptyType()) {

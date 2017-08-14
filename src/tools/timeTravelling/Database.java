@@ -2,6 +2,7 @@ package tools.timeTravelling;
 
 import static org.neo4j.driver.v1.Values.parameters;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -36,6 +37,7 @@ import som.vm.constants.Nil;
 import som.vmobjects.SAbstractObject;
 import som.vmobjects.SArray;
 import som.vmobjects.SArray.PartiallyEmptyArray;
+import som.vmobjects.SArray.PartiallyEmptyArray.Type;
 import som.vmobjects.SArray.SImmutableArray;
 import som.vmobjects.SArray.SMutableArray;
 import som.vmobjects.SArray.STransferArray;
@@ -93,10 +95,11 @@ public final class Database {
     Boolean,
     String,
     SClass,
-    Array;
+    Array,
+    PartialArray;
   }
 
-  private enum ArrayType {
+  public enum ArrayType {
     mutable,
     immutable,
     transfer;
@@ -257,9 +260,12 @@ public final class Database {
   }
 
   // Far reference point to objects, far references can never be used in the same turn. Do not store the value.
-  private Object storeSFarReference(final Session session, final SFarReference farRef) {
-    StatementResult result = session.run("CREATE (farRef: SFarReference) return farRef");
-    return getIdFromStatementResult(result.single().get("farRef"));
+  public void storeSFarReference(final Session session, final SFarReference farRef) {
+    if(farRef.getDatabaseRef() == null) {
+      StatementResult result = session.run("CREATE (farRef: SFarReference) return farRef");
+      Object ref = getIdFromStatementResult(result.single().get("farRef"));
+      farRef.setDatabaseRef(ref);
+    }
   }
 
   // store SPromise and create link with parent
@@ -329,63 +335,96 @@ public final class Database {
     }
   }
 
-  private Object storeSArray(final Session session, final SArray array) {
-    Object parentRef;
-    ArrayType type;
-
-    if (array instanceof STransferArray) {
-      type = ArrayType.transfer;
-    } else if (array instanceof SMutableArray) {
-      type = ArrayType.mutable;
-    } else if (array instanceof SImmutableArray) {
-      type = ArrayType.immutable;
-    } else {
-      throw new RuntimeException("unexpected array type while storing");
-    }
+  public void storeSArray(final Session session, final SArray array, final ArrayType type) {
+    Object parentRef = null;
 
     if (array.isEmptyType()) {
-      parentRef = storeSArrayHeader(session, (int) array.getStoragePlain(), type);
+      storeSEmptyArray(session, array, type);
     } else if (array.isBooleanType()) {
-      boolean[] storage = (boolean[]) array.getStoragePlain();
-      parentRef = storeSArrayHeader(session, storage.length, type);
-      for (int i = 0; i < storage.length; i++) {
-        storeSArrayElem(session, parentRef, i, storage[i]);
-      }
+      storeBooleanArray(session, array, type);
     } else if (array.isDoubleType()) {
-      double[] storage = (double[]) array.getStoragePlain();
-      parentRef = storeSArrayHeader(session, storage.length, type);
-      for (int i = 0; i < storage.length; i++) {
-        storeSArrayElem(session, parentRef, i, storage[i]);
-      }
+      storeDoubleArray(session, array, type);
     } else if (array.isLongType()) {
-      long[] storage = (long[]) array.getStoragePlain();
-      parentRef = storeSArrayHeader(session, storage.length, type);
-      for (int i = 0; i < storage.length; i++) {
-        storeSArrayElem(session, parentRef, i, storage[i]);
-      }
+      storeLongArray(session, array, type);
     } else if (array.isPartiallyEmptyType()) {
-      Object[] storage = ((PartiallyEmptyArray) array.getStoragePlain()).getStorage();
-      parentRef = storeSArrayHeader(session, storage.length, type);
-      for (int i = 0; i < storage.length; i++) {
-        storeSArrayElem(session, parentRef, i, storage[i]);
-      }
+      // can a immutable array be partiallyEmpty?
+      storePartiallyEmptyArray(session, array, type);
     } else if (array.isObjectType()) {
-      Object[] storage = (Object[]) array.getStoragePlain();
-      parentRef = storeSArrayHeader(session, storage.length, type);
-      for (int i = 0; i < storage.length; i++) {
-        storeSArrayElem(session, parentRef, i, storage[i]);
-      }
+      storeObjectArray(session, array, type);
     } else {
       throw new RuntimeException("unexpected array value type while storing");
     }
-    return parentRef;
+    array.setDatabaseRef(parentRef);
   }
 
-  private Object storeSArrayHeader(final Session session, final int length, final ArrayType arrayType) {
+  public void storeSEmptyArray(final Session session, final SArray array, final ArrayType type) {
+    int length = (int) array.getStoragePlain();
     StatementResult result = session.run(
-        "CREATE (arrayHeader: SArray {length: {length}, type: {type}, arrayType: {arrayType}}) return arrayHeader",
-        parameters("length", length, "type", SomValueType.Array.name(), "arrayType", arrayType.name()));
-    return getIdFromStatementResult(result.single().get("arrayHeader"));
+        "CREATE (array: SArray {length: {length}, type: {type}, arrayType: {arrayType}}) return array",
+        parameters("length", length, "type", SomValueType.Array.name(), "arrayType", type.name()));
+    Object ref = getIdFromStatementResult(result.single().get("array"));
+    array.setDatabaseRef(ref);
+  }
+
+  public void storeBooleanArray(final Session session, final SArray array, final ArrayType type) {
+    boolean[] storage = (boolean[]) array.getStoragePlain();
+    StatementResult result = session.run(
+        "CREATE (array: SArray {length: {length}, type: {type}, arrayType: {arrayType}, value: {value}}) return array",
+        parameters("length", storage.length, "type", SomValueType.Array.name(), "arrayType", type.name(), "value", storage));
+    Object ref = getIdFromStatementResult(result.single().get("array"));
+    for (int i = 0; i < storage.length; i++) {
+      storeSArrayElem(session, ref, i, storage[i]);
+    }
+    array.setDatabaseRef(ref);
+  }
+
+  public void storeLongArray(final Session session, final SArray array, final ArrayType type) {
+    long[] storage = (long[]) array.getStoragePlain();
+    StatementResult result = session.run(
+        "CREATE (array: SArray {length: {length}, type: {type}, arrayType: {arrayType}, value: {value}}) return array",
+        parameters("length", storage.length, "type", SomValueType.Array.name(), "arrayType", type.name(), "value", storage));
+    Object ref = getIdFromStatementResult(result.single().get("array"));
+    for (int i = 0; i < storage.length; i++) {
+      storeSArrayElem(session, ref, i, storage[i]);
+    }
+    array.setDatabaseRef(ref);
+  }
+
+  public void storeDoubleArray(final Session session, final SArray array, final ArrayType type) {
+    double[] storage = (double[]) array.getStoragePlain();
+    StatementResult result = session.run(
+        "CREATE (array: SArray {length: {length}, type: {type}, arrayType: {arrayType}}) return array",
+        parameters("length", storage.length, "type", SomValueType.Array.name(), "arrayType", type.name()));
+    Object ref = getIdFromStatementResult(result.single().get("array"));
+    for (int i = 0; i < storage.length; i++) {
+      storeSArrayElem(session, ref, i, storage[i]);
+    }
+    array.setDatabaseRef(ref);
+  }
+
+  public void storeObjectArray(final Session session, final SArray array, final ArrayType type) {
+    Object[] storage = (Object[]) array.getStoragePlain();
+    StatementResult result = session.run(
+        "CREATE (array: SArray {length: {length}, type: {type}, arrayType: {arrayType}}) return array",
+        parameters("length", storage.length, "type", SomValueType.Array.name(), "arrayType", type.name()));
+    Object ref = getIdFromStatementResult(result.single().get("array"));
+    for (int i = 0; i < storage.length; i++) {
+      storeSArrayElem(session, ref, i, storage[i]);
+    }
+    array.setDatabaseRef(ref);
+  }
+
+  public void storePartiallyEmptyArray(final Session session, final SArray array, final ArrayType type) {
+    PartiallyEmptyArray partial = (PartiallyEmptyArray) array.getStoragePlain();
+    Object[] storage = partial.getStorage();
+    StatementResult result = session.run(
+        "CREATE (array: SArray {length: {length}, type: {type}, arrayType: {arrayType}, partialType: {partialType}, empty: {empty}}) return array",
+        parameters("length", storage.length, "type", SomValueType.PartialArray.name(), "arrayType", type.name(), "partialType", partial.getType().name(), "empty", partial.getEmptyElements()));
+    Object ref = getIdFromStatementResult(result.single().get("array"));
+    for (int i = 0; i < storage.length; i++) {
+      storeSArrayElem(session, ref, i, storage[i]);
+    }
+    array.setDatabaseRef(ref);
   }
 
   private void storeSArrayElem(final Session session, final Object parentId, final int arrayIdx, final Object arrayElem) {
@@ -424,7 +463,9 @@ public final class Database {
   private Object storeValue(final Session session, final Object value) {
     StatementResult result;
     if (value instanceof SFarReference) {
-      return storeSFarReference(session, (SFarReference) value);
+      SFarReference farRef = (SFarReference) value;
+      farRef.storeInDb(this, session);
+      return farRef.getDatabaseRef();
     } else if (value instanceof SPromise) {
       SPromise promise = (SPromise) value;
       promise.storeInDb(this, session);
@@ -454,7 +495,8 @@ public final class Database {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.String.name()));
     } else if (value instanceof SArray) {
       SArray array = (SArray) value;
-      return storeSArray(session, array);
+      array.isDirty(this, session);
+      return array.getDatabaseRef();
     } else {
       throw new RuntimeException("unexpected value type while storing " + value.getClass());
     }
@@ -688,6 +730,27 @@ public final class Database {
     }
   }
 
+  private SArray readPartialArray(final Session session, final Node node) {
+    int length = node.get("length").asInt();
+    int empty = node.get("empty").asInt();
+    Type partialType = Type.valueOf(node.get("partialType").asString());
+    ArrayType arrayType = ArrayType.valueOf(node.get("arrayType").asString());
+    Object[] rawStorage = new Object[length];
+    Arrays.fill(rawStorage, Nil.nilObject);
+    fillArray(session, node.id(), rawStorage);
+    Object storage = new PartiallyEmptyArray(partialType, length, rawStorage, empty);
+    switch(arrayType) {
+      case transfer:
+        return new STransferArray(storage, Classes.transferArrayClass);
+      case mutable:
+        return new SMutableArray(storage, Classes.valueArrayClass);
+      case immutable:
+        return new SImmutableArray(storage, Classes.arrayClass);
+      default:
+        throw new RuntimeException("unexpected array type while reading: " + arrayType.name());
+    }
+  }
+
   private void fillArray(final Session session, final Object arrayRef, final Object[] array) {
     StatementResult result = session.run("MATCH (array: SArray) where ID(array)={arrayRef} MATCH (arrayElem) - [idx:ARRAY_ELEM]-> (array) return arrayElem, idx",
         parameters("arrayRef", arrayRef));
@@ -722,6 +785,8 @@ public final class Database {
         return value.get("value").asString();
       case Array:
         return readArray(session, value.asNode());
+      case PartialArray:
+        return readPartialArray(session, value.asNode());
       default:
         throw new RuntimeException("unexpected value type while reading: " + type.name());
     }

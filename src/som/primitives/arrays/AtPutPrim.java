@@ -267,6 +267,7 @@ public abstract class AtPutPrim extends TernaryExpressionNode {
   public final Object doObjectSArray(final VirtualFrame frame,
       final SMutableArray receiver, final long index, final Object value) {
     try {
+      receiver.setDirty();
       receiver.getObjectStorage(storageType)[(int) index - 1] = value;
       return value;
     } catch (IndexOutOfBoundsException e) {
@@ -278,6 +279,7 @@ public abstract class AtPutPrim extends TernaryExpressionNode {
   public final long doObjectSArray(final VirtualFrame frame,
       final SMutableArray receiver, final long index, final long value) {
     try {
+      receiver.setDirty();
       receiver.getLongStorage(storageType)[(int) index - 1] = value;
       return value;
     } catch (IndexOutOfBoundsException e) {
@@ -305,6 +307,7 @@ public abstract class AtPutPrim extends TernaryExpressionNode {
   public final double doDoubleSArray(final VirtualFrame frame,
       final SMutableArray receiver, final long index, final double value) {
     try {
+      receiver.setDirty();
       receiver.getDoubleStorage(storageType)[(int) index - 1] = value;
       return value;
     } catch (IndexOutOfBoundsException e) {
@@ -331,6 +334,7 @@ public abstract class AtPutPrim extends TernaryExpressionNode {
   public final boolean doBooleanSArray(final VirtualFrame frame,
       final SMutableArray receiver, final long index, final boolean value) {
     try {
+      receiver.setDirty();
       receiver.getBooleanStorage(storageType)[(int) index - 1] = value;
       return value;
     } catch (IndexOutOfBoundsException e) {

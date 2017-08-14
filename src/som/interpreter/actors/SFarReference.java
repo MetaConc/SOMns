@@ -1,9 +1,12 @@
 package som.interpreter.actors;
 
-import som.vmobjects.SAbstractObject;
-import som.vmobjects.SClass;
+import org.neo4j.driver.v1.Session;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
+
+import som.vmobjects.SAbstractObject;
+import som.vmobjects.SClass;
+import tools.timeTravelling.Database;
 
 
 public final class SFarReference extends SAbstractObject {
@@ -11,6 +14,7 @@ public final class SFarReference extends SAbstractObject {
 
   private final Actor  actor;
   private final Object value;
+  private Object databaseRef;
 
   public SFarReference(final Actor actor, final Object value) {
     this.actor = actor;
@@ -48,5 +52,17 @@ public final class SFarReference extends SAbstractObject {
   public static void setSOMClass(final SClass cls) {
     assert farReferenceClass == null || cls == null;
     farReferenceClass = cls;
+  }
+
+  public Object getDatabaseRef() {
+    return databaseRef;
+  }
+
+  public void setDatabaseRef(final Object databaseRef) {
+    this.databaseRef = databaseRef;
+  }
+
+  public void storeInDb(final Database database, final Session session) {
+    database.storeSFarReference(session, this);
   }
 }

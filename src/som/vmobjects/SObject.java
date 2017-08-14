@@ -577,7 +577,8 @@ public abstract class SObject extends SObjectWithClass {
   public boolean isDirty(final Database database, final Session session) {
     boolean dirty = false;
     for (Entry<SlotDefinition, StorageLocation> entry : objectLayout.getStorageLocations().entrySet()) {
-      dirty = dirty || entry.getValue().isDirty(database, session, this);
+      // DO nt change order. lazy evaluation of OR make inverse unusable!!
+      dirty = entry.getValue().isDirty(database, session, this) || dirty;
     }
     Object ref = getDatabaseRef();
     if(ref == null) {
