@@ -18,7 +18,9 @@ import som.interpreter.objectstorage.FieldReadNode.ReadSetPrimitiveSlot;
 import som.interpreter.objectstorage.FieldReadNode.ReadUnwrittenFieldNode;
 import som.vm.constants.Nil;
 import som.vmobjects.SArray;
+import som.vmobjects.SClass;
 import som.vmobjects.SObject;
+import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import sun.misc.Unsafe;
 import tools.timeTravelling.Database;
 
@@ -258,9 +260,23 @@ public abstract class StorageLocation {
         boolean isDirty = (databaseRef != slotRef);
         databaseRef = slotRef;
         return isDirty;
+      } else if (value instanceof SObjectWithoutFields) {
+        SObjectWithoutFields slotLessObject = (SObjectWithoutFields) value;
+        slotLessObject.storeInDb(database, session);
+        Object slotRef = slotLessObject.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
+        return isDirty;
+      } else if (value instanceof SClass) {
+        SClass classObject = (SClass) value;
+        classObject.storeInDb(database, session);
+        Object slotRef = classObject.getDatabaseRef();
+        boolean isDirty = (databaseRef != slotRef);
+        databaseRef = slotRef;
+        return isDirty;
       }
       else {
-        throw new RuntimeException("unexpected slot type in isDirty() of Sobject: " + slot.getName() + " " + object.getClass());
+        throw new RuntimeException("unexpected slot type in isDirty() of Sobject: " + slot.getName() + " " + value.getClass());
       }
     }
   }

@@ -13,6 +13,7 @@ import som.interpreter.actors.SPromise;
 import som.interpreter.actors.SPromise.SResolver;
 import som.vm.NotYetImplementedException;
 import som.vm.constants.Nil;
+import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import tools.timeTravelling.Database;
 import tools.timeTravelling.Database.ArrayType;
 
@@ -334,7 +335,7 @@ public abstract class SArray extends SAbstractObject {
       this.storage = newStorage;
     }
 
-//    private static final ValueProfile emptyStorageType = ValueProfile.createClassProfile();
+    //    private static final ValueProfile emptyStorageType = ValueProfile.createClassProfile();
 
     public final void transitionToObjectWithAll(final long length, final Object val) {
       dirty = true;
@@ -475,6 +476,20 @@ public abstract class SArray extends SAbstractObject {
         } else if (value instanceof SArray) {
           SArray interArray = (SArray) value;
           isDirty = interArray.isDirty(database, session) || isDirty;
+        } else if (value instanceof SObjectWithoutFields) {
+          SObjectWithoutFields slotLessObject = (SObjectWithoutFields) value;
+          Object oldRef = slotLessObject.getDatabaseRef();
+          slotLessObject.storeInDb(database, session);
+          Object slotRef = slotLessObject.getDatabaseRef();
+          isDirty = (oldRef != slotRef) || isDirty;
+          return isDirty;
+        } else if (value instanceof SClass) {
+          SClass classObject = (SClass) value;
+          Object oldRef = classObject.getDatabaseRef();
+          classObject.storeInDb(database, session);
+          Object slotRef = classObject.getDatabaseRef();
+          isDirty = (oldRef != slotRef) || isDirty;
+          return isDirty;
         } else {
           throw new RuntimeException("unexpected type in object array");
         }

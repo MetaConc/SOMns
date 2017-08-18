@@ -44,6 +44,7 @@ import som.vmobjects.SArray.STransferArray;
 import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
 import som.vmobjects.SObject;
+import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import som.vmobjects.SSymbol;
 import tools.timeTravelling.TimeTravellingActors.AbsorbingActor;
 import tools.timeTravelling.TimeTravellingActors.TimeTravelActor;
@@ -217,7 +218,6 @@ public final class Database {
   public void storeSClass(final Session session, final SClass sClass) {
     Object ref = sClass.getDatabaseRef();
     if (ref == null) {
-
       SClass enclosing = sClass.getEnclosingObject().getSOMClass();
       enclosing.storeInDb(this, session);
       StatementResult result = session.run(
@@ -259,9 +259,24 @@ public final class Database {
     linkSlots(session, object, ref);
   }
 
+//the slots have stored themselves while checking for dirty slots
+ // create relation between object header and slots
+ private void linkSlots(final Session session, final SObject object, final Object parentRef) {
+   for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
+     Object ref = entry.getValue().getDatabaseRef();
+     if (ref != null) {
+       session.run(
+           "MATCH (parent) where ID(parent)={parentId}"
+               + " MATCH (slot) where ID(slot) = {slotRef}"
+               + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
+               parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
+     }
+   }
+ }
+
   // Far reference point to objects, far references can never be used in the same turn. Do not store the value.
   public void storeSFarReference(final Session session, final SFarReference farRef) {
-    if(farRef.getDatabaseRef() == null) {
+    if (farRef.getDatabaseRef() == null) {
       StatementResult result = session.run("CREATE (farRef: SFarReference) return farRef");
       Object ref = getIdFromStatementResult(result.single().get("farRef"));
       farRef.setDatabaseRef(ref);
@@ -300,27 +315,32 @@ public final class Database {
   }
 
   public void storeSResolver(final Session session, final SResolver resolver) {
-    SPromise promise = resolver.getPromise();
-    promise.storeInDb(this, session);
-    StatementResult result = session.run(
-        "MATCH (promise: SPromise) where ID(promise)={promiseId}" +
-            "CREATE (resolver: SResolver)-[:RESOLVER_OF]->(promise) return resolver",
-            parameters("promiseId", promise.getDatabaseRef()));
-    resolver.setDatabaseRef(getIdFromStatementResult(result.single().get("resolver")));
+    Object ref = resolver.getDatabaseRef();
+    if (ref == null) {
+      SPromise promise = resolver.getPromise();
+      promise.storeInDb(this, session);
+      StatementResult result = session.run(
+          "MATCH (promise: SPromise) where ID(promise)={promiseId}" +
+              "CREATE (resolver: SResolver)-[:RESOLVER_OF]->(promise) return resolver",
+              parameters("promiseId", promise.getDatabaseRef()));
+      resolver.setDatabaseRef(getIdFromStatementResult(result.single().get("resolver")));
+    }
   }
 
-  // the slots have stored themselves while checking for dirty slots
-  // create relation between object header and slots
-  private void linkSlots(final Session session, final SObject object, final Object parentRef) {
-    for (Entry<SlotDefinition, StorageLocation> entry : object.getObjectLayout().getStorageLocations().entrySet()) {
-      Object ref = entry.getValue().getDatabaseRef();
-      if (ref != null) {
-        session.run(
-            "MATCH (parent) where ID(parent)={parentId}"
-                + " MATCH (slot) where ID(slot) = {slotRef}"
-                + "CREATE (slot) - [:SLOT {slotName: {slotName}}] -> (parent)",
-                parameters("parentId", parentRef, "slotRef", ref, "slotName", entry.getKey().getName().getString()));
-      }
+  public void SObjectWithoutFields(final Session session, final SObjectWithoutFields objectWithoutFields) {
+    Object ref = objectWithoutFields.getDatabaseRef();
+    if (ref == null) {
+      SClass sClass = objectWithoutFields.getSOMClass();
+      // only turns are stored in the db. If an object is created internally in a turn we might still need to store the class
+      storeSClass(session, sClass);
+      StatementResult result = session.run(
+          "MATCH (SClass: SClass) where ID(SClass) = {SClassId}"
+              + " CREATE (SObject: SObject {type: {type}, version: {version}}) - [:HAS_CLASS] -> (SClass)"
+              + " CREATE (SObject) - [:HAS_ROOT] -> (SObject)"
+              + " return SObject",
+              parameters("SClassId", sClass.getDatabaseRef(), "type", SomValueType.SAbstractObject.name(), "version", 0));
+      ref = getIdFromStatementResult(result.single().get("SObject"));
+      objectWithoutFields.setDatabaseRef(ref);
     }
   }
 
@@ -485,6 +505,10 @@ public final class Database {
       SClass sClass = (SClass) value;
       sClass.storeInDb(this, session);
       return sClass.getDatabaseRef();
+    } else if (value instanceof SObjectWithoutFields) {
+      SObjectWithoutFields fieldlessObject = (SObjectWithoutFields) value;
+      fieldlessObject.storeInDb(this, session);
+      return fieldlessObject.getDatabaseRef();
     } else if (value instanceof Long) {
       result = session.run("CREATE (value {value: {value}, type: {type}}) return value", parameters("value", value, "type", SomValueType.Long.name()));
     } else if (value instanceof Double) {

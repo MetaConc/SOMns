@@ -352,7 +352,7 @@ public class ActorExecutionTrace {
 
   public static void recordTurn(final SSymbol methodName, final long messageId, final long sendingActorId, final long sendingTurnId) {
     TracingActivityThread t = getThread();
-    t.getBuffer().recordTurn(methodName, messageId, sendingActorId, sendingTurnId);
+    t.getBuffer().recordTurn(methodName, messageId, sendingActorId, sendingTurnId, t.getActivity());
   }
 
   private static class TraceWorkerThread extends Thread {

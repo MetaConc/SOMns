@@ -1,5 +1,7 @@
 package som.vmobjects;
 
+import org.neo4j.driver.v1.Session;
+
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.interop.ForeignAccess;
@@ -7,6 +9,7 @@ import com.oracle.truffle.api.interop.TruffleObject;
 
 import som.interop.SObjectInteropMessageResolutionForeign;
 import som.interpreter.objectstorage.ClassFactory;
+import tools.timeTravelling.Database;
 
 
 public abstract class SObjectWithClass extends SAbstractObject implements TruffleObject {
@@ -80,6 +83,10 @@ public abstract class SObjectWithClass extends SAbstractObject implements Truffl
     @Override
     public boolean isValue() {
       return clazz.declaredAsValue();
+    }
+
+    public void storeInDb(final Database database, final Session session) {
+      database.SObjectWithoutFields(session, this);
     }
   }
 }
