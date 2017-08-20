@@ -34,6 +34,81 @@ public abstract class StorageLocation {
   public Object getDatabaseRef() {
     return databaseRef;
   }
+  private static boolean isObjectDirty(final Database database, final Session session, final StorageLocation loc, final Object value) {
+    if (value instanceof Boolean) {
+      if(loc.dirty) {
+        loc.databaseRef = database.storeBoolean(session, (Boolean) value);
+        loc.dirty = false;
+        return true;
+      } else {
+        return false;
+      }
+    } else if (value instanceof String) {
+      if(loc.dirty) {
+        loc.databaseRef = database.storeString(session, (String) value);
+        loc.dirty = false;
+        return true;
+      } else {
+        return false;
+      }
+    } else if(value instanceof SObject) {
+      SObject slotObject = (SObject) value;
+      slotObject.isDirty(database, session);
+      /*
+       * If both object A and object B refer to same C.
+       * A's reference to C is dirty if the ref in slotRef does not match the ref in C after the isDirty call on C.
+       */
+      Object slotRef = slotObject.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    } else if (value instanceof SFarReference) {
+      SFarReference farRef = (SFarReference) value;
+      farRef.storeInDb(database, session);
+      Object slotRef = farRef.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    } else if (value instanceof SPromise) {
+      SPromise promise = (SPromise) value;
+      promise.storeInDb(database, session);
+      Object slotRef = promise.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    } else if (value instanceof SResolver) {
+      SResolver resolver = (SResolver) value;
+      resolver.storeInDb(database, session);
+      Object slotRef = resolver.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    } else if (value instanceof SArray) {
+      SArray array = (SArray) value;
+      array.isDirty(database, session);
+      Object slotRef = array.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    } else if (value instanceof SObjectWithoutFields) {
+      SObjectWithoutFields slotLessObject = (SObjectWithoutFields) value;
+      slotLessObject.storeInDb(database, session);
+      Object slotRef = slotLessObject.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    } else if (value instanceof SClass) {
+      SClass classObject = (SClass) value;
+      classObject.storeInDb(database, session);
+      Object slotRef = classObject.getDatabaseRef();
+      boolean isDirty = (loc.databaseRef != slotRef);
+      loc.databaseRef = slotRef;
+      return isDirty;
+    }
+    else {
+      throw new RuntimeException("unexpected slot type in isDirty() of Sobject: " + loc.slot.getName() + " " + value.getClass());
+    }
+  }
 
   private static Unsafe loadUnsafe() {
     try {
@@ -203,81 +278,9 @@ public abstract class StorageLocation {
 
     @Override
     public boolean isDirty(final Database database, final Session session, final SObject object) {
-      assert(isSet(object, null));
+      assert (isSet(object, null));
       Object value = object.readSlot(slot);
-      if (value instanceof Boolean) {
-        if(dirty) {
-          databaseRef = database.storeBoolean(session, (Boolean) value);
-          dirty = false;
-          return true;
-        } else {
-          return false;
-        }
-      } else if (value instanceof String) {
-        if(dirty) {
-          databaseRef = database.storeString(session, (String) value);
-          dirty = false;
-          return true;
-        } else {
-          return false;
-        }
-      } else if (value instanceof SObject) {
-        SObject slotObject = (SObject) value;
-        slotObject.isDirty(database, session);
-        /*
-         * If both object A and object B refer to same C.
-         * A's reference to C is dirty if the ref in slotRef does not match the ref in C after the isDirty call on C.
-         */
-        Object slotRef = slotObject.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      } else if (value instanceof SFarReference) {
-        SFarReference farRef = (SFarReference) value;
-        farRef.storeInDb(database, session);
-        Object slotRef = farRef.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      } else if (value instanceof SPromise) {
-        SPromise promise = (SPromise) value;
-        promise.storeInDb(database, session);
-        Object slotRef = promise.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      } else if (value instanceof SResolver) {
-        SResolver resolver = (SResolver) value;
-        resolver.storeInDb(database, session);
-        Object slotRef = resolver.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      } else if (value instanceof SArray) {
-        SArray array = (SArray) value;
-        array.isDirty(database, session);
-        Object slotRef = array.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      } else if (value instanceof SObjectWithoutFields) {
-        SObjectWithoutFields slotLessObject = (SObjectWithoutFields) value;
-        slotLessObject.storeInDb(database, session);
-        Object slotRef = slotLessObject.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      } else if (value instanceof SClass) {
-        SClass classObject = (SClass) value;
-        classObject.storeInDb(database, session);
-        Object slotRef = classObject.getDatabaseRef();
-        boolean isDirty = (databaseRef != slotRef);
-        databaseRef = slotRef;
-        return isDirty;
-      }
-      else {
-        throw new RuntimeException("unexpected slot type in isDirty() of Sobject: " + slot.getName() + " " + value.getClass());
-      }
+      return isObjectDirty(database, session, this, value);
     }
   }
 
@@ -311,9 +314,9 @@ public abstract class StorageLocation {
 
     @Override
     public boolean isDirty(final Database database, final Session session, final SObject object) {
-      assert(isSet(object, null));
-      SArray array = (SArray) read(object);
-      return array.isDirty(database, session);
+      assert (isSet(object, null));
+      Object value = object.readSlot(slot);
+      return isObjectDirty(database, session, this, value);
     }
   }
 

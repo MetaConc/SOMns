@@ -277,12 +277,18 @@ public class Actor implements Activity {
         if (VmSettings.timeTravellingRecording) {
           msg.storeTurnInDb();
         }
+        //aprintTime(msg);
         msg.execute();
       } finally {
         if (VmSettings.actorTracing) {
           ActorExecutionTrace.scopeEnd(DynamicScopeType.TURN);
         }
       }
+    }
+
+    private void printTime(final EventualMessage msg) {
+      Runtime runtime = Runtime.getRuntime();
+      VM.println(msg.messageId + " " + runtime);
     }
 
     private boolean getCurrentMessagesOrCompleteExecution() {
