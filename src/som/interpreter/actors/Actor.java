@@ -286,11 +286,6 @@ public class Actor implements Activity {
       }
     }
 
-    private void printTime(final EventualMessage msg) {
-      Runtime runtime = Runtime.getRuntime();
-      VM.println(msg.messageId + " " + runtime);
-    }
-
     private boolean getCurrentMessagesOrCompleteExecution() {
       synchronized (actor) {
         assert actor.isExecuting;

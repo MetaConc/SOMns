@@ -321,8 +321,8 @@ public final class Database {
       promise.storeInDb(this, session);
       StatementResult result = session.run(
           "MATCH (promise: SPromise) where ID(promise)={promiseId}" +
-              "CREATE (resolver: SResolver)-[:RESOLVER_OF]->(promise) return resolver",
-              parameters("promiseId", promise.getDatabaseRef()));
+              "CREATE (resolver: SResolver {type: {resolverType}})-[:RESOLVER_OF]->(promise) return resolver",
+              parameters("promiseId", promise.getDatabaseRef(), "resolverType", SomValueType.SResolver.name()));
       resolver.setDatabaseRef(getIdFromStatementResult(result.single().get("resolver")));
     }
   }
