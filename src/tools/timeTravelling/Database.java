@@ -277,7 +277,8 @@ public final class Database {
   // Far reference point to objects, far references can never be used in the same turn. Do not store the value.
   public void storeSFarReference(final Session session, final SFarReference farRef) {
     if (farRef.getDatabaseRef() == null) {
-      StatementResult result = session.run("CREATE (farRef: SFarReference) return farRef");
+      StatementResult result = session.run("CREATE (farRef: SFarReference {type: {type}}) return farRef",
+          parameters("type", SomValueType.SFarReference.name()));
       Object ref = getIdFromStatementResult(result.single().get("farRef"));
       farRef.setDatabaseRef(ref);
     }
