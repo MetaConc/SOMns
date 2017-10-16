@@ -28,6 +28,7 @@ DAMAGE.>> *)|
 
 private vmMirror = vmMirror.
 private Vector    = kernel Vector.
+private classMirror    = platform mirrors ClassMirror.
 
 (*
 private ExternalOutputStream = platform streams ExternalOutputStream.
@@ -37,6 +38,7 @@ private CharacterReadConverter = platform streams CharacterReadConverter.
 private CharacterInputOutputConverter = platform streams CharacterInputOutputConverter.*)
 |
   vmMirror fileDescriptorClass: FileDescriptor.
+  vmMirror fileClass:  (classMirror reflecting: self) classObject.
   ) (
 
 
@@ -474,7 +476,7 @@ FilePattern concatenation operator ',':
     (*get filenames in directory*)
     paths:: vmMirror pathContents: prefix.
     paths do: [ :next |
-      ((string: next platformMatch: pat) and: [ next ~= '.' and: [ next ~= '..' ]])
+      ((string: next platformMatch: pat) and: [ next <> '.' and: [ next <> '..' ]])
         ifTrue: [ 
           blk value: (FilePath for: (prefix concatenate: next)) 
           ]. (*file matches wildcards*)
@@ -652,6 +654,21 @@ FilePattern concatenation operator ',':
     ]
   )
 )  
+
+  public class IOException signalWith: aMessage = Exception (
+    | public msg = aMessage. |
+    self signal.
+  )(
+    public asString = (
+      ^ 'IOException(' + msg + ')'
+    )
+  )
+
+  (* Short cut from VM. Likely to be removed when optimized. *)
+  private signalIOException: aMessage = (
+    NotAValue signalWith: aMessage
+  )
+
 ) : (
   
 )

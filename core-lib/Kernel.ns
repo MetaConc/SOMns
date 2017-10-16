@@ -314,7 +314,6 @@ class Kernel vmMirror: vmMirror = Object <: Value (
 
     (* Comparing *)
     public = argument = ( ^ vmMirror string: self equals: argument )
-    public ~= other = ( ^ (self = other) not )
 
     (* substring: from 'start' to (and including) 'end'. *)
     private primSubstringFrom: start to: end = ( ^ vmMirror string: self

@@ -20,7 +20,7 @@ class FileTests usingPlatform: platform = Value (
       a:: fpath for: (path + '/test/A').
       assert: a exists message: 'exists'.
       assert: (a size = 3644) message: 'size'.
-      assert: a lastModified ~= nil message: 'lastModified'.
+      assert: a lastModified <> nil message: 'lastModified'.
       b:: (fpath for: (a containingDirectory pattern)). 
       assert: b entries size = 3 message: 'entries'.
     )

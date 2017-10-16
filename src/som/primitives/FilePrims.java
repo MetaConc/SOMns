@@ -5,13 +5,14 @@ import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.Specialization;
 
 import bd.primitives.Primitive;
+import som.interpreter.nodes.dispatch.BlockDispatchNode;
+import som.interpreter.nodes.dispatch.BlockDispatchNodeGen;
 import som.interpreter.nodes.nary.BinaryExpressionNode;
 import som.interpreter.nodes.nary.QuaternaryExpressionNode;
 import som.interpreter.nodes.nary.TernaryExpressionNode;
 import som.interpreter.nodes.nary.UnaryExpressionNode;
 import som.interpreter.nodes.nary.UnaryExpressionNode.UnarySystemOperation;
 import som.primitives.actors.PromisePrims;
-import som.vm.constants.Nil;
 import som.vmobjects.SArray;
 import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
@@ -48,7 +49,7 @@ public final class FilePrims {
     @Specialization
     public final Object closeFile(final SFileDescriptor file) {
       file.closeFile();
-      return Nil.nilObject;
+      return file;
     }
   }
 
@@ -77,7 +78,7 @@ public final class FilePrims {
     @Specialization
     public final Object setBufferSize(final SFileDescriptor file, final int size) {
       file.setBufferSize(size);
-      return Nil.nilObject;
+      return file;
     }
   }
 
@@ -87,7 +88,7 @@ public final class FilePrims {
     @Specialization
     public final Object setMode(final SFileDescriptor file, final SSymbol mode) {
       file.setMode(mode);
-      return Nil.nilObject;
+      return file;
     }
   }
 
@@ -112,31 +113,37 @@ public final class FilePrims {
   @GenerateNodeFactory
   @Primitive(primitive = "file:openIfFail:")
   public abstract static class FileOpenPrim extends BinaryExpressionNode {
+    @Child protected BlockDispatchNode dispatchHandler = BlockDispatchNodeGen.create();
+
     @Specialization
     public final Object fileOpen(final SFileDescriptor file, final SBlock handler) {
-      file.openFile(handler);
-      return Nil.nilObject;
+      file.openFile(handler, dispatchHandler);
+      return file;
     }
   }
 
   @GenerateNodeFactory
   @Primitive(primitive = "file:readAt:ifFail:")
   public abstract static class ReadFilePrim extends TernaryExpressionNode {
+    @Child protected BlockDispatchNode dispatchHandler = BlockDispatchNodeGen.create();
+
     @Specialization
     public final long read(final SFileDescriptor file, final long offset,
         final SBlock fail) {
-      return file.read(offset, fail);
+      return file.read(offset, fail, dispatchHandler);
     }
   }
 
   @GenerateNodeFactory
   @Primitive(primitive = "file:write:at:ifFail:")
   public abstract static class WriteFilePrim extends QuaternaryExpressionNode {
+    @Child protected BlockDispatchNode dispatchHandler = BlockDispatchNodeGen.create();
+
     @Specialization
     public final Object write(final SFileDescriptor file, final long nBytes,
         final long offset, final SBlock fail) {
-      file.write((int) nBytes, offset, fail);
-      return Nil.nilObject;
+      file.write((int) nBytes, offset, fail, dispatchHandler);
+      return file;
     }
   }
 }

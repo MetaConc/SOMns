@@ -21,7 +21,7 @@ SOM_DIR=$SCRIPT_PATH/../..
 for args in "${Savina[@]}"   
 do  
   echo "Testing $args" 
-  $SOM_DIR/som -G -JXmx1500m -vmd $SOM_DIR/core-lib/TestSuite/FileTests.ns $SCRIPT_PATH $args 
+  $SOM_DIR/som -G -dnu -JXmx1500m -vmd $SOM_DIR/core-lib/TestSuite/FileTests.ns $SCRIPT_PATH $args 
   echo "" 
   echo "========================================================" 
   echo "" 

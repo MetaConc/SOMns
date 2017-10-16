@@ -7,6 +7,8 @@ import java.io.RandomAccessFile;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 
+import som.interpreter.nodes.dispatch.BlockDispatchNode;
+import som.primitives.PathPrims;
 import som.vm.constants.Classes;
 import som.vmobjects.SArray.SMutableArray;
 
@@ -25,7 +27,6 @@ public class SFileDescriptor extends SObjectWithClass {
   private final File       f;
 
   public static void setSOMClass(final SClass cls) {
-    // assert fileDescriptorClass == null || cls == null;
     fileDescriptorClass = cls;
   }
 
@@ -34,7 +35,7 @@ public class SFileDescriptor extends SObjectWithClass {
     f = new File(uri);
   }
 
-  public void openFile(final SBlock fail) {
+  public void openFile(final SBlock fail, final BlockDispatchNode dispatchHandler) {
     long[] storage = new long[bufferSize];
     buffer = new SMutableArray(storage, Classes.arrayClass);
 
@@ -45,12 +46,8 @@ public class SFileDescriptor extends SObjectWithClass {
         raf = new RandomAccessFile(f, "rw");
       }
     } catch (FileNotFoundException e) {
-      fail.getMethod().invoke(new Object[] {fail, e.toString()});
+      dispatchHandler.executeDispatch(new Object[] {fail, e.toString()});
     }
-    /*
-     * open with write only
-     * raf.getChannel().truncate(0);
-     */
 
     open = true;
   }
@@ -60,19 +57,12 @@ public class SFileDescriptor extends SObjectWithClass {
       raf.close();
       open = false;
     } catch (IOException e) {
-      e.printStackTrace();
+      PathPrims.signalIOException(e.getMessage());
     }
   }
 
-  /**
-   * This method causes the buffer to be filled with bytes read from the file,
-   * reading starts from the specified position and the buffer is filled from its start.
-   *
-   * @param position position in the file where reading starts
-   * @param ifFail Handler for failures
-   * @return
-   */
-  public int read(final long position, final SBlock fail) {
+  public int read(final long position, final SBlock fail,
+      final BlockDispatchNode dispatchHandler) {
     if (!open) {
       fail.getMethod().invoke(new Object[] {fail, "File not open"});
       return 0;
@@ -90,7 +80,7 @@ public class SFileDescriptor extends SObjectWithClass {
       raf.seek(position);
       bytes = raf.read(buff);
     } catch (IOException e) {
-      fail.getMethod().invoke(new Object[] {fail, "File not open"});
+      dispatchHandler.executeDispatch(new Object[] {fail, e.toString()});
     }
 
     // move read data to the storage
@@ -101,9 +91,10 @@ public class SFileDescriptor extends SObjectWithClass {
     return bytes;
   }
 
-  public void write(final int nBytes, final long position, final SBlock fail) {
+  public void write(final int nBytes, final long position, final SBlock fail,
+      final BlockDispatchNode dispatchHandler) {
     if (!open) {
-      fail.getMethod().invoke(new Object[] {fail, "File not open"});
+      dispatchHandler.executeDispatch(new Object[] {fail, "File not opened"});
       return;
     }
 
@@ -111,8 +102,9 @@ public class SFileDescriptor extends SObjectWithClass {
     byte[] buff = new byte[bufferSize];
 
     for (int i = 0; i < bufferSize; i++) {
-      // punish users for using this loophole
-      assert Byte.MIN_VALUE <= storage[i] && storage[i] <= Byte.MAX_VALUE;
+      if (Byte.MIN_VALUE <= storage[i] && storage[i] <= Byte.MAX_VALUE) {
+        PathPrims.signalIOException("Buffer only supports values in the range -128 to 127");
+      }
       buff[i] = (byte) storage[i];
     }
 
@@ -120,7 +112,7 @@ public class SFileDescriptor extends SObjectWithClass {
       raf.seek(position);
       raf.write(buff, 0, nBytes);
     } catch (IOException e) {
-      fail.getMethod().invoke(new Object[] {fail, "File not open"});
+      dispatchHandler.executeDispatch(new Object[] {fail, e.toString()});
     }
   }
 
@@ -128,7 +120,7 @@ public class SFileDescriptor extends SObjectWithClass {
     try {
       return raf.length();
     } catch (IOException e) {
-      e.printStackTrace();
+      PathPrims.signalIOException(e.getMessage());
     }
     return 0;
   }
