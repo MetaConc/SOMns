@@ -1,5 +1,5 @@
 class Files usingVmMirror: vmMirror usingPlatform: platform = Value(
-(* This code was derived by converting the Strongtalk File classes to Newspeak, which is why the Sun Microsystems copyright and BSD license below applies.
+(* This code was derived from Newspeak File classes, which is why the Sun Microsystems copyright and BSD license below applies.
 
 Copyright (c) 1995-2006 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
 Copyright 2008-2009 Gilad Bracha and other contributors.
@@ -28,7 +28,7 @@ DAMAGE.>> *)|
 
 private vmMirror = vmMirror.
 private Vector    = kernel Vector.
-private classMirror    = platform mirrors ClassMirror.
+private Exception = kernel Exception.
 
 (*
 private ExternalOutputStream = platform streams ExternalOutputStream.
@@ -38,347 +38,329 @@ private CharacterReadConverter = platform streams CharacterReadConverter.
 private CharacterInputOutputConverter = platform streams CharacterInputOutputConverter.*)
 |
   vmMirror fileDescriptorClass: FileDescriptor.
-  vmMirror fileClass:  (classMirror reflecting: self) classObject.
-  ) (
+  vmMirror fileObject:  self.
+) (
 
+  (* A dummy class *)
+  class ExternalObject = (||) () : ()
 
-class ExternalObject = (
-(* A dummy class *)|
-|) (
-) : (
-)
+  (* A dummy class *)
+  class ExternalStreamableObject = ExternalObject (||) () : ()
 
-class ExternalStreamableObject = ExternalObject (
-(* A dummy class *)|
-|) (
-) : (
-)
-
-public class FileDescriptor = Object () (
-  public buffer = (
+  public class FileDescriptor = Object () (
+    
     (*return buffer array*)
-    ^ vmMirror fileBuffer: self.
-  )
+    public buffer = (
+      ^ vmMirror fileBuffer: self.
+    )
 
-  public mode: m = (
-    vmMirror file: self setMode: m.
-  )
+    (*set access mode*)
+    public mode: m = (
+      vmMirror file: self setMode: m.
+    )
 
-  public bufferSize = (
-    ^vmMirror fileBufferSize: self.
-  )
+    (*return size of the interanl buffer*)
+    public bufferSize = (
+      ^vmMirror fileBufferSize: self.
+    )
 
-  public bufferSize: size = (
-    vmMirror file: self setBufferSize: size.
-  )
+    (*set size for the interal buffer, only works before opening the file*)
+    public bufferSize: size = (
+      vmMirror file: self setBufferSize: size.
+    )
 
-  public close = (
     (*close file*)
-    vmMirror fileClose: self.
-  )
+    public close = (
+      vmMirror fileClose: self.
+    )
 
-  public flushIfFail: errf <[:ExternalError]> = (
-    (* placeholder, no flushing needed*)
-  )
-
-  public readAt: pos <Integer> ifFail: errf <[:ExternalError]> ^<Integer> = (
-  (* read as many bytes as possible into the buffer (up to its size), and return the number
-      of bytes that were actually read.  The semantics at end of file are to return 0 with no error. *)
+    public flushIfFail: errf <[:ExternalError]> = (
+      (* placeholder, no flushing needed*)
+    )
+    
+    (* read as many bytes as possible into the buffer (up to its size), and return the number
+        of bytes that were actually read.  The semantics at end of file are to return 0 with no error. *)
+    public readAt: pos <Integer> ifFail: errf <[:ExternalError]> ^<Integer> = (
       ^ vmMirror file: self readAt: pos ifFail: errf.
-  )
+    )
 
-  public write: nBytes <Integer> at: pos <Integer> ifFail: errf <[:ExternalError]>  = (
+    public write: nBytes <Integer> at: pos <Integer> ifFail: errf <[:ExternalError]>  = (
       vmMirror file: self write: nBytes at: pos ifFail: errf.
-  )
+    )
 
-  public size ^<Integer> = (
-    ^ vmMirror fileSize: self.
-  )
+    public size ^<Integer> = (
+      ^ vmMirror fileSize: self.
+    )
 
-  isClosed ^ <Boolean> = (
-    ^vmMirror fileIsClosed: self.
-  )
+    isClosed ^ <Boolean> = (
+      ^vmMirror fileIsClosed: self.
+    )
 
-  public openIfFail: errf <[:ExternalError]> = (
-    vmMirror file: self openIfFail: errf.
-  )
-) : (
-
-  public for: obj mode: m = (
-    ^ (vmMirror fileCreateFileDescriptorFor: obj) mode: m.
+    public openIfFail: errf <[:ExternalError]> = (
+      vmMirror file: self openIfFail: errf.
+    )
+  ) : (
     (* Create a new instance, but don't open yet *)
-  )
-)
-
-(*======================================
-              FILE PATH
-=========================================*)
-
-public class FilePath = FilePattern <: ExternalStreamableObject <: ExternalObject (
-(* FilePaths are FilePatterns without wildcard characters, which means
-they match individual files, not sets of files.
-*)) (
-  public , extension <FilePattern> ^ <EXTENDED> = (
-    (* {where EXTENDED is returnType of #extendPath: message of arg 1} *)
-    (* This guarantee is safe because of the inference clause *)
-    ^ extension extendPath: self (* ) *)
+    public for: obj mode: m = (
+      ^ (vmMirror fileCreateFileDescriptorFor: obj) mode: m.
+    )
   )
 
-  public copyAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
-    vmMirror path: (self pattern) copyAs: (newPath pattern) ifFail: fail.
-  )
+  (*======================================
+                FILE PATH
+  =========================================*)
 
-  public createDirectoryIfFail: fail <[:Symbol]> = (
-    (*create directory from this path*)
-    vmMirror pathCreateDirectory: self pattern ifFail: fail.
-  )
+  public class FilePath = FilePattern <: ExternalStreamableObject <: ExternalObject (
+  (* FilePaths are FilePatterns without wildcard characters, which means
+  they match individual files, not sets of files.
+  *)
+  ) (
+    public , extension <FilePattern> ^ <EXTENDED> = (
+      (* {where EXTENDED is returnType of #extendPath: message of arg 1} *)
+      (* This guarantee is safe because of the inference clause *)
+      ^ extension extendPath: self (* ) *)
+    )
 
-  public deleteDirectoryIfFail: blk <[:Symbol]> = (
-    vmMirror pathDeleteFileDir: self pattern ifFail: blk.
-  )
+    public copyAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
+      vmMirror path: (self pattern) copyAs: (newPath pattern) ifFail: fail.
+    )
 
-  public deleteFileIfFail: blk <[:Symbol]> = (
-    vmMirror pathDeleteFileDir: self pattern ifFail: blk.
-  )
+    public createDirectoryIfFail: fail <[:Symbol]> = (
+      (*create directory from this path*)
+      vmMirror pathCreateDirectory: self pattern ifFail: fail.
+    )
 
-  public deletePathIfFail: blk <[:Symbol]> = (
-    self exists
-      ifFalse: [	blk value: #NoSuchFileOrDirectory.
-              ^self		].
-    self isDirectory
-      ifTrue: [ self deleteDirectoryIfFail: blk ]
-      ifFalse: [ self deleteFileIfFail: blk ]
-  )
+    public deleteDirectoryIfFail: blk <[:Symbol]> = (
+      vmMirror pathDeleteFileDir: self pattern ifFail: blk.
+    )
 
-  public exists ^<Boolean> = (
-    ^vmMirror pathFileExists: self pattern.
-  )
+    public deleteFileIfFail: blk <[:Symbol]> = (
+      vmMirror pathDeleteFileDir: self pattern ifFail: blk.
+    )
 
-  public isDirectory ^<Boolean> = (
-    ^vmMirror pathIsDirectory: self pattern.
-  )
+    public deletePathIfFail: blk <[:Symbol]> = (
+      self exists
+        ifFalse: [	blk value: #NoSuchFileOrDirectory.
+                ^self		].
+      self isDirectory
+        ifTrue: [ self deleteDirectoryIfFail: blk ]
+        ifFalse: [ self deleteFileIfFail: blk ]
+    )
 
-  public isReadOnly ^<Boolean> = (
-    ^vmMirror pathIsReadOnly: self pattern.
-  )
+    public exists ^<Boolean> = (
+      ^vmMirror pathFileExists: self pattern.
+    )
 
-  public lastModified = (
-    ^vmMirror pathLastModified: self pattern.
-  )
+    public isDirectory ^<Boolean> = (
+      ^vmMirror pathIsDirectory: self pattern.
+    )
 
-  public moveAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
-    vmMirror path: self pattern moveAs: newPath pattern ifFail: fail.
-  )
+    public isReadOnly ^<Boolean> = (
+      ^vmMirror pathIsReadOnly: self pattern.
+    )
 
-  public openInternalFor: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^<Win32Handle | X> = (
-    (* %todo: use overlapped io *)
-    (*create file and return "handle"*)
-  )
+    public lastModified = (
+      ^vmMirror pathLastModified: self pattern.
+    )
 
-(*
-  public printOn: stm = (
-    stm nextPutAll: 'a Win32FilePath(' , pattern , ')'.
-  )*)
+    public moveAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
+      vmMirror path: self pattern moveAs: newPath pattern ifFail: fail.
+    )
 
-  public size = (
-    ^vmMirror pathGetSize: self pattern.
-  )
+    public openInternalFor: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^<Win32Handle | X> = (
+      (*create file and return "handle"*)
+    )
 
-  type ^<Str> = (
-    (* The file type (on most platforms this is the part after the "." at the end) *)
-    | indices <SeqCltn[Int]> |
-    indices:: self name indicesOfSubCollection: '.'.
-    indices isEmpty
-      ifTrue: [ ^'' ].
-    ^self name
-        copyFrom: indices last + 1
-        to: self name size
-  )
+    (*
+    public printOn: stm = (
+      stm nextPutAll: 'a Win32FilePath(' , pattern , ')'.
+    )*)
 
-(*
-  charInputStream ^ <CharInputStream> = (
-    ^super charInputStream
-    (* Override to use a ReadConverter, which is faster for things like upTo: *)
-    (* ^CharacterReadConverter on: self readStream *)
-  )
+    public size = (
+      ^vmMirror pathGetSize: self pattern.
+    )
 
-  charInputStreamDo: blk <[:CharInputStream | X def]> ifFail: fail <[Y def]> ^ <X | Y> = (
-    (* %kludge: this is a quick hack that catches only some kinds of
-      problems *)
-    ^self exists
-      ifFalse: [ fail value ]
-      ifTrue: [ super charInputStreamDo: blk ]
-  )
+    (*
+    charInputStream ^ <CharInputStream> = (
+      ^super charInputStream
+      (* Override to use a ReadConverter, which is faster for things like upTo: *)
+      (* ^CharacterReadConverter on: self readStream *)
+    )
 
-  charOutputStream ^ <CharOutputStream> = (
-    ^CharacterInputOutputConverter on: self writeStream
-  )*)
+    charInputStreamDo: blk <[:CharInputStream | X def]> ifFail: fail <[Y def]> ^ <X | Y> = (
+      (* %kludge: this is a quick hack that catches only some kinds of
+        problems *)
+      ^self exists
+        ifFalse: [ fail value ]
+        ifTrue: [ super charInputStreamDo: blk ]
+    )
 
-  public copyAs: newPath <FilePath> = (
-    self copyAs: newPath
-      ifFail: [ :err <Symbol> |
-              self error: err	]
-  )
+    charOutputStream ^ <CharOutputStream> = (
+      ^CharacterInputOutputConverter on: self writeStream
+    )*)
 
-  public copyNamed: name <Str> ^ <FilePath> = (
+    public copyAs: newPath <FilePath> = (
+      self copyAs: newPath ifFail: [ :err <Symbol> |
+        self error: err	
+      ]
+    )
+
     (* create a copy in the same directory with the specified name. The
-      new path is returned. *)
-    ^self copyNamed: name ifFail: [ :err <Symbol> | self error: err ]
-  )
+        new path is returned. *)
+    public copyNamed: name <Str> ^ <FilePath> = (
+      ^self copyNamed: name ifFail: [ :err <Symbol> | self error: err ]
+    )
 
-  public copyNamed: name <Str> ifFail: fail <[:ExternalError]>  ^ <FilePath> = (
     (* create a copy in the same directory with the specified name. The
-      new path is returned. *)
-    | newPath <FilePath> |
-    newPath:: self containingDirectory, (FilePath for: name).
-    self copyAs: newPath
-      ifFail: [ :err <Symbol> |
-              self error: err	].
-    ^newPath
-  )
+        new path is returned. *)
+    public copyNamed: name <Str> ifFail: fail <[:ExternalError]>  ^ <FilePath> = (
+      | newPath <FilePath> |
+      newPath:: self containingDirectory, (FilePath for: name).
+      self copyAs: newPath ifFail: [ :err <Symbol> |
+        self error: err	
+      ].
+      ^newPath
+    )
 
-  public elements ^ <Vector[FilePath]> = (
-    (* A file path's elements must also be filepaths *)
-    ^ super elements
-  )
+    public elements ^ <Vector[FilePath]> = (
+      (* A file path's elements must also be filepaths *)
+      ^ super elements
+    )
 
-  public entries ^ <List[FilePath]>  = (
-    ^(self, (FilePattern for: '*')) paths
-  )
+    public entries ^ <List[FilePath]>  = (
+      ^(self, (FilePattern for: '*')) paths
+    )
 
-  public extendPath: path <FilePath> ^ <FilePath> = (
-    ^FilePath for: (self patternExtending: path)
-  )
+    public extendPath: path <FilePath> ^ <FilePath> = (
+      ^FilePath for: (self patternExtending: path)
+    )
 
-(*
-  public inputStream ^ <InputStream[Integer]> = (
-    (* We are using this for now since read streams are faster at things like upTo: than input streams *)
-      ^self readStream
-  )*)
+    (*
+    public inputStream ^ <InputStream[Integer]> = (
+      (* We are using this for now since read streams are faster at things like upTo: than input streams *)
+        ^self readStream
+    )*)
 
-  public isPath ^ <Boolean> = (
-    ^true
-  )
+    public isPath ^ <Boolean> = (
+      ^true
+    )
 
-  public isWriteable ^ <Boolean> = (
-    ^self isReadOnly not
-  )
+    public isWriteable ^ <Boolean> = (
+      ^self isReadOnly not
+    )
 
-  public moveAs: newPath <FilePath> = (
-    self moveAs: newPath
-      ifFail: [ :err <Symbol> |
-              self error: err	]
-  )
+    public moveAs: newPath <FilePath> = (
+      self moveAs: newPath
+        ifFail: [ :err <Symbol> | self error: err	]
+    )
 
-  public name ^ <Str> = (
-    ^self pattern
-  )
-  public open: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^ <FileDescriptor | X> = (
-    (* Modes: #read, #write, #readWrite *)
-    ^(FileDescriptor for: (self pattern) mode: mode)
-      openIfFail: [ :e <ExternalError> | 
-        ^err value: e ]
-  )
+    public name ^ <Str> = (
+      ^self pattern
+    )
+    public open: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^ <FileDescriptor | X> = (
+      (* Modes: #read, #write, #readWrite *)
+      ^(FileDescriptor for: (self pattern) mode: mode)
+        openIfFail: [ :e <ExternalError> | 
+          ^err value: e ]
+    )
 
-  (*
-  public outputStream ^ <OutputStream[Integer]> = (
-      ^ExternalOutputStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
-  )*)
+    (*
+    public outputStream ^ <OutputStream[Integer]> = (
+        ^ExternalOutputStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
+    )*)
 
-  pathsDo: blk <[:FilePath]> = (
-    self exists
-      ifTrue: [  blk value: self ]
-  )
+    pathsDo: blk <[:FilePath]> = (
+      self exists ifTrue: [  blk value: self ]
+    )
 
-  public pattern: p <Str> = (
-    super pattern: p.
-    self assert: [ (FilePattern patternHasWildcards: p) not ] message: 'shouldnothavewildcards'.
-  )
+    public pattern: p <Str> = (
+      super pattern: p.
+      self assert: [ (FilePattern patternHasWildcards: p) not ] message: 'shouldnothavewildcards'.
+    )
 
-  (*
-  public readStream ^ <ExternalReadStream> = (
-      ^ExternalReadStream onDescriptor:
-      (self open: #read ifFail: [ :err <ExternalError> | self error: err ])
-  )
+    (*
+    public readStream ^ <ExternalReadStream> = (
+        ^ExternalReadStream onDescriptor:
+        (self open: #read ifFail: [ :err <ExternalError> | self error: err ])
+    )
 
-  public readWriteStream ^ <ExternalReadWriteStream> = (
-      ^ExternalReadWriteStream onDescriptor: (self open: #readWrite ifFail: [ :err <ExternalError> | self error: err ])
-  )*)
+    public readWriteStream ^ <ExternalReadWriteStream> = (
+        ^ExternalReadWriteStream onDescriptor: (self open: #readWrite ifFail: [ :err <ExternalError> | self error: err ])
+    )*)
 
-  public rename: name <Str> ^ <FilePath> = (
-    (* rename in the same directory.  The new path is returned. *)
-    ^self rename: name ifFail: [ :err <Symbol> | self error: err ]
-  )
+    public rename: name <Str> ^ <FilePath> = (
+      (* rename in the same directory.  The new path is returned. *)
+      ^self rename: name ifFail: [ :err <Symbol> | self error: err ]
+    )
 
-  public rename: name <Str> ifFail: fail <[:ExternalError]> ^ <FilePath> = (
-    (* rename in the same directory.   The new path is returned. *)
-    | newPath <FilePath> |
-    newPath:: self containingDirectory, (FilePath for: name).
-    self moveAs: newPath
-      ifFail: [ :err <Symbol> |
-              self error: err	].
-    ^newPath
-  )
+    public rename: name <Str> ifFail: fail <[:ExternalError]> ^ <FilePath> = (
+      (* rename in the same directory.   The new path is returned. *)
+      | newPath <FilePath> |
+      newPath:: self containingDirectory, (FilePath for: name).
+      self moveAs: newPath
+        ifFail: [ :err <Symbol> |
+                self error: err	].
+      ^newPath
+    )
 
-  public simpleName ^ <String> = (
-    ^elements last name
-  )
-  (*
-  public writeStream ^ <ExternalReadWriteStream> = (
-      ^ExternalReadWriteStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
-  )*)
-) : (
-  public currentDirectory ^<FilePath> = (
-      ^FilePath for: (vmMirror pathCurrentDirectory: nil)
-  )
+    public simpleName ^ <String> = (
+      ^elements last name
+    )
+    (*
+    public writeStream ^ <ExternalReadWriteStream> = (
+        ^ExternalReadWriteStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
+    )*)
+  ) : (
+    public currentDirectory ^<FilePath> = (
+        ^FilePath for: (vmMirror pathCurrentDirectory: nil)
+    )
 
-  public for: nm <String>  ^ <FilePath> = (
-    ^FilePath new pattern: nm
-  )
+    public for: nm <String>  ^ <FilePath> = (
+      ^FilePath new pattern: nm
+    )
 
-  for: obj <EOBJ> mode: m <Symbol>  ^ <Instance> = (
-    (* Create a new instance, but don't open yet *)
-    ^self new externalObject: obj; mode: m
+    for: obj <EOBJ> mode: m <Symbol>  ^ <Instance> = (
+      (* Create a new instance, but don't open yet *)
+      ^self new externalObject: obj; mode: m
+    )
   )
-)
 
 (*
 ====================================
             FILE PATTERN
 ===================================
+FilePatterns represent a pattern that matches some set of files, and are used (along with the subclass FilePath, which
+represents individual files without wildcards) to represent all file paths in the system.  
+For example, (FilePattern for: '*') is the pattern for all files in the current directory.
+
+For example,  a relative FilePattern that matches '*.bar' files in a subdirectory 'foo' can be constructed with 
+	fp :: FilePattern forElements: #('foo' '*.bar')
+To turn this into an absolute path, you can use the general FilePattern concatenation operator ',':
+	FilePath currentDirectory, fp
 *)
 
 public class FilePattern = Object (
-(* FilePatterns represent a pattern that matches some set of
-files, and are used (along with the subclass FilePath, which
-represents individual files without wildcards) to represent
-all file paths in the system.  For example, (FilePattern for: '*')
-is the pattern for all files in the current directory.
-
-For example,  a relative FilePattern that matches '*.bar' files in a
-subdirectory 'foo' can be constructed with 
-	fp :: FilePattern forElements: #('foo' '*.bar')
-To turn this into an absolute path, you can use the general
-FilePattern concatenation operator ',':
-	FilePath currentDirectory, fp
-*)|  pattern_0 <String> |) (
+|  pattern_0 <String> |) (
+  (* Concatenation of FilePatterns *)
   public , extension <FilePattern> ^ <EXTENDED> = (
-    (* This is how patterns are concatenated.  If both the receiver and the argument
-      are FilePaths, the return type is FilePath, otherwise it is a FilePattern. *)
     ^extension extendPattern: self
   )
 
+  (* returns the seperator *)
   separator = (
     ^ vmMirror pathSeparator: self.
   )
 
+  (* extend pattern *)
   public / string = (
     ^self , (FilePattern for: string)
   )
 
+  (* get the name of directory/file *)
   public baseName ^ <FilePattern> = (
     ^self elements last
   )
+
 
   elementsDo: blk <[:FilePattern]> = (
     | elems |
@@ -422,29 +404,29 @@ FilePattern concatenation operator ',':
     ^ vmMirror pathIsAbsolute: self pattern.
   )
 
-  (*for each over the matching paths*)
+  (* for each over the matching paths *)
   public pathsDo: blk <[:FilePath]> = (
     | els <Vector[FilePattern]> i <Int> |
     
     els:: self elements.
     i:: self firstWildElementOf: els
-          ifFail: [ ^self shouldNotHappen ].
-    i = els size
-      ifTrue: [ self terminalPathsDo: blk ]
-      ifFalse: [	| rest <FilePattern> tmp |
-        i + 1 = els size
+      ifFail: [ ^self shouldNotHappen ].
+    
+    (i = els size) ifTrue: [ self terminalPathsDo: blk ]
+    ifFalse: [ | rest <FilePattern> tmp |
+        (i + 1 = els size)
           ifTrue: [ rest:: els last ] (*optimization*)
           ifFalse: [ 
             tmp:: Vector new.
             (i + 1) to: (els size) do: [ :j | tmp append: (els at: j)].
             rest:: FilePattern forAll: tmp. 
           ].
+
         tmp:: Vector new.
 
         1 to: i do: [ :j | tmp append: (els at: j)].
         (FilePattern forAll: tmp) pathsDo: [ :fp <FilePath> |
-          fp isDirectory
-            ifTrue: [ (fp, rest) pathsDo: blk ]		]
+          fp isDirectory ifTrue: [ (fp, rest) pathsDo: blk ]	]
       ]
   )
 
@@ -466,9 +448,7 @@ FilePattern concatenation operator ',':
       ifFalse: [
         allpat:: self containingDirectory pattern, (separator + '*.*').
         temp:: Vector new: (els size - 1).
-        1 to: (els size - 1) do: [ :i |
-          temp append: (els at: i)
-        ].
+        1 to: (els size - 1) do: [ :i | temp append: (els at: i) ].
         prefix:: (FilePattern forAll: temp) pattern concatenate: separator.
     ].
     pat:: els last pattern. (*the part with wildcard i.e. asdf* *)
@@ -550,12 +530,12 @@ FilePattern concatenation operator ',':
       This should be used with extreme caution.  Directories that are
       not empty are not deleted.  If any matching files or directories cannot
       be deleted, blk is evaluated with an error symbol *)
-    self pathsDo:
-      [ :p <FilePath> |
-        p deletePathIfFail:
-          [ :err <Symbol> |
-            blk value: err.
-            ^self		 ] ]
+    self pathsDo: [ :p <FilePath> |
+      p deletePathIfFail: [ :err <Symbol> |
+        blk value: err.
+        ^self		 
+      ] 
+    ]
   )
 
   elements ^ <Vector[FilePattern]> = (
@@ -564,7 +544,8 @@ FilePattern concatenation operator ',':
     els:: Vector new.
     self elementsDo:
       [ :el <FilePattern> |
-        els append: el. ].
+        els append: el. 
+      ].
     ^els
   )
 
@@ -589,9 +570,9 @@ FilePattern concatenation operator ',':
     (* Return a collection of the elements that you would get from pathsDo: *)
     | els |
     els:: Vector new.
-    self pathsDo:
-      [ :el <FilePath> |
-        els append: el. ].
+    self pathsDo: [ :el <FilePath> |
+      els append: el. 
+    ].
     ^els
   )
 
@@ -637,9 +618,7 @@ FilePattern concatenation operator ',':
   )
   
   public forElements: els <Vector[Str]> ^ <FilePattern> = (
-    ^self forAll: (els collect: 
-              [ :s <Str> | 
-                FilePattern for: s ])
+    ^self forAll: (els collect: [ :s <Str> | FilePattern for: s ])
   )
 
   assert: block = (
@@ -666,7 +645,7 @@ FilePattern concatenation operator ',':
 
   (* Short cut from VM. Likely to be removed when optimized. *)
   private signalIOException: aMessage = (
-    NotAValue signalWith: aMessage
+    IOException signalWith: aMessage
   )
 
 ) : (

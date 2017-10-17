@@ -24,24 +24,23 @@ import som.interpreter.nodes.nary.TernaryExpressionNode;
 import som.interpreter.nodes.nary.UnaryExpressionNode;
 import som.vm.Symbols;
 import som.vm.constants.Classes;
-import som.vm.constants.KernelObj;
 import som.vm.constants.Nil;
 import som.vmobjects.SArray.SImmutableArray;
 import som.vmobjects.SBlock;
-import som.vmobjects.SClass;
 import som.vmobjects.SInvokable;
+import som.vmobjects.SObject.SImmutableObject;
 
 
 public final class PathPrims {
-  @CompilationFinal public static SClass fileClass;
+  @CompilationFinal public static SImmutableObject fileObject;
 
   @GenerateNodeFactory
   @ImportStatic(FilePrims.class)
-  @Primitive(primitive = "fileClass:")
+  @Primitive(primitive = "fileObject:")
   public abstract static class SetFileClassPrim extends UnaryExpressionNode {
     @Specialization
-    public final SClass setClass(final SClass value) {
-      fileClass = value;
+    public final SImmutableObject setClass(final SImmutableObject value) {
+      fileObject = value;
       return value;
     }
   }
@@ -50,10 +49,10 @@ public final class PathPrims {
     CompilerDirectives.transferToInterpreter();
     VM.thisMethodNeedsToBeOptimized("Should be optimized or on slowpath");
 
-    SInvokable disp = (SInvokable) KernelObj.kernel.getSOMClass().lookupPrivate(
+    SInvokable disp = (SInvokable) fileObject.getSOMClass().lookupPrivate(
         Symbols.symbolFor("signalIOException:"),
-        KernelObj.kernel.getSOMClass().getMixinDefinition().getMixinId());
-    return disp.invoke(new Object[] {KernelObj.kernel, message});
+        fileObject.getSOMClass().getMixinDefinition().getMixinId());
+    return disp.invoke(new Object[] {fileObject, message});
   }
 
   @GenerateNodeFactory

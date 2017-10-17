@@ -1,42 +1,45 @@
-class FileTests usingPlatform: platform = Value ( 
-  | private actors    = platform actors. 
-    private Array     = platform kernel Array. 
-    private TransferArray= platform kernel TransferArray. 
-    private system    = platform system. 
-    private Dictionary= platform collections Dictionary.
-    private om = platform mirrors ObjectMirror.
-    private Files = platform files.
-    private fdes = Files FileDescriptor.
-    private fpath = Files FilePath.
-    private fpat = Files FilePattern.
-  | 
-)( 
-  class Tests new: path = (
-    |path = path.
-    |
-  )( 
-    public utils=(
+class FileTests usingPlatform: platform testFramework: minitest = Value (
+| private TestContext = minitest TestContext.
+  private AsyncTestContext = minitest AsyncTestContext.
+  private actors      = platform actors.
+  private Exception   = platform kernel Exception.
+  private NotAValue   = platform kernel NotAValue.
+  private Vector      = platform kernel Vector.
+  private Array       = platform kernel Array.
+  private ObjectMirror = platform mirrors ObjectMirror.
+  private errorTestMessage = 'test exception 1'.
+  private Files = platform files.
+  private fdes = Files FileDescriptor.
+  private fpath = Files FilePath.
+  private fpat = Files FilePattern.
+|
+)(
+  public class BasicFileTests = TestContext (
+    | path |
+    path:: (fpath currentDirectory / 'tests' / 'java' / 'som' / 'files') pattern.
+  )(
+    public testUtils=(
       |a b|
       a:: fpath for: (path + '/test/A').
-      assert: a exists message: 'exists'.
-      assert: (a size = 3644) message: 'size'.
-      assert: a lastModified <> nil message: 'lastModified'.
+      assert: a exists.
+      assert: (a size = 3644).
+      assert: a lastModified <> nil.
       b:: (fpath for: (a containingDirectory pattern)). 
-      assert: b entries size = 3 message: 'entries'.
+      assert: b entries size = 3.
     )
 
-    public createDeleteFile = (
+    public testCreateDeleteFile = (
       |f|
       f:: fpath for: (path + '/temp/A').
       (fpath for: (f containingDirectory pattern)) createDirectoryIfFail: [:r| assert: false].
-      assert: (f exists not) message: 'should not exist yet'.
+      assert: (f exists not).
       f open: #readwrite ifFail: [:r| assert: false message: 'should not happen'].
       assert: (f exists).
       f deleteFileIfFail: [:r |].
       assert: (f exists not).
     )
 
-    public createDeleteDirectory = (
+    public testCreateDeleteDirectory = (
       |f|
       f:: fpath for: (path + '/temp/A').
       assert: (f exists not).
@@ -46,13 +49,13 @@ class FileTests usingPlatform: platform = Value (
       assert: (f exists not).
     )
 
-    public readwrite=(
+    public testReadWrite=(
       |f d|
       f:: fpath for: (path + '/tmp').
       assert: (f exists not).
       d:: f open: #readwrite ifFail: [:r | assert: false].
 
-      assert: d size = 0 message: 'file not empty'.
+      assert: d size = 0.
 
       0 to: 255 do:[ :i|
         d buffer at: (i+1) put: (i - 128).
@@ -63,7 +66,7 @@ class FileTests usingPlatform: platform = Value (
       assert: 256 = (d readAt: 0 ifFail: [:r |]).
 
       0 to: 255 do:[ :i|
-        assert: ((d buffer at: (i+1)) = (i - 128))  message: 'not what was written'.
+        assert: ((d buffer at: (i+1)) = (i - 128)).
       ].
 
       d close.
@@ -72,7 +75,7 @@ class FileTests usingPlatform: platform = Value (
       assert: (f exists not).
     )
 
-    public paths= (
+    public testPaths= (
       |f cnt|
       cnt:: 0.
       f:: fpat for: (path + '/test/*').
@@ -83,7 +86,7 @@ class FileTests usingPlatform: platform = Value (
       assert: cnt = 3.
     )
 
-    public move =(
+    public testMove =(
       |f g|
       f:: fpath for: (path + '/tmp').
       f open: #readwrite ifFail: [:r|].
@@ -101,25 +104,8 @@ class FileTests usingPlatform: platform = Value (
 
       g deleteFileIfFail: [:r|].
     )
+  ) : (
+    TEST_CONTEXT = ()
   )
 
-  public main: args = ( 
-    |t|
-    assert: (args size >= 3).
-    t:: Tests new: (args at: 2).
-    (om reflecting: t) perform: (args at: 3) asSymbol.
-    ^ 0.
-  ) 
-
-  assert: block = (
-    block value ifFalse: [
-      self error: 'Assertion Failed'
-    ]
-  )
-
-  assert: block message: msg = (
-    block value ifFalse: [
-      self error: ('Assertion Failed: ' + msg)
-    ]
-  )
 )

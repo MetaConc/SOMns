@@ -13,6 +13,7 @@ import som.interpreter.nodes.nary.TernaryExpressionNode;
 import som.interpreter.nodes.nary.UnaryExpressionNode;
 import som.interpreter.nodes.nary.UnaryExpressionNode.UnarySystemOperation;
 import som.primitives.actors.PromisePrims;
+import som.vm.Symbols;
 import som.vmobjects.SArray;
 import som.vmobjects.SBlock;
 import som.vmobjects.SClass;
@@ -86,8 +87,20 @@ public final class FilePrims {
   @Primitive(primitive = "file:setMode:")
   public abstract static class FileSetModePrim extends BinaryExpressionNode {
     @Specialization
-    public final Object setMode(final SFileDescriptor file, final SSymbol mode) {
+    public final Object setModeSymbol(final SFileDescriptor file, final SSymbol mode) {
       file.setMode(mode);
+      return file;
+    }
+
+    @Specialization
+    public final Object setModeString(final SFileDescriptor file, final String mode) {
+      file.setMode(Symbols.symbolFor(mode));
+      return file;
+    }
+
+    @Specialization
+    public final Object setModeGeneral(final SFileDescriptor file, final Object mode) {
+      PathPrims.signalIOException("Invalid Access Mode");
       return file;
     }
   }

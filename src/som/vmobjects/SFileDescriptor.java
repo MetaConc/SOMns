@@ -9,6 +9,7 @@ import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 
 import som.interpreter.nodes.dispatch.BlockDispatchNode;
 import som.primitives.PathPrims;
+import som.vm.Symbols;
 import som.vm.constants.Classes;
 import som.vmobjects.SArray.SMutableArray;
 
@@ -40,10 +41,12 @@ public class SFileDescriptor extends SObjectWithClass {
     buffer = new SMutableArray(storage, Classes.arrayClass);
 
     try {
-      if (mode.getString().equals("read")) {
+      if (mode == Symbols.symbolFor("read")) {
         raf = new RandomAccessFile(f, "r");
-      } else {
+      } else if (mode == Symbols.symbolFor("readwrite")) {
         raf = new RandomAccessFile(f, "rw");
+      } else {
+        dispatchHandler.executeDispatch(new Object[] {fail, "invalid access mode"});
       }
     } catch (FileNotFoundException e) {
       dispatchHandler.executeDispatch(new Object[] {fail, e.toString()});
@@ -74,7 +77,6 @@ public class SFileDescriptor extends SObjectWithClass {
 
     try {
       assert open;
-      assert !mode.getString().equals("write");
 
       // set position in file
       raf.seek(position);
@@ -102,8 +104,9 @@ public class SFileDescriptor extends SObjectWithClass {
     byte[] buff = new byte[bufferSize];
 
     for (int i = 0; i < bufferSize; i++) {
-      if (Byte.MIN_VALUE <= storage[i] && storage[i] <= Byte.MAX_VALUE) {
-        PathPrims.signalIOException("Buffer only supports values in the range -128 to 127");
+      if (storage[i] <= Byte.MIN_VALUE && Byte.MAX_VALUE <= storage[i]) {
+        PathPrims.signalIOException(
+            "Buffer only supports values in the range -128 to 127 (" + storage[i] + ")");
       }
       buff[i] = (byte) storage[i];
     }
