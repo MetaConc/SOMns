@@ -1,34 +1,24 @@
-class Files usingVmMirror: vmMirror usingPlatform: platform = Value(
+class Files usingVmMirror: vmMirror usingPlatform: platform = Value (
 (* This code was derived from Newspeak File classes, which is why the Sun Microsystems copyright and BSD license below applies.
 
 Copyright (c) 1995-2006 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
 Copyright 2008-2009 Gilad Bracha and other contributors.
 Copyright 2010 Ryan Macnak and other contributors.
 Copyright 2017 Dominik Aumayr.
- 
+
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, 
+* Redistributions of source code must retain the above copyright notice,
  this  list of conditions and the following disclaimer.
 
-* Redistribution in binary form must reproduce the above copyright notice, 
+* Redistribution in binary form must reproduce the above copyright notice,
 this list of conditions and the following disclaimer in the documentation and/o other materials provided with the distribution.
 
-Neither the name of Sun Microsystems or the names of contributors may 
-be used to endorse or promote products derived from this software without 
+Neither the name of Sun Microsystems or the names of contributors may
+be used to endorse or promote products derived from this software without
 specific prior written permission.
 
 >>
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
-GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH 
-DAMAGE.>> *)| 
-
-private vmMirror = vmMirror.
-private Vector    = kernel Vector.
-private Exception = kernel Exception.
 
 (*
 private ExternalOutputStream = platform streams ExternalOutputStream.
@@ -36,6 +26,15 @@ private ExternalReadStream = platform streams ExternalReadStream.
 private ExternalReadWriteStream = platform streams ExternalReadWriteStream.
 private CharacterReadConverter = platform streams CharacterReadConverter.
 private CharacterInputOutputConverter = platform streams CharacterInputOutputConverter.*)
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.>> *)
+| private vmMirror  = vmMirror.
+  private Vector    = kernel Vector.
+  private Exception = kernel Exception.
 |
   vmMirror fileDescriptorClass: FileDescriptor.
   vmMirror fileObject:  self.
@@ -48,28 +47,28 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
   class ExternalStreamableObject = ExternalObject (||) () : ()
 
   public class FileDescriptor = Object () (
-    
-    (*return buffer array*)
+
+    (* return buffer array *)
     public buffer = (
       ^ vmMirror fileBuffer: self.
     )
 
-    (*set access mode*)
+    (* set access mode *)
     public mode: m = (
       vmMirror file: self setMode: m.
     )
 
-    (*return size of the interanl buffer*)
+    (* return size of the internal buffer *)
     public bufferSize = (
-      ^vmMirror fileBufferSize: self.
+      ^ vmMirror fileBufferSize: self.
     )
 
-    (*set size for the interal buffer, only works before opening the file*)
+    (* set size for the interal buffer, only works before opening the file *)
     public bufferSize: size = (
       vmMirror file: self setBufferSize: size.
     )
 
-    (*close file*)
+    (* close file *)
     public close = (
       vmMirror fileClose: self.
     )
@@ -77,10 +76,11 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     public flushIfFail: errf <[:ExternalError]> = (
       (* placeholder, no flushing needed*)
     )
-    
-    (* read as many bytes as possible into the buffer (up to its size), and return the number
-        of bytes that were actually read.  The semantics at end of file are to return 0 with no error. *)
-    public readAt: pos <Integer> ifFail: errf <[:ExternalError]> ^<Integer> = (
+
+    (* read as many bytes as possible into the buffer (up to its size),
+       and return the number of bytes that were actually read.
+       The semantics at end of file are to return 0 with no error. *)
+    public readAt: pos <Integer> ifFail: errf <[:ExternalError]> ^ <Integer> = (
       ^ vmMirror file: self readAt: pos ifFail: errf.
     )
 
@@ -88,12 +88,12 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
       vmMirror file: self write: nBytes at: pos ifFail: errf.
     )
 
-    public size ^<Integer> = (
+    public size ^ <Integer> = (
       ^ vmMirror fileSize: self.
     )
 
     isClosed ^ <Boolean> = (
-      ^vmMirror fileIsClosed: self.
+      ^ vmMirror fileIsClosed: self.
     )
 
     public openIfFail: errf <[:ExternalError]> = (
@@ -104,11 +104,8 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     public for: obj mode: m = (
       ^ (vmMirror fileCreateFileDescriptorFor: obj) mode: m.
     )
-  )
 
-  (*======================================
-                FILE PATH
-  =========================================*)
+  )
 
   public class FilePath = FilePattern <: ExternalStreamableObject <: ExternalObject (
   (* FilePaths are FilePatterns without wildcard characters, which means
@@ -126,41 +123,41 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     )
 
     public createDirectoryIfFail: fail <[:Symbol]> = (
-      (*create directory from this path*)
+      (* create directory from this path *)
       vmMirror pathCreateDirectory: self pattern ifFail: fail.
     )
 
-    public deleteDirectoryIfFail: blk <[:Symbol]> = (
-      vmMirror pathDeleteFileDir: self pattern ifFail: blk.
+    public deleteDirectoryIfFail: fail <[:Symbol]> = (
+      vmMirror pathDeleteFileDir: self pattern ifFail: fail.
     )
 
-    public deleteFileIfFail: blk <[:Symbol]> = (
-      vmMirror pathDeleteFileDir: self pattern ifFail: blk.
+    public deleteFileIfFail: fail <[:Symbol]> = (
+      vmMirror pathDeleteFileDir: self pattern ifFail: fail.
     )
 
-    public deletePathIfFail: blk <[:Symbol]> = (
+    public deletePathIfFail: fail <[:Symbol]> = (
       self exists
         ifFalse: [	blk value: #NoSuchFileOrDirectory.
                 ^self		].
       self isDirectory
-        ifTrue: [ self deleteDirectoryIfFail: blk ]
-        ifFalse: [ self deleteFileIfFail: blk ]
+        ifTrue: [ self deleteDirectoryIfFail: fail ]
+        ifFalse: [ self deleteFileIfFail: fail ]
     )
 
-    public exists ^<Boolean> = (
-      ^vmMirror pathFileExists: self pattern.
+    public exists ^ <Boolean> = (
+      ^ vmMirror pathFileExists: self pattern.
     )
 
-    public isDirectory ^<Boolean> = (
-      ^vmMirror pathIsDirectory: self pattern.
+    public isDirectory ^ <Boolean> = (
+      ^ vmMirror pathIsDirectory: self pattern.
     )
 
-    public isReadOnly ^<Boolean> = (
-      ^vmMirror pathIsReadOnly: self pattern.
+    public isReadOnly ^ <Boolean> = (
+      ^ vmMirror pathIsReadOnly: self pattern.
     )
 
     public lastModified = (
-      ^vmMirror pathLastModified: self pattern.
+      ^ vmMirror pathLastModified: self pattern.
     )
 
     public moveAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
@@ -168,7 +165,7 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     )
 
     public openInternalFor: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^<Win32Handle | X> = (
-      (*create file and return "handle"*)
+      (* create file and return "handle" *)
     )
 
     (*
@@ -201,25 +198,25 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
 
     public copyAs: newPath <FilePath> = (
       self copyAs: newPath ifFail: [ :err <Symbol> |
-        self error: err	
+        self error: err
       ]
     )
 
-    (* create a copy in the same directory with the specified name. The
-        new path is returned. *)
-    public copyNamed: name <Str> ^ <FilePath> = (
-      ^self copyNamed: name ifFail: [ :err <Symbol> | self error: err ]
+    (* Create a copy in the same directory with the specified name.
+       The new path is returned. *)
+    public copyNamed: name <String> ^ <FilePath> = (
+      ^ self copyNamed: name ifFail: [ :err <Symbol> | self error: err ]
     )
 
-    (* create a copy in the same directory with the specified name. The
-        new path is returned. *)
-    public copyNamed: name <Str> ifFail: fail <[:ExternalError]>  ^ <FilePath> = (
+    (* Create a copy in the same directory with the specified name.
+       The new path is returned. *)
+    public copyNamed: name <String> ifFail: fail <[:ExternalError]>  ^ <FilePath> = (
       | newPath <FilePath> |
       newPath:: self containingDirectory, (FilePath for: name).
       self copyAs: newPath ifFail: [ :err <Symbol> |
-        self error: err	
+        self error: err
       ].
-      ^newPath
+      ^ newPath
     )
 
     public elements ^ <Vector[FilePath]> = (
@@ -228,11 +225,11 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     )
 
     public entries ^ <List[FilePath]>  = (
-      ^(self, (FilePattern for: '*')) paths
+      ^ (self, (FilePattern for: '*')) paths
     )
 
     public extendPath: path <FilePath> ^ <FilePath> = (
-      ^FilePath for: (self patternExtending: path)
+      ^ FilePath for: (self patternExtending: path)
     )
 
     (*
@@ -242,11 +239,11 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     )*)
 
     public isPath ^ <Boolean> = (
-      ^true
+      ^ true
     )
 
     public isWriteable ^ <Boolean> = (
-      ^self isReadOnly not
+      ^ self isReadOnly not
     )
 
     public moveAs: newPath <FilePath> = (
@@ -254,14 +251,15 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
         ifFail: [ :err <Symbol> | self error: err	]
     )
 
-    public name ^ <Str> = (
-      ^self pattern
+    public name ^ <String> = (
+      ^ self pattern
     )
+
     public open: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^ <FileDescriptor | X> = (
       (* Modes: #read, #write, #readWrite *)
-      ^(FileDescriptor for: (self pattern) mode: mode)
-        openIfFail: [ :e <ExternalError> | 
-          ^err value: e ]
+      ^ (FileDescriptor for: self pattern mode: mode)
+        openIfFail: [:e <ExternalError> |
+          ^ err value: e ]
     )
 
     (*
@@ -273,7 +271,7 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
       self exists ifTrue: [  blk value: self ]
     )
 
-    public pattern: p <Str> = (
+    public pattern: p <String> = (
       super pattern: p.
       self assert: [ (FilePattern patternHasWildcards: p) not ] message: 'shouldnothavewildcards'.
     )
@@ -288,23 +286,23 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
         ^ExternalReadWriteStream onDescriptor: (self open: #readWrite ifFail: [ :err <ExternalError> | self error: err ])
     )*)
 
-    public rename: name <Str> ^ <FilePath> = (
-      (* rename in the same directory.  The new path is returned. *)
-      ^self rename: name ifFail: [ :err <Symbol> | self error: err ]
+    (* Rename in the same directory. The new path is returned. *)
+    public rename: name <String> ^ <FilePath> = (
+      ^ self rename: name ifFail: [ :err <Symbol> | self error: err ]
     )
 
-    public rename: name <Str> ifFail: fail <[:ExternalError]> ^ <FilePath> = (
-      (* rename in the same directory.   The new path is returned. *)
+    (* Rename in the same directory. The new path is returned. *)
+    public rename: name <String> ifFail: fail <[:ExternalError]> ^ <FilePath> = (
       | newPath <FilePath> |
       newPath:: self containingDirectory, (FilePath for: name).
       self moveAs: newPath
         ifFail: [ :err <Symbol> |
                 self error: err	].
-      ^newPath
+      ^ newPath
     )
 
     public simpleName ^ <String> = (
-      ^elements last name
+      ^ elements last name
     )
     (*
     public writeStream ^ <ExternalReadWriteStream> = (
@@ -312,11 +310,11 @@ private CharacterInputOutputConverter = platform streams CharacterInputOutputCon
     )*)
   ) : (
     public currentDirectory ^<FilePath> = (
-        ^FilePath for: (vmMirror pathCurrentDirectory: nil)
+        ^ FilePath for: (vmMirror pathCurrentDirectory: nil)
     )
 
-    public for: nm <String>  ^ <FilePath> = (
-      ^FilePath new pattern: nm
+    public for: name <String> ^ <FilePath> = (
+      ^ FilePath new pattern: name
     )
 
     for: obj <EOBJ> mode: m <Symbol>  ^ <Instance> = (
