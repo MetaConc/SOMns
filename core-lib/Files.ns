@@ -62,7 +62,7 @@ DAMAGE.>> *)
 
     (* TODO, SM: ExternalError not defined anywhere. Should that be IOException? (Everywhere) *)
     public flushIfFail: errf <[:ExternalError]> = (
-      (* placeholder, no flushing needed*)
+      (* placeholder, no flushing needed *)
     )
 
     (* read as many bytes as possible into the buffer (up to its size),
@@ -97,10 +97,8 @@ DAMAGE.>> *)
     (* TODO, SM: you still got #new defined on the class, this doesn't seem desirable. *)
   )
 
-  (* FilePaths are FilePatterns without wildcard characters, which means
-  they match individual files, not sets of files.
-  *)
-  ) (
+  (* FilePaths are FilePatterns without wildcard characters,
+     which means they match individual files, not sets of files. *)
   public class FilePath = FilePattern ()(
     public , extension <FilePattern> ^ <EXTENDED> = (
       (* {where EXTENDED is returnType of #extendPath: message of arg 1} *)
@@ -276,292 +274,309 @@ DAMAGE.>> *)
      For example, (FilePattern for: '*') is the pattern for all files in the
      current directory.
 
-  (* returns the seperator *)
-  separator = (
-    ^ vmMirror pathSeparator: self.
-  )
+     For example,  a relative FilePattern that matches '*.bar' files
+     in a subdirectory 'foo' can be constructed with
+     ```
+	   fp:: FilePattern forElements: #('foo' '*.bar')
+     ```
 
-  (* extend pattern *)
-  public / string = (
-    ^self , (FilePattern for: string)
-  )
+     To turn this into an absolute path, you can use the general FilePattern
+     concatenation operator ',': `FilePath currentDirectory, fp`
+  *)
+  public class FilePattern = Object (
+  | pattern_0 <String> |
+  )(
+    (* Concatenation of FilePatterns *)
+    public , extension <FilePattern> ^ <EXTENDED> = (
+      ^ extension extendPattern: self
+    )
 
-  (* get the name of directory/file *)
-  public baseName ^ <FilePattern> = (
-    ^self elements last
-  )
+    (* TODO, SM: not public? *)
+    (* returns the seperator *)
+    separator = (
+      ^ vmMirror pathSeparator: self.
+    )
 
+    (* extend pattern *)
+    public / string = (
+      ^self , (FilePattern for: string)
+    )
 
-  elementsDo: blk <[:FilePattern]> = (
-    | elems |
-    (self pattern beginsWith: '/') ifTrue: [
-      |i|
-      i:: pattern indexOf: '/' startingAt: 2.
-      elems:: Vector new.
-      elems append: (pattern substringFrom: 1 to: (i - 1)).
-      ((pattern substringFrom: (i+1) to: pattern length) split: separator) do: [ :s |
-        elems append: s.
-      ]
-    ] ifFalse: [
-      elems:: self pattern split: separator.
-    ].
-    elems do: [ :e | blk value: (FilePattern for: e)].
-  )
-
-  firstWildElementOf: els <Vector[FilePattern]> ifFail: fail <[X def]> ^<Int | X> = (
-    1 to: els size do:
-      [ :i <Int> |
-        (((els at: i) pattern includes: '*') or: ((els at: i) pattern includes: '?'))
-          ifTrue: [ ^i ]
-      ].
-    ^fail value
-  )
-
-  assert: block = (
-    block value ifFalse: [
-      self error: 'Assertion Failed'
-    ]
-  )
-
-  assert: block message: msg = (
-    block value ifFalse: [
-      self error: ('Assertion Failed: ' + msg)
-    ]
-  )
+    (* get the name of directory/file *)
+    public baseName ^ <FilePattern> = (
+      ^self elements last
+    )
 
 
-  public isAbsolute ^<Boolean> = (
-    ^ vmMirror pathIsAbsolute: self pattern.
-  )
-
-  (* for each over the matching paths *)
-  public pathsDo: blk <[:FilePath]> = (
-    | els <Vector[FilePattern]> i <Int> |
-    
-    els:: self elements.
-    i:: self firstWildElementOf: els
-      ifFail: [ ^self shouldNotHappen ].
-    
-    (i = els size) ifTrue: [ self terminalPathsDo: blk ]
-    ifFalse: [ | rest <FilePattern> tmp |
-        (i + 1 = els size)
-          ifTrue: [ rest:: els last ] (*optimization*)
-          ifFalse: [ 
-            tmp:: Vector new.
-            (i + 1) to: (els size) do: [ :j | tmp append: (els at: j)].
-            rest:: FilePattern forAll: tmp. 
-          ].
-
-        tmp:: Vector new.
-
-        1 to: i do: [ :j | tmp append: (els at: j)].
-        (FilePattern forAll: tmp) pathsDo: [ :fp <FilePath> |
-          fp isDirectory ifTrue: [ (fp, rest) pathsDo: blk ]	]
-      ]
-  )
-
-  patternExtending: pat <FilePattern> ^<Str> = (
-    ^(pat pattern endsWith: separator)
-      ifTrue: [ pat pattern + self pattern ]
-      ifFalse: [ pat pattern + separator + self pattern ]
-  )
-
-  terminalPathsDo: blk <[:FilePath]> = (
-    (* assumes that the last element of the receiver is the only one that contains wildcards *)
-    | data  hnd  allpat  pat  els <Vector[FilePattern]> prefix paths temp|
-    els:: self elements.
-    els size = 1
-      ifTrue: [	
-        allpat:: FilePattern for: '*.*'.
-        prefix:: FilePattern for: ''. 
-      ]
-      ifFalse: [
-        allpat:: self containingDirectory pattern, (separator + '*.*').
-        temp:: Vector new: (els size - 1).
-        1 to: (els size - 1) do: [ :i | temp append: (els at: i) ].
-        prefix:: (FilePattern forAll: temp) pattern concatenate: separator.
-    ].
-    pat:: els last pattern. (*the part with wildcard i.e. asdf* *)
-
-    (*get filenames in directory*)
-    paths:: vmMirror pathContents: prefix.
-    paths do: [ :next |
-      ((string: next platformMatch: pat) and: [ next <> '.' and: [ next <> '..' ]])
-        ifTrue: [ 
-          blk value: (FilePath for: (prefix concatenate: next)) 
-          ]. (*file matches wildcards*)
-    ].
-  )
-
-  string: s platformMatch: m = (
-    ^ string: s match: m si: 1 mi: 1
-  )
-
-  string: s match: m si: si mi: mi = (
-    |mi_ si_|
-    mi_:: mi.
-    si_:: si.
-    [(mi_ <= m length)] whileTrue: [
-      ((m charAt: mi_) = "?") ifTrue: [
-        (*match single character except empty*)
-        (si_ <= s length) ifFalse: [
-          ^false.
-        ].
-        mi_:: mi_ + 1.
-        si_:: si_ + 1.  
+    elementsDo: blk <[:FilePattern]> = (
+      | elems |
+      (self pattern beginsWith: '/') ifTrue: [
+        |i|
+        i:: pattern indexOf: '/' startingAt: 2.
+        elems:: Vector new.
+        elems append: (pattern substringFrom: 1 to: (i - 1)).
+        ((pattern substringFrom: (i+1) to: pattern length) split: separator) do: [ :s |
+          elems append: s.
+        ]
       ] ifFalse: [
-        (*multi match*)
-        ((m charAt: mi_) = "*") ifTrue: [
-          (string: s match: m si: si_ mi: (mi_ + 1)) ifTrue: [
-            ^true.
-          ].
-          (si <= s length) ifTrue: [
-            (string: s match: m si: (si_ + 1) mi: mi_) ifTrue: [
-              ^true.
-            ]
-          ].
-          ^false.
-        ] ifFalse: [
-          (*regular match*)
-          (s charAt: si_) = (m charAt: mi_) ifFalse: [
+        elems:: self pattern split: separator.
+      ].
+      elems do: [ :e | blk value: (FilePattern for: e)].
+    )
+
+    firstWildElementOf: els <Vector[FilePattern]> ifFail: fail <[X def]> ^<Int | X> = (
+      1 to: els size do:
+        [ :i <Int> |
+          (((els at: i) pattern includes: '*') or: ((els at: i) pattern includes: '?'))
+            ifTrue: [ ^i ]
+        ].
+      ^fail value
+    )
+
+    assert: block = (
+      block value ifFalse: [
+        self error: 'Assertion Failed'
+      ]
+    )
+
+    assert: block message: msg = (
+      block value ifFalse: [
+        self error: ('Assertion Failed: ' + msg)
+      ]
+    )
+
+
+    public isAbsolute ^<Boolean> = (
+      ^ vmMirror pathIsAbsolute: self pattern.
+    )
+
+    (* for each over the matching paths *)
+    public pathsDo: blk <[:FilePath]> = (
+      | els <Vector[FilePattern]> i <Int> |
+
+      els:: self elements.
+      i:: self firstWildElementOf: els
+        ifFail: [ ^self shouldNotHappen ].
+
+      (i = els size) ifTrue: [ self terminalPathsDo: blk ]
+      ifFalse: [ | rest <FilePattern> tmp |
+          (i + 1 = els size)
+            ifTrue: [ rest:: els last ] (*optimization*)
+            ifFalse: [
+              tmp:: Vector new.
+              (i + 1) to: (els size) do: [ :j | tmp append: (els at: j)].
+              rest:: FilePattern forAll: tmp.
+            ].
+
+          tmp:: Vector new.
+
+          1 to: i do: [ :j | tmp append: (els at: j)].
+          (FilePattern forAll: tmp) pathsDo: [ :fp <FilePath> |
+            fp isDirectory ifTrue: [ (fp, rest) pathsDo: blk ]	]
+        ]
+    )
+
+    patternExtending: pat <FilePattern> ^<String> = (
+      ^(pat pattern endsWith: separator)
+        ifTrue: [ pat pattern + self pattern ]
+        ifFalse: [ pat pattern + separator + self pattern ]
+    )
+
+    terminalPathsDo: blk <[:FilePath]> = (
+      (* assumes that the last element of the receiver is the only one that contains wildcards *)
+      | data  hnd  allpat  pat  els <Vector[FilePattern]> prefix paths temp|
+      els:: self elements.
+      els size = 1
+        ifTrue: [
+          allpat:: FilePattern for: '*.*'.
+          prefix:: FilePattern for: ''.
+        ]
+        ifFalse: [
+          allpat:: self containingDirectory pattern, (separator + '*.*').
+          temp:: Vector new: (els size - 1).
+          1 to: (els size - 1) do: [ :i | temp append: (els at: i) ].
+          prefix:: (FilePattern forAll: temp) pattern concatenate: separator.
+      ].
+      pat:: els last pattern. (*the part with wildcard i.e. asdf* *)
+
+      (*get filenames in directory*)
+      paths:: vmMirror pathContents: prefix.
+      paths do: [ :next |
+        ((string: next platformMatch: pat) and: [ next <> '.' and: [ next <> '..' ]])
+          ifTrue: [
+            blk value: (FilePath for: (prefix concatenate: next))
+            ]. (*file matches wildcards*)
+      ].
+    )
+
+    string: s platformMatch: m = (
+      ^ string: s match: m si: 1 mi: 1
+    )
+
+    string: s match: m si: si mi: mi = (
+      |mi_ si_|
+      mi_:: mi.
+      si_:: si.
+      [(mi_ <= m length)] whileTrue: [
+        ((m charAt: mi_) = "?") ifTrue: [
+          (*match single character except empty*)
+          (si_ <= s length) ifFalse: [
             ^false.
           ].
-          si_:: si_ + 1.
           mi_:: mi_ + 1.
+          si_:: si_ + 1.
+        ] ifFalse: [
+          (*multi match*)
+          ((m charAt: mi_) = "*") ifTrue: [
+            (string: s match: m si: si_ mi: (mi_ + 1)) ifTrue: [
+              ^true.
+            ].
+            (si <= s length) ifTrue: [
+              (string: s match: m si: (si_ + 1) mi: mi_) ifTrue: [
+                ^true.
+              ]
+            ].
+            ^false.
+          ] ifFalse: [
+            (*regular match*)
+            (s charAt: si_) = (m charAt: mi_) ifFalse: [
+              ^false.
+            ].
+            si_:: si_ + 1.
+            mi_:: mi_ + 1.
+          ]
+        ]
+      ].
+      ^((mi_ > m length) and: (si_ > s length))
+    )
+
+    public containingDirectory ^ <FilePattern> = (
+      | e r |
+      e:: self elements.
+      self assert: [ e size > 1 ] message: ''.
+      r:: Vector new: (e size - 1).
+      1 to: (e size - 1) do: [ :i |
+        r append: (e at: i)
+      ].
+      ^ FilePattern forAll: r
+    )
+
+    copyToDir: dirPath <FilePath> ifFail: fail = (
+      self subclassResponsibility
+    )
+
+    public delete = (
+      (* This deletes all files and directories that match the specified pattern, with a dynamic failure if
+        unsuccessful. *)
+      self deleteIfFail: [ :err <Symbol> | self error: err ]
+    )
+
+    public deleteIfFail: blk <[:Symbol]> = (
+      (* This deletes all files and directories that match the specified pattern.
+        This should be used with extreme caution.  Directories that are
+        not empty are not deleted.  If any matching files or directories cannot
+        be deleted, blk is evaluated with an error symbol *)
+      self pathsDo: [ :p <FilePath> |
+        p deletePathIfFail: [ :err <Symbol> |
+          blk value: err.
+          ^self
         ]
       ]
-    ].
-    ^((mi_ > m length) and: (si_ > s length))
-  )
+    )
 
-  public containingDirectory ^ <FilePattern> = (
-    | e r |
-    e:: self elements.
-    self assert: [ e size > 1 ] message: ''.
-    r:: Vector new: (e size - 1).
-    1 to: (e size - 1) do: [ :i |
-      r append: (e at: i)
-    ].
-    ^ FilePattern forAll: r
-  )
+    elements ^ <Vector[FilePattern]> = (
+      (* Return a collection of the elements that you would get from elementsDo: *)
+      | els |
+      els:: Vector new.
+      self elementsDo:
+        [ :el <FilePattern> |
+          els append: el.
+        ].
+      ^els
+    )
 
-  copyToDir: dirPath <FilePath> ifFail: fail = (
-    self subclassResponsibility
-  )
+    public extendPath: path <FilePath> ^ <FilePattern> = (
+      ^FilePattern for: (self patternExtending: path)
+    )
 
-  public delete = (
-    (* This deletes all files and directories that match the specified pattern, with a dynamic failure if
-      unsuccessful. *)
-    self deleteIfFail: [ :err <Symbol> | self error: err ]
-  )
+    public extendPattern: pat <FilePattern> ^ <FilePattern> = (
+      ^FilePattern for: (self patternExtending: pat)
+    )
 
-  public deleteIfFail: blk <[:Symbol]> = (
-    (* This deletes all files and directories that match the specified pattern.
-      This should be used with extreme caution.  Directories that are
-      not empty are not deleted.  If any matching files or directories cannot
-      be deleted, blk is evaluated with an error symbol *)
-    self pathsDo: [ :p <FilePath> |
-      p deletePathIfFail: [ :err <Symbol> |
-        blk value: err.
-        ^self		 
-      ] 
-    ]
-  )
+    public isPath ^ <Boolean> = (
+      (* Returns true if the receive is a FilePath (i.e. contains no wildcards) *)
+      ^false
+    )
 
-  elements ^ <Vector[FilePattern]> = (
-    (* Return a collection of the elements that you would get from elementsDo: *)
-    | els |
-    els:: Vector new.
-    self elementsDo:
-      [ :el <FilePattern> |
-        els append: el. 
+    public isRelative ^ <Boolean> = (
+      ^self isAbsolute not
+    )
+
+    public paths ^ <Vector[FilePath]> = (
+      (* Return a collection of the elements that you would get from pathsDo: *)
+      | els |
+      els:: Vector new.
+      self pathsDo: [ :el <FilePath> |
+        els append: el.
       ].
-    ^els
-  )
+      ^els
+    )
 
-  public extendPath: path <FilePath> ^ <FilePattern> = (
-    ^FilePattern for: (self patternExtending: path)
-  )
+    public pattern ^ <String> = (
+      ^pattern_0
+    )
 
-  public extendPattern: pat <FilePattern> ^ <FilePattern> = (
-    ^FilePattern for: (self patternExtending: pat)
-  )
+    public pattern: p <String> = (
+      pattern_0:: p
+    )
+  ) : (
+    public for: pat <String>  ^<FilePattern> = (
+      ^self new pattern: pat
+    )
 
-  public isPath ^ <Boolean> = (
-    (* Returns true if the receive is a FilePath (i.e. contains no wildcards) *)
-    ^false
-  )
+    public multipleMatchWildcardCharacter ^ <Character> = (
+      ^"*"
+    )
 
-  public isRelative ^ <Boolean> = (
-    ^self isAbsolute not
-  )
+    public patternHasWildcards: pat <String> ^<Boolean> = (
+      ^(pat includes: multipleMatchWildcardCharacter)
+        or: [ pat includes: singleMatchWildcardCharacter ]
+    )
 
-  public paths ^ <Vector[FilePath]> = (
-    (* Return a collection of the elements that you would get from pathsDo: *)
-    | els |
-    els:: Vector new.
-    self pathsDo: [ :el <FilePath> |
-      els append: el. 
-    ].
-    ^els
-  )
+    public singleMatchWildcardCharacter  ^ <Character> = (
+      ^"?"
+    )
 
-  public pattern ^ <String> = (
-    ^pattern_0
-  )
+    public forAll: patternElements <Vector[FilePattern]>  ^ <FilePattern> = (
+      | p <FilePattern> |
+      patternElements do:
+        [ :el <FilePattern> |
+          p isNil
+            ifTrue: [ p:: el ]
+            ifFalse: [ p:: p, el ]
+        ].
+      ^p
+    )
 
-  public pattern: p <String> = (
-    pattern_0:: p
-  )
+    public forElements: els <Vector[Str]> ^ <FilePattern> = (
+      ^self forAll: (els collect: [ :s <String> | FilePattern for: s ])
+    )
 
-) : (
-  public for: pat <Str>  ^<FilePattern> = (
-    ^self new pattern: pat
-  )
+    assert: block = (
+      block value ifFalse: [
+        self error: 'Assertion Failed'
+      ]
+    )
 
-  public multipleMatchWildcardCharacter ^ <Character> = (
-    ^"*"
+    assert: block message: msg = (
+      block value ifFalse: [
+        self error: ('Assertion Failed' + msg)
+      ]
+    )
   )
-
-  public patternHasWildcards: pat <Str> ^<Boolean> = (
-    ^(pat includes: multipleMatchWildcardCharacter)
-      or: [ pat includes: singleMatchWildcardCharacter ]
-  )
-
-  public singleMatchWildcardCharacter  ^ <Character> = (
-    ^"?"
-  )
-
-  public forAll: patternElements <Vector[FilePattern]>  ^ <FilePattern> = (
-    | p <FilePattern> |
-    patternElements do:
-      [ :el <FilePattern> |
-        p isNil
-          ifTrue: [ p:: el ]
-          ifFalse: [ p:: p, el ]
-      ].
-    ^p
-  )
-  
-  public forElements: els <Vector[Str]> ^ <FilePattern> = (
-    ^self forAll: (els collect: [ :s <Str> | FilePattern for: s ])
-  )
-
-  assert: block = (
-    block value ifFalse: [
-      self error: 'Assertion Failed'
-    ]
-  )
-
-  assert: block message: msg = (
-    block value ifFalse: [
-      self error: ('Assertion Failed' + msg)
-    ]
-  )
-)  
 
   public class IOException signalWith: aMessage = Exception (
-    | public msg = aMessage. |
+  | public message = aMessage. |
     self signal.
   )(
     public asString = (
@@ -573,7 +588,4 @@ DAMAGE.>> *)
   private signalIOException: aMessage = (
     IOException signalWith: aMessage
   )
-
-) : (
-  
 )
