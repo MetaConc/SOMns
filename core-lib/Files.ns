@@ -64,6 +64,7 @@ DAMAGE.>> *)
     )
 
     (* set size for the interal buffer, only works before opening the file *)
+    (* SM, TODO: what's the error after opening? *)
     public bufferSize: size = (
       vmMirror file: self setBufferSize: size.
     )
@@ -73,6 +74,7 @@ DAMAGE.>> *)
       vmMirror fileClose: self.
     )
 
+    (* TODO, SM: ExternalError not defined anywhere. Should that be IOException? (Everywhere) *)
     public flushIfFail: errf <[:ExternalError]> = (
       (* placeholder, no flushing needed*)
     )
@@ -92,6 +94,7 @@ DAMAGE.>> *)
       ^ vmMirror fileSize: self.
     )
 
+    (* TODO, SM: why not public? *)
     isClosed ^ <Boolean> = (
       ^ vmMirror fileIsClosed: self.
     )
@@ -105,6 +108,7 @@ DAMAGE.>> *)
       ^ (vmMirror fileCreateFileDescriptorFor: obj) mode: m.
     )
 
+    (* TODO, SM: you still got #new defined on the class, this doesn't seem desirable. *)
   )
 
   public class FilePath = FilePattern <: ExternalStreamableObject <: ExternalObject (
@@ -114,6 +118,7 @@ DAMAGE.>> *)
   ) (
     public , extension <FilePattern> ^ <EXTENDED> = (
       (* {where EXTENDED is returnType of #extendPath: message of arg 1} *)
+      (* TODO, SM: Unclear what EXTENDED is, this indirect definition is not good. *)
       (* This guarantee is safe because of the inference clause *)
       ^ extension extendPath: self (* ) *)
     )
@@ -164,6 +169,7 @@ DAMAGE.>> *)
       vmMirror path: self pattern moveAs: newPath pattern ifFail: fail.
     )
 
+    (* TODO, SM: why is this needed. Please remove. *)
     public openInternalFor: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^<Win32Handle | X> = (
       (* create file and return "handle" *)
     )
@@ -224,6 +230,7 @@ DAMAGE.>> *)
       ^ super elements
     )
 
+    (* TODO, SM: There is no List in SOMns! Vector? *)
     public entries ^ <List[FilePath]>  = (
       ^ (self, (FilePattern for: '*')) paths
     )
@@ -267,6 +274,7 @@ DAMAGE.>> *)
         ^ExternalOutputStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
     )*)
 
+    (* TODO, SM: public? *)
     pathsDo: blk <[:FilePath]> = (
       self exists ifTrue: [  blk value: self ]
     )
@@ -317,32 +325,19 @@ DAMAGE.>> *)
       ^ FilePath new pattern: name
     )
 
-    for: obj <EOBJ> mode: m <Symbol>  ^ <Instance> = (
-      (* Create a new instance, but don't open yet *)
-      ^self new externalObject: obj; mode: m
+    (* Create a new instance, but don't open yet. *)
+    (* TODO, SM: not public, strange, unknow types. There is still a #new message. Is this desired? *)
+    for: obj <EOBJ> mode: m <Symbol> ^ <Instance> = (
+      ^ self new externalObject: obj; mode: m
     )
   )
 
-(*
-====================================
-            FILE PATTERN
-===================================
-FilePatterns represent a pattern that matches some set of files, and are used (along with the subclass FilePath, which
-represents individual files without wildcards) to represent all file paths in the system.  
-For example, (FilePattern for: '*') is the pattern for all files in the current directory.
-
-For example,  a relative FilePattern that matches '*.bar' files in a subdirectory 'foo' can be constructed with 
-	fp :: FilePattern forElements: #('foo' '*.bar')
-To turn this into an absolute path, you can use the general FilePattern concatenation operator ',':
-	FilePath currentDirectory, fp
-*)
-
-public class FilePattern = Object (
-|  pattern_0 <String> |) (
-  (* Concatenation of FilePatterns *)
-  public , extension <FilePattern> ^ <EXTENDED> = (
-    ^extension extendPattern: self
-  )
+  (* TODO, SM: Please order classes by their dependencies. Root classes before child classes. *)
+  (* FilePatterns represent a pattern that matches some set of files,
+     and are used (along with the subclass FilePath, which represents individual
+     files without wildcards) to represent all file paths in the system.
+     For example, (FilePattern for: '*') is the pattern for all files in the
+     current directory.
 
   (* returns the seperator *)
   separator = (
