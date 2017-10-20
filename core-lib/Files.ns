@@ -584,6 +584,14 @@ DAMAGE.>> *)
     )
   )
 
+  public class FileNotFoundException signalFor: fileName with: message = IOException signalWith: message (
+  | public fileName = fileName. |
+  )(
+    public asString = (
+      ^ 'FileNotFoundException(file: ' + fileName + ', message: ' + message + ')'
+    )
+  )
+
   (* Short cut from VM. Likely to be removed when optimized. *)
   private signalIOException: aMessage = (
     IOException signalWith: aMessage
