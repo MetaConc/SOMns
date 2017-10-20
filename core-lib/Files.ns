@@ -19,13 +19,6 @@ be used to endorse or promote products derived from this software without
 specific prior written permission.
 
 >>
-
-(*
-private ExternalOutputStream = platform streams ExternalOutputStream.
-private ExternalReadStream = platform streams ExternalReadStream.
-private ExternalReadWriteStream = platform streams ExternalReadWriteStream.
-private CharacterReadConverter = platform streams CharacterReadConverter.
-private CharacterInputOutputConverter = platform streams CharacterInputOutputConverter.*)
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
 THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
@@ -39,13 +32,6 @@ DAMAGE.>> *)
   vmMirror fileDescriptorClass: FileDescriptor.
   vmMirror fileObject:  self.
 ) (
-
-  (* A dummy class *)
-  class ExternalObject = (||) () : ()
-
-  (* A dummy class *)
-  class ExternalStreamableObject = ExternalObject (||) () : ()
-
   public class FileDescriptor = Object () (
 
     (* return buffer array *)
@@ -111,11 +97,11 @@ DAMAGE.>> *)
     (* TODO, SM: you still got #new defined on the class, this doesn't seem desirable. *)
   )
 
-  public class FilePath = FilePattern <: ExternalStreamableObject <: ExternalObject (
   (* FilePaths are FilePatterns without wildcard characters, which means
   they match individual files, not sets of files.
   *)
   ) (
+  public class FilePath = FilePattern ()(
     public , extension <FilePattern> ^ <EXTENDED> = (
       (* {where EXTENDED is returnType of #extendPath: message of arg 1} *)
       (* TODO, SM: Unclear what EXTENDED is, this indirect definition is not good. *)
@@ -174,33 +160,9 @@ DAMAGE.>> *)
       (* create file and return "handle" *)
     )
 
-    (*
-    public printOn: stm = (
-      stm nextPutAll: 'a Win32FilePath(' , pattern , ')'.
-    )*)
-
     public size = (
-      ^vmMirror pathGetSize: self pattern.
+      ^ vmMirror pathGetSize: self pattern.
     )
-
-    (*
-    charInputStream ^ <CharInputStream> = (
-      ^super charInputStream
-      (* Override to use a ReadConverter, which is faster for things like upTo: *)
-      (* ^CharacterReadConverter on: self readStream *)
-    )
-
-    charInputStreamDo: blk <[:CharInputStream | X def]> ifFail: fail <[Y def]> ^ <X | Y> = (
-      (* %kludge: this is a quick hack that catches only some kinds of
-        problems *)
-      ^self exists
-        ifFalse: [ fail value ]
-        ifTrue: [ super charInputStreamDo: blk ]
-    )
-
-    charOutputStream ^ <CharOutputStream> = (
-      ^CharacterInputOutputConverter on: self writeStream
-    )*)
 
     public copyAs: newPath <FilePath> = (
       self copyAs: newPath ifFail: [ :err <Symbol> |
@@ -239,12 +201,6 @@ DAMAGE.>> *)
       ^ FilePath for: (self patternExtending: path)
     )
 
-    (*
-    public inputStream ^ <InputStream[Integer]> = (
-      (* We are using this for now since read streams are faster at things like upTo: than input streams *)
-        ^self readStream
-    )*)
-
     public isPath ^ <Boolean> = (
       ^ true
     )
@@ -269,11 +225,6 @@ DAMAGE.>> *)
           ^ err value: e ]
     )
 
-    (*
-    public outputStream ^ <OutputStream[Integer]> = (
-        ^ExternalOutputStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
-    )*)
-
     (* TODO, SM: public? *)
     pathsDo: blk <[:FilePath]> = (
       self exists ifTrue: [  blk value: self ]
@@ -283,16 +234,6 @@ DAMAGE.>> *)
       super pattern: p.
       self assert: [ (FilePattern patternHasWildcards: p) not ] message: 'shouldnothavewildcards'.
     )
-
-    (*
-    public readStream ^ <ExternalReadStream> = (
-        ^ExternalReadStream onDescriptor:
-        (self open: #read ifFail: [ :err <ExternalError> | self error: err ])
-    )
-
-    public readWriteStream ^ <ExternalReadWriteStream> = (
-        ^ExternalReadWriteStream onDescriptor: (self open: #readWrite ifFail: [ :err <ExternalError> | self error: err ])
-    )*)
 
     (* Rename in the same directory. The new path is returned. *)
     public rename: name <String> ^ <FilePath> = (
@@ -312,10 +253,6 @@ DAMAGE.>> *)
     public simpleName ^ <String> = (
       ^ elements last name
     )
-    (*
-    public writeStream ^ <ExternalReadWriteStream> = (
-        ^ExternalReadWriteStream onDescriptor: (self open: #write ifFail: [ :err <ExternalError> | self error: err ])
-    )*)
   ) : (
     public currentDirectory ^<FilePath> = (
         ^ FilePath for: (vmMirror pathCurrentDirectory: nil)
@@ -577,10 +514,6 @@ DAMAGE.>> *)
     pattern_0:: p
   )
 
-  (*public printOn: strm <CharOutputStream> = (
-    super printOn: strm.
-    strm nextPut: "("; print: self pattern; nextPut: ")".
-  )*)
 ) : (
   public for: pat <Str>  ^<FilePattern> = (
     ^self new pattern: pat
