@@ -1,5 +1,8 @@
 class Files usingVmMirror: vmMirror usingPlatform: platform = Value (
 (* This code was derived from Newspeak File classes, which is why the Sun Microsystems copyright and BSD license below applies.
+Original Newspeak version of classes:  
+https://bitbucket.org/newspeaklanguage/newspeak/src/38a47c705f1a1ab3359f2a58b79e8c728bfb218f/Files.ns 
+https://bitbucket.org/newspeaklanguage/newspeak/src/38a47c705f1a1ab3359f2a58b79e8c728bfb218f/Win32Files.ns 
 
 Copyright (c) 1995-2006 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
 Copyright 2008-2009 Gilad Bracha and other contributors.
@@ -50,9 +53,10 @@ DAMAGE.>> *)
     )
 
     (* set size for the interal buffer, only works before opening the file *)
-    (* SM, TODO: what's the error after opening? *)
     public bufferSize: size = (
-      vmMirror file: self setBufferSize: size.
+      (vmMirror file: self setBufferSize: size) ifFalse: [
+        self error: 'File already open! Buffer size can be changed for closed files only'.
+      ].
     )
 
     (* close file *)
@@ -60,19 +64,14 @@ DAMAGE.>> *)
       vmMirror fileClose: self.
     )
 
-    (* TODO, SM: ExternalError not defined anywhere. Should that be IOException? (Everywhere) *)
-    public flushIfFail: errf <[:ExternalError]> = (
-      (* placeholder, no flushing needed *)
-    )
-
     (* read as many bytes as possible into the buffer (up to its size),
        and return the number of bytes that were actually read.
        The semantics at end of file are to return 0 with no error. *)
-    public readAt: pos <Integer> ifFail: errf <[:ExternalError]> ^ <Integer> = (
+    public readAt: pos <Integer> ifFail: errf <[:IOException]> ^ <Integer> = (
       ^ vmMirror file: self readAt: pos ifFail: errf.
     )
 
-    public write: nBytes <Integer> at: pos <Integer> ifFail: errf <[:ExternalError]>  = (
+    public write: nBytes <Integer> at: pos <Integer> ifFail: errf <[:IOException]>  = (
       vmMirror file: self write: nBytes at: pos ifFail: errf.
     )
 
@@ -80,12 +79,11 @@ DAMAGE.>> *)
       ^ vmMirror fileSize: self.
     )
 
-    (* TODO, SM: why not public? *)
-    isClosed ^ <Boolean> = (
+    public isClosed ^ <Boolean> = (
       ^ vmMirror fileIsClosed: self.
     )
 
-    public openIfFail: errf <[:ExternalError]> = (
+    public openIfFail: errf <[:IOException]> = (
       vmMirror file: self openIfFail: errf.
     )
   ) : (
@@ -94,180 +92,11 @@ DAMAGE.>> *)
       ^ (vmMirror fileCreateFileDescriptorFor: obj) mode: m.
     )
 
-    (* TODO, SM: you still got #new defined on the class, this doesn't seem desirable. *)
-  )
-
-  (* FilePaths are FilePatterns without wildcard characters,
-     which means they match individual files, not sets of files. *)
-  public class FilePath = FilePattern ()(
-    public , extension <FilePattern> ^ <EXTENDED> = (
-      (* {where EXTENDED is returnType of #extendPath: message of arg 1} *)
-      (* TODO, SM: Unclear what EXTENDED is, this indirect definition is not good. *)
-      (* This guarantee is safe because of the inference clause *)
-      ^ extension extendPath: self (* ) *)
-    )
-
-    public copyAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
-      vmMirror path: (self pattern) copyAs: (newPath pattern) ifFail: fail.
-    )
-
-    public createDirectoryIfFail: fail <[:Symbol]> = (
-      (* create directory from this path *)
-      vmMirror pathCreateDirectory: self pattern ifFail: fail.
-    )
-
-    public deleteDirectoryIfFail: fail <[:Symbol]> = (
-      vmMirror pathDeleteFileDir: self pattern ifFail: fail.
-    )
-
-    public deleteFileIfFail: fail <[:Symbol]> = (
-      vmMirror pathDeleteFileDir: self pattern ifFail: fail.
-    )
-
-    public deletePathIfFail: fail <[:Symbol]> = (
-      self exists
-        ifFalse: [	blk value: #NoSuchFileOrDirectory.
-                ^self		].
-      self isDirectory
-        ifTrue: [ self deleteDirectoryIfFail: fail ]
-        ifFalse: [ self deleteFileIfFail: fail ]
-    )
-
-    public exists ^ <Boolean> = (
-      ^ vmMirror pathFileExists: self pattern.
-    )
-
-    public isDirectory ^ <Boolean> = (
-      ^ vmMirror pathIsDirectory: self pattern.
-    )
-
-    public isReadOnly ^ <Boolean> = (
-      ^ vmMirror pathIsReadOnly: self pattern.
-    )
-
-    public lastModified = (
-      ^ vmMirror pathLastModified: self pattern.
-    )
-
-    public moveAs: newPath <FilePath> ifFail: fail <[:ExternalError]> = (
-      vmMirror path: self pattern moveAs: newPath pattern ifFail: fail.
-    )
-
-    (* TODO, SM: why is this needed. Please remove. *)
-    public openInternalFor: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^<Win32Handle | X> = (
-      (* create file and return "handle" *)
-    )
-
-    public size = (
-      ^ vmMirror pathGetSize: self pattern.
-    )
-
-    public copyAs: newPath <FilePath> = (
-      self copyAs: newPath ifFail: [ :err <Symbol> |
-        self error: err
-      ]
-    )
-
-    (* Create a copy in the same directory with the specified name.
-       The new path is returned. *)
-    public copyNamed: name <String> ^ <FilePath> = (
-      ^ self copyNamed: name ifFail: [ :err <Symbol> | self error: err ]
-    )
-
-    (* Create a copy in the same directory with the specified name.
-       The new path is returned. *)
-    public copyNamed: name <String> ifFail: fail <[:ExternalError]>  ^ <FilePath> = (
-      | newPath <FilePath> |
-      newPath:: self containingDirectory, (FilePath for: name).
-      self copyAs: newPath ifFail: [ :err <Symbol> |
-        self error: err
-      ].
-      ^ newPath
-    )
-
-    public elements ^ <Vector[FilePath]> = (
-      (* A file path's elements must also be filepaths *)
-      ^ super elements
-    )
-
-    (* TODO, SM: There is no List in SOMns! Vector? *)
-    public entries ^ <List[FilePath]>  = (
-      ^ (self, (FilePattern for: '*')) paths
-    )
-
-    public extendPath: path <FilePath> ^ <FilePath> = (
-      ^ FilePath for: (self patternExtending: path)
-    )
-
-    public isPath ^ <Boolean> = (
-      ^ true
-    )
-
-    public isWriteable ^ <Boolean> = (
-      ^ self isReadOnly not
-    )
-
-    public moveAs: newPath <FilePath> = (
-      self moveAs: newPath
-        ifFail: [ :err <Symbol> | self error: err	]
-    )
-
-    public name ^ <String> = (
-      ^ self pattern
-    )
-
-    public open: mode <Symbol> ifFail: err <[:ExternalError | X def]>  ^ <FileDescriptor | X> = (
-      (* Modes: #read, #write, #readWrite *)
-      ^ (FileDescriptor for: self pattern mode: mode)
-        openIfFail: [:e <ExternalError> |
-          ^ err value: e ]
-    )
-
-    (* TODO, SM: public? *)
-    pathsDo: blk <[:FilePath]> = (
-      self exists ifTrue: [  blk value: self ]
-    )
-
-    public pattern: p <String> = (
-      super pattern: p.
-      self assert: [ (FilePattern patternHasWildcards: p) not ] message: 'shouldnothavewildcards'.
-    )
-
-    (* Rename in the same directory. The new path is returned. *)
-    public rename: name <String> ^ <FilePath> = (
-      ^ self rename: name ifFail: [ :err <Symbol> | self error: err ]
-    )
-
-    (* Rename in the same directory. The new path is returned. *)
-    public rename: name <String> ifFail: fail <[:ExternalError]> ^ <FilePath> = (
-      | newPath <FilePath> |
-      newPath:: self containingDirectory, (FilePath for: name).
-      self moveAs: newPath
-        ifFail: [ :err <Symbol> |
-                self error: err	].
-      ^ newPath
-    )
-
-    public simpleName ^ <String> = (
-      ^ elements last name
-    )
-  ) : (
-    public currentDirectory ^<FilePath> = (
-        ^ FilePath for: (vmMirror pathCurrentDirectory: nil)
-    )
-
-    public for: name <String> ^ <FilePath> = (
-      ^ FilePath new pattern: name
-    )
-
-    (* Create a new instance, but don't open yet. *)
-    (* TODO, SM: not public, strange, unknow types. There is still a #new message. Is this desired? *)
-    for: obj <EOBJ> mode: m <Symbol> ^ <Instance> = (
-      ^ self new externalObject: obj; mode: m
+    public new = ( self error: 'Please use for:mode: instead of new!\n' 
+     + '\talternatively the open method of a FilePath object can be used.' 
     )
   )
 
-  (* TODO, SM: Please order classes by their dependencies. Root classes before child classes. *)
   (* FilePatterns represent a pattern that matches some set of files,
      and are used (along with the subclass FilePath, which represents individual
      files without wildcards) to represent all file paths in the system.
@@ -291,9 +120,8 @@ DAMAGE.>> *)
       ^ extension extendPattern: self
     )
 
-    (* TODO, SM: not public? *)
     (* returns the seperator *)
-    separator = (
+    public separator = (
       ^ vmMirror pathSeparator: self.
     )
 
@@ -575,6 +403,161 @@ DAMAGE.>> *)
     )
   )
 
+  (* FilePaths are FilePatterns without wildcard characters,
+     which means they match individual files, not sets of files. *)
+  public class FilePath = FilePattern ()(
+    
+    (* concatenation *)
+    public , extension <FilePattern> ^ <FilePattern> = (
+      ^ extension extendPath: self (* ) *)
+    )
+
+    public copyAs: newPath <FilePath> ifFail: fail <[:IOException]> = (
+      vmMirror path: (self pattern) copyAs: (newPath pattern) ifFail: fail.
+    )
+
+    (* create directory from this path *)
+    public createDirectoryIfFail: fail <[:Symbol]> = (
+      vmMirror pathCreateDirectory: self pattern ifFail: fail.
+    )
+
+    public deleteDirectoryIfFail: fail <[:Symbol]> = (
+      vmMirror pathDeleteFileDir: self pattern ifFail: fail.
+    )
+
+    public deleteFileIfFail: fail <[:Symbol]> = (
+      vmMirror pathDeleteFileDir: self pattern ifFail: fail.
+    )
+
+    public deletePathIfFail: fail <[:Symbol]> = (
+      self exists
+        ifFalse: [	blk value: #NoSuchFileOrDirectory.
+                ^self		].
+      self isDirectory
+        ifTrue: [ self deleteDirectoryIfFail: fail ]
+        ifFalse: [ self deleteFileIfFail: fail ]
+    )
+
+    public exists ^ <Boolean> = (
+      ^ vmMirror pathFileExists: self pattern.
+    )
+
+    public isDirectory ^ <Boolean> = (
+      ^ vmMirror pathIsDirectory: self pattern.
+    )
+
+    public isReadOnly ^ <Boolean> = (
+      ^ vmMirror pathIsReadOnly: self pattern.
+    )
+
+    public lastModified = (
+      ^ vmMirror pathLastModified: self pattern.
+    )
+
+    public moveAs: newPath <FilePath> ifFail: fail <[:IOException]> = (
+      vmMirror path: self pattern moveAs: newPath pattern ifFail: fail.
+    )
+
+    public size = (
+      ^ vmMirror pathGetSize: self pattern.
+    )
+
+    public copyAs: newPath <FilePath> = (
+      self copyAs: newPath ifFail: [ :err <Symbol> |
+        self error: err
+      ]
+    )
+
+    (* Create a copy in the same directory with the specified name.
+       The new path is returned. *)
+    public copyNamed: name <String> ^ <FilePath> = (
+      ^ self copyNamed: name ifFail: [ :err <Symbol> | self error: err ]
+    )
+
+    (* Create a copy in the same directory with the specified name.
+       The new path is returned. *)
+    public copyNamed: name <String> ifFail: fail <[:IOException]>  ^ <FilePath> = (
+      | newPath <FilePath> |
+      newPath:: self containingDirectory, (FilePath for: name).
+      self copyAs: newPath ifFail: [ :err <Symbol> |
+        self error: err
+      ].
+      ^ newPath
+    )
+
+    public elements ^ <Vector[FilePath]> = (
+      (* A file path's elements must also be filepaths *)
+      ^ super elements
+    )
+
+    (* returns a pattern that represents all subfiles of a directory *)
+    public entries ^ <Vector[FilePath]>  = (
+      ^ (self, (FilePattern for: '*')) paths
+    )
+
+    public extendPath: path <FilePath> ^ <FilePath> = (
+      ^ FilePath for: (self patternExtending: path)
+    )
+
+    public isPath ^ <Boolean> = (
+      ^ true
+    )
+
+    public isWriteable ^ <Boolean> = (
+      ^ self isReadOnly not
+    )
+
+    public moveAs: newPath <FilePath> = (
+      self moveAs: newPath
+        ifFail: [ :err <Symbol> | self error: err	]
+    )
+
+    public name ^ <String> = (
+      ^ self pattern
+    )
+
+    public open: mode <Symbol> ifFail: err <[:IOException | X def]>  ^ <FileDescriptor | X> = (
+      (* Modes: #read, #write, #readWrite *)
+      ^ (FileDescriptor for: self pattern mode: mode)
+        openIfFail: [:e <IOException> |
+          ^ err value: e ]
+    )
+
+    public pathsDo: blk <[:FilePath]> = (
+      self exists ifTrue: [  blk value: self ]
+    )
+
+    public pattern: p <String> = (
+      super pattern: p.
+      self assert: [ (FilePattern patternHasWildcards: p) not ] message: 'shouldnothavewildcards'.
+    )
+
+    (* Rename in the same directory. The new path is returned. *)
+    public rename: name <String> ^ <FilePath> = (
+      ^ self rename: name ifFail: [ :err <Symbol> | self error: err ]
+    )
+
+    (* Rename in the same directory. The new path is returned. *)
+    public rename: name <String> ifFail: fail <[:IOException]> ^ <FilePath> = (
+      | newPath <FilePath> |
+      newPath:: self containingDirectory, (FilePath for: name).
+      self moveAs: newPath ifFail: fail.
+      ^ newPath
+    )
+
+    public simpleName ^ <String> = (
+      ^ elements last name
+    )
+  ) : (
+    public currentDirectory ^<FilePath> = (
+        ^ FilePath for: (vmMirror pathCurrentDirectory: nil)
+    )
+
+    public for: name <String> ^ <FilePath> = (
+      ^ FilePath new pattern: name
+    )
+  )
+
   public class IOException signalWith: aMessage = Exception (
   | public message = aMessage. |
     self signal.
@@ -595,5 +578,9 @@ DAMAGE.>> *)
   (* Short cut from VM. Likely to be removed when optimized. *)
   private signalIOException: aMessage = (
     IOException signalWith: aMessage
+  )
+
+  private signalFileNotFoundException: fileName with: aMessage = (
+    IOException signalFor: fileName with: aMessage
   )
 )

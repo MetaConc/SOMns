@@ -1,6 +1,7 @@
 package som.primitives;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
@@ -43,6 +44,17 @@ public final class PathPrims {
       fileObject = value;
       return value;
     }
+  }
+
+  public static Object signalFileNotFoundException(final String fileName,
+      final String message) {
+    CompilerDirectives.transferToInterpreter();
+    VM.thisMethodNeedsToBeOptimized("Should be optimized or on slowpath");
+
+    SInvokable disp = (SInvokable) fileObject.getSOMClass().lookupPrivate(
+        Symbols.symbolFor("signalFileNotFoundException:with:"),
+        fileObject.getSOMClass().getMixinDefinition().getMixinId());
+    return disp.invoke(new Object[] {fileObject, fileName, message});
   }
 
   public static Object signalIOException(final String message) {
@@ -155,6 +167,9 @@ public final class PathPrims {
     public final Object lastModified(final String dir) {
       try {
         return Files.getLastModifiedTime(Paths.get(dir), new LinkOption[0]).toString();
+      } catch (FileNotFoundException e) {
+        signalFileNotFoundException(dir, e.getMessage());
+        return Nil.nilObject;
       } catch (IOException e) {
         signalIOException(e.getMessage());
         return Nil.nilObject;
@@ -185,10 +200,12 @@ public final class PathPrims {
     public final long getSize(final String dir) {
       try {
         return Files.size(Paths.get(dir));
+      } catch (FileNotFoundException e) {
+        signalFileNotFoundException(dir, e.getMessage());
       } catch (IOException e) {
         signalIOException(e.getMessage());
-        return -1;
       }
+      return -1;
     }
   }
 

@@ -122,6 +122,8 @@ public class SFileDescriptor extends SObjectWithClass {
   public long getFileSize() {
     try {
       return raf.length();
+    } catch (FileNotFoundException e) {
+      PathPrims.signalFileNotFoundException(f.getAbsolutePath(), e.getMessage());
     } catch (IOException e) {
       PathPrims.signalIOException(e.getMessage());
     }

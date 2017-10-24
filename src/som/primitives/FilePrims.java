@@ -77,9 +77,13 @@ public final class FilePrims {
   @Primitive(primitive = "file:setBufferSize:")
   public abstract static class FileSetBufferSizePrim extends BinaryExpressionNode {
     @Specialization
-    public final Object setBufferSize(final SFileDescriptor file, final int size) {
+    public final boolean setBufferSize(final SFileDescriptor file, final int size) {
+      if (!file.isClosed()) {
+        return false;
+      }
+
       file.setBufferSize(size);
-      return file;
+      return true;
     }
   }
 
