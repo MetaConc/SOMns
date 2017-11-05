@@ -1,6 +1,7 @@
 class RunParser usingPlatform: platform = (
 | private system    = platform system.
-  private collections = (system loadModule: 'Collections.ns'        nextTo: self) usingPlatform: platform.
+  private streams   = (system loadModule: 'Streams.ns'              nextTo: self) new.
+  private collections = (system loadModule: 'Collections.ns'        nextTo: self) usingPlatform: platform streams: streams.
   private parserLib = (system loadModule: 'CombinatorialParsing.ns' nextTo: self) usingPlatform: platform collections: collections.
   private grammar   = (system loadModule: 'NewspeakGrammar.ns'      nextTo: self) usingPlatform: platform parsers: parserLib collections: collections.
   private asts      = (system loadModule: 'NewspeakASTs.ns'         nextTo: self) usingLib: platform collections: collections.
