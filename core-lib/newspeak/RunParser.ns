@@ -1,0 +1,14 @@
+class RunParser usingPlatform: platform = Value (
+| private system    = platform system.
+  private parserLib = (system loadModule: 'CombinatorialParsing.ns' nextTo: self) usingPlatform: platform.
+  private grammar   = (system loadModule: 'NewspeakGrammar.ns'      nextTo: self) usingPlatform: platform parsers: parserLib.
+  private asts      = (system loadModule: 'NewspeakASTs.ns'         nextTo: self) usingLib: platform.
+  private parsing   = (system loadModule: 'NewspeakParsing.ns'      nextTo: self) usingPlatform: platform grammar: grammar asts: asts.
+|)(
+  public main: args = (
+    'Hello World!' println.
+    args from: 2 to: args size do: [ :arg | arg print. ' ' print ].
+    '' println.
+    ^ 0
+  )
+)
