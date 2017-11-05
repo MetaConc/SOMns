@@ -1,9 +1,10 @@
-class RunParser usingPlatform: platform = Value (
+class RunParser usingPlatform: platform = (
 | private system    = platform system.
-  private parserLib = (system loadModule: 'CombinatorialParsing.ns' nextTo: self) usingPlatform: platform.
-  private grammar   = (system loadModule: 'NewspeakGrammar.ns'      nextTo: self) usingPlatform: platform parsers: parserLib.
-  private asts      = (system loadModule: 'NewspeakASTs.ns'         nextTo: self) usingLib: platform.
-  private parsing   = (system loadModule: 'NewspeakParsing.ns'      nextTo: self) usingPlatform: platform grammar: grammar asts: asts.
+  private collections = (system loadModule: 'Collections.ns'        nextTo: self) usingPlatform: platform.
+  private parserLib = (system loadModule: 'CombinatorialParsing.ns' nextTo: self) usingPlatform: platform collections: collections.
+  private grammar   = (system loadModule: 'NewspeakGrammar.ns'      nextTo: self) usingPlatform: platform parsers: parserLib collections: collections.
+  private asts      = (system loadModule: 'NewspeakASTs.ns'         nextTo: self) usingLib: platform collections: collections.
+  private parsing   = (system loadModule: 'NewspeakParsing.ns'      nextTo: self) usingPlatform: platform grammar: grammar asts: asts collections: collections.
 |)(
   public main: args = (
     'Hello World!' println.
