@@ -9,9 +9,9 @@ The factory selector should be changed to #usingPlatform:.
 
 Copyright 2008 Cadence Design Systems, Inc.
 Copyright 2010 Felix Geller and Ryan Macnak
-   
-Licensed under the Apache License, Version 2.0 (the ''License''); you may not use this file except in compliance with the License.  You may obtain a copy of the License at  http://www.apache.org/licenses/LICENSE-2.0 *)| 
         private List = platform collections List. 
+
+Licensed under the Apache License, Version 2.0 (the ''License''); you may not use this file except in compliance with the License.  You may obtain a copy of the License at  http://www.apache.org/licenses/LICENSE-2.0 *)|
 |) (
 public class AST = ((* An abstract syntax tree. An AST knows where in the source code the corresponding construct is. The slots start and end are indices into the source code marking that position.
 
@@ -58,8 +58,8 @@ For any non-leaf AST, its concrete start is either the stored concrete
 start value (if there is one, that is, it isn't nil) or else the concrete start of its leftmost subtree.
 
 The start of an AST is  the concrete start of its leftmost subtree
-unless it has no subtrees; then it is the stored value. 
- 
+unless it has no subtrees; then it is the stored value.
+
 Only the parser knows which subtree is  the leftmost, as this depends on the concrete syntax. The parser may this routine, which sets the indices in the tree.
 *)
 	self _concreteStart isNil ifTrue: [_concreteStart: leftmostSubtree concreteStart].
@@ -69,9 +69,9 @@ public right: rightmostSubtree <AST> = (
 (*
 For any non-leaf AST, its concrete end is either the stored concrete
 end value (if there is one, that is, it isn't nil) or else the concrete end of its rightmost subtree.
- 
+
 The end of an AST is the concrete end of its rightmost subtree,
-unless it has no subtrees; then it is the stored value. 
+unless it has no subtrees; then it is the stored value.
 
 Only the parser knows which subtree is the rightmost, as this depends on the concrete syntax. The parser calls this routine, which sets the indices in the tree.
 *)
@@ -86,29 +86,29 @@ public binaryTypeOpNode: aNode = (
 		leftOperand: (aNode leftOperand apply: self);
 		operator: aNode operator;
 		rightOperand: (aNode rightOperand apply: self);
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public blockNode: aNode <BlockAST> ^ <BlockAST> = (
-	^BlockAST new body: (aNode body apply: self);  
-		start: aNode start; end: aNode end; 
+	^BlockAST new body: (aNode body apply: self);
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public blockTypeNode: aNode = (
-	^(BlockTypeAST 
+	^(BlockTypeAST
 		formals: (aNode formals collect: [:f | f apply: self])
 		return: (nil = aNode return ifFalse: [aNode return apply: self]))
-		start: aNode start; end: aNode end; 
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public cascadedSendNode: aNode <CascadedSendAST> ^  <CascadedSendAST> = (
 	^CascadedSendAST new
 		to: (aNode previousSend apply: self) cascade: (aNode message apply: self);
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public characterNode: aNode <CharacterAST> = (
@@ -135,17 +135,17 @@ public classNode: aNode = (
 		header: (aNode header apply: self);
 		instanceSide: (aNode instanceSide apply: self);
 		classSide: (aNode classSide apply: self);
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public classPrefix: node <ClassPrefixNode> = (
 	^ClassPrefixAST
-		name: (node name apply: self) 
-		constructor: (node constructor apply: self) 
-		superclassName: (node superclassName apply: self)  
-		superclassCall: (node superclassCall apply: self)      
-		superConstructorCall: (node superConstructorCall apply: self) 		
+		name: (node name apply: self)
+		constructor: (node constructor apply: self)
+		superclassName: (node superclassName apply: self)
+		superclassCall: (node superclassCall apply: self)
+		superConstructorCall: (node superConstructorCall apply: self)
 )
 public codeBodyNode: aNode = (
  	^CodeBodyAST new
@@ -153,8 +153,8 @@ public codeBodyNode: aNode = (
 		temporaries: (aNode temporaries collect:[:t | t apply: self])
 		statements:(aNode statements collect:[:s | s apply: self]);
 		isSeq: aNode isSeq;
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public genericInvocationNode: aNode = (
@@ -162,14 +162,14 @@ public genericInvocationNode: aNode = (
 		generic: (aNode generic apply: self);
 		arguments: (aNode arguments collect:[:a | a apply: self]);
 		start: aNode start; end: aNode end;
-		concreteStart: aNode concreteStart; 
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public messageNode: aNode  <MessageAST> ^  <MessageAST> = (
 	^MessageAST new
 		send: aNode selector with: (aNode arguments collect: [:a | a apply: self]);
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public messagePatternNode: aNode  <MessagePatternAST> ^ <MessagePatternAST> = (
@@ -179,7 +179,7 @@ public messagePatternNode: aNode  <MessagePatternAST> ^ <MessagePatternAST> = (
 		returnType: (nil = aNode returnType ifFalse: [aNode returnType apply: self])
 		typePattern: (nil = aNode typePattern ifFalse: [aNode typePattern apply: self]);
 		start: aNode start; end: aNode end;
-		concreteStart: aNode concreteStart; 
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public methodNode: aNode  <MethodAST> = (
@@ -187,26 +187,26 @@ public methodNode: aNode  <MethodAST> = (
 		pattern: (aNode pattern apply: self)
 		body: (aNode body apply: self)
 		accessModifier: aNode accessModifier;
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public mixinApplication: node <MixinApplicationAST> = (
 	^MixinApplicationAST new
 		mixinExpr: (node mixinExpr apply: self);
 		superclassExpr: (node superclassExpr apply: self);
-		classPrefix: (nil = node classPrefix ifFalse: [node classPrefix apply: self]); 
+		classPrefix: (nil = node classPrefix ifFalse: [node classPrefix apply: self]);
 		(*check for nil prefix during transition *)
-		start: node start; end: node end; 
+		start: node start; end: node end;
 		concreteStart: node concreteStart;
 		concreteEnd: node concreteEnd
 )
 public mixinApplicationClass: node <MixinApplicationClassAST> = (
-	^(MixinApplicationClassAST 
-		named: node name 
-		factoryMsg: (node constructor apply: self) 
+	^(MixinApplicationClassAST
+		named: node name
+		factoryMsg: (node constructor apply: self)
 		inheriting: (node inheritanceChain collect: [:ic | ic apply: self]))
-		start: node start; end: node end; 
+		start: node start; end: node end;
 		concreteStart: node concreteStart;
 		concreteEnd: node concreteEnd
 )
@@ -217,8 +217,8 @@ public numberNode: aNode = (
 )
 public returnStatNode: aNode <ReturnStatAST> ^ <ReturnStatAST> = (
 	^ReturnStatAST new
-		expression: (aNode expression apply: self); 
-		start: aNode start; end: aNode end; 
+		expression: (aNode expression apply: self);
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
@@ -230,23 +230,23 @@ public setterSendNode: aNode <SetterSendAST> ^ <SetterSendAST> = (
 		concreteEnd: aNode concreteEnd
 )
 public sideNode: aNode <SideAST> ^ <SideAST> = (
- 	^SideAST new 
+ 	^SideAST new
 		nestedClasses: (aNode nestedClasses collect: [:nc | nc apply: self]);
             methods: (aNode methods collect: [:m | m apply: self]);
-            start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+            start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public slotDefNode: aNode = (
 	| slotDefClass |
-	slotDefClass:: aNode isMutable 
-						ifTrue: [ MutableSlotDefAST ] 
+	slotDefClass:: aNode isMutable
+						ifTrue: [ MutableSlotDefAST ]
 						ifFalse: [ ImmutableSlotDefAST ].
 	^slotDefClass new
 		slotDecl: (aNode slotDecl apply: self);
 		initializer: (nil = aNode initializer ifFalse: [aNode initializer apply: self]);
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public stringNode: aNode <StringAST> ^ <StringAST> = (
@@ -261,22 +261,22 @@ public symbolNode: aNode = (
 )
 public tupleNode: aNode <TupleAST> ^  <TupleAST> = (
 	^TupleAST new
-		elements: (aNode elements collect: [:e | e apply: self]); 
-		start: aNode start; end: aNode end; 
+		elements: (aNode elements collect: [:e | e apply: self]);
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public typeIdNode: aNode = (
 	^TypeIdAST new
-		name: aNode name; 
-		start: aNode start; end: aNode end; 
+		name: aNode name;
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public typePatternNode: aNode = (
 	^TypePatternAST new
-		formals: (aNode formals collect: [:f | f apply: self]); 
-		start: aNode start; end: aNode end; 
+		formals: (aNode formals collect: [:f | f apply: self]);
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
@@ -284,14 +284,14 @@ public unaryTypeOpNode: aNode = (
 	^UnaryTypeOpAST new
 		operand: (aNode operand apply: self);
 		operator: aNode operator;
-		start: aNode start; end: aNode end; 
-		concreteStart: aNode concreteStart; 
+		start: aNode start; end: aNode end;
+		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
 public unresolvedSendNode: aNode <UnresolvedSendAST> ^ <UnresolvedSendAST> = (
 	^UnresolvedSendAST new
-		to: (aNode receiver apply: self) send: (aNode message apply: self); 
-		start: aNode start; end: aNode end; 
+		to: (aNode receiver apply: self) send: (aNode message apply: self);
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
 		concreteEnd: aNode concreteEnd
 )
@@ -303,9 +303,9 @@ public varDeclNode: aNode<VarDeclAST> ^ <VarDeclAST> = (
 public variableNode: aNode <VariableAST> ^ <VariableAST> = (
 	^VariableAST new
 		name: aNode name;
-		start: aNode start; end: aNode end; 
+		start: aNode start; end: aNode end;
 		concreteStart: aNode concreteStart;
-		concreteEnd: aNode concreteEnd              
+		concreteEnd: aNode concreteEnd
 )
 ) : (
 )
@@ -543,31 +543,31 @@ public superclassName ^ <Symbol> = (
 	^header superclassName
 )
 ) : (
-public makeMixinNamed: klassName <Token> factoryMsg: cons <MessagePatternAST> inheriting: iList <List[SendAST]> body: body <ClassBodyAST> 
+public makeMixinNamed: klassName <Token> factoryMsg: cons <MessagePatternAST> inheriting: iList <List[SendAST]> body: body <ClassBodyAST>
 	^ <ClassDeclarationAST> = (
 (* adaptor factory method for transition. Using this method, we can create an AST compatible with the unmodified compiler based on the revised parser. *)
-	| 
-	superCall <SendAST> = iList first. 
+	|
+	superCall <SendAST> = iList first.
 	instanceInitializer <InitializerAST> = body instanceInitializer.
-	header = ClassHeaderAST new 
-				name: klassName value asSymbol; 
+	header = ClassHeaderAST new
+				name: klassName value asSymbol;
 				constructor: cons;
 				superclassName: superCall receiver message selector;
 				superclassCall: superCall receiver;
 				superConstructorCall: superCall message;
-				slots: instanceInitializer slots; 
-				isSeq: instanceInitializer isSeq; 
-				initExprs: instanceInitializer initializationExpressions; 
+				slots: instanceInitializer slots;
+				isSeq: instanceInitializer isSeq;
+				initExprs: instanceInitializer initializationExpressions;
 				inheritanceChain: iList;
 				classComment: body instanceInitializer classComment;
 				start: klassName start; end: instanceInitializer end.
 	|
-	^new 
+	^new
 		header: header;
 		instanceSide: body instanceSide;
 		classSide: body classSide
 )
-public named: klassName <Token> factoryMsg: cons <MessagePatternAST> inheriting: iList <List[SendAST]> body: body <ClassBodyAST> 
+public named: klassName <Token> factoryMsg: cons <MessagePatternAST> inheriting: iList <List[SendAST]> body: body <ClassBodyAST>
 	^ <ClassDeclarationAST> = (
 	^body isNil
 		ifTrue:[MixinApplicationClassAST named: klassName value factoryMsg: cons inheriting: iList]
@@ -594,11 +594,11 @@ public superCall ^ <SendAST> = (
 )
 ) : (
 )
-public class ClassPrefixAST name: n 
+public class ClassPrefixAST name: n
 	constructor: k
-	superclassName: sn 
-	superclassCall: scc 					                         	
-	superConstructorCall: sk = AST ((* A class prefix defines everything about a class except for its mixin. 
+	superclassName: sn
+	superclassCall: scc
+	superConstructorCall: sk = AST ((* A class prefix defines everything about a class except for its mixin.
 It is intended to serve as a common component between ordinary class declarations and mixin applications.
 
 For Squeak compatibility, we maintain a category as well (ugh).
@@ -630,7 +630,7 @@ public isExpressionNode = (
 	#BOGUS. (* Added for expansion of setter::exp to (t:=exp. setter:exp. t).  This might not play well with expectations in the rest of the compiler?  --Ryan *)
 	^true
 )
-public parameters: pars <List[ParameterAST]> temporaries: temps <List[TemporaryAST]> statements: stats <List[StatementAST]> = ( 
+public parameters: pars <List[ParameterAST]> temporaries: temps <List[TemporaryAST]> statements: stats <List[StatementAST]> = (
 	self parameters: pars; temporaries: temps; statements: stats
 )
 public temporaries: temps <List[TemporaryAST]> statements: stats <List[StatementAST]> = (
@@ -697,7 +697,7 @@ public isLiteralPatternNode = (
 )
 ) : (
 )
-public class MessageAST = AST (| 
+public class MessageAST = AST (|
 	public selector <Symbol>
 	public arguments <List[ExpressionAST]>
 	public isEventual <Boolean> ::= false.
@@ -712,7 +712,7 @@ public send: sel <Symbol> with: args <List[ExpressionAST]> = (
 ) : (
 )
 public class MessagePatternAST = AST (
-| 
+|
       public accessModifier <Symbol>
 	public selector <Symbol>
 	public parameters <List[ParameterAST]>
@@ -743,7 +743,7 @@ public selector: s <Symbol> returnType: t <TypeAST> = (
 )
 ) : (
 )
-public class MethodAST = AST (| 
+public class MethodAST = AST (|
 	public pattern <MessagePatternAST>
 	public body <CodeBodyAST>
 |) (
@@ -771,8 +771,8 @@ public selector ^<Symbol> = (
 )
 ) : (
 )
-public class MixinApplicationAST = AST ((* Represents a literal mixin application. *)| 
-	public mixinExpression <NormalSendAST> 
+public class MixinApplicationAST = AST ((* Represents a literal mixin application. *)|
+	public mixinExpression <NormalSendAST>
 	public superclassExpression <NormalSendAST> (* should eventually go away *)
 	public classPrefix <ClassPrefixAST>
  |) (
@@ -853,7 +853,7 @@ public receiver = (
 )
 public class SetterSendAST to: r <ExpressionAST> send: m <MessageAST> start: s <integer> end: e <Integer> = SendAST send: m (|
 	public receiver  <ExpressionAST> ::= r.
-|assert:[r isExpressionNode] 
+|assert:[r isExpressionNode]
   message: 'Receiver of setter send should be an expression' .
   start: s.
   end: e) (
@@ -880,7 +880,7 @@ public isSideNode = (
 )
 ) : (
 )
-public class SlotDefAST = AST (| 
+public class SlotDefAST = AST (|
 	public slotDecl <VariableAST>
 	public initializer <ExpressionAST>
 	public accessModifier
@@ -908,7 +908,7 @@ public apply: aTool = (^aTool symbolNode: self)
 public isSymbolNode = (^true)
 ) : (
 )
-public class TupleAST = AST (| 
+public class TupleAST = AST (|
 	public elements <List[ExpressionAST]>
 |) (
 public apply: aTool = (^aTool tupleNode: self)
@@ -955,7 +955,7 @@ public to: anExpression <ExpressionAST> send: selector with: arguments = (
 )
 ) : (
 )
-public class VarDeclAST name: aName type: aType = AST (| 
+public class VarDeclAST name: aName type: aType = AST (|
 	public name  <Symbol> = aName.
 	public type <TypeAST> = aType.
 |) (
@@ -972,7 +972,7 @@ public isTemporaryAST ^ <Boolean> = (
 public isVarDeclNode = (^true)
 ) : (
 )
-public class VariableAST = AST (| 
+public class VariableAST = AST (|
 	public name <Symbol>
 |) (
 public apply: aTool = (
