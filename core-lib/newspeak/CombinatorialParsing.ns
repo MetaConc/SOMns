@@ -1,6 +1,6 @@
 Newspeak3
 'CombinatorialParsing'
-class CombinatorialParsing usingPlatform: platform = (
+class CombinatorialParsing usingPlatform: platform collections: collections = (
 (* The Newspeak parser combinator library.
 
 Copyright 2008 Cadence Design Systems, Inc.
@@ -9,8 +9,9 @@ Copyright 2013 Ryan Macnak
 
 Licensed under the Apache License, Version 2.0 (the ''License''); you may not use this file except in compliance with the License.  You may obtain a copy of the License at  http://www.apache.org/licenses/LICENSE-2.0 *)|
 
-private List = platform collections List.
-private Map = platform collections Map.
+private Exception = platform kernel Exception.
+private List = collections List.
+private Map = collections Map.
 private ObjectMirror = platform mirrors ObjectMirror.
 |) (
 class AlternatingParser either: p_ or: q_ = CombinatorialParser ((* A parser that parses either P or Q. *)|
@@ -461,7 +462,7 @@ recordFailure: f = (
 )
 ) : (
 )
-public class ParserError message: m position: p = Error (| 
+public class ParserError message: m position: p = Exception (|
 	public message <String> = m.
 	public position <Integer> = p.
 |) (
