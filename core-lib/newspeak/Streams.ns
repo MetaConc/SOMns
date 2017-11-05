@@ -1,6 +1,6 @@
 Newspeak3
 'NSStreams'
-class Streams usingPlatform: platform = (
+class Streams new = (
 (*
 Interim Newspeak Streams library.
 This code was derived by converting the Strongtalk Stream classes to Newspeak, which is why the Sun Microsystems copyright and BSD license below applies.
@@ -32,20 +32,21 @@ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE A
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
 GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-DAMAGE.>> *)|
-private BasicOutputReadStream = BasicOutputStream mixinApply: BasicReadStream.
+DAMAGE.>> *)
+)(
+private class BasicOutputReadStream = BasicOutputStream <: BasicReadStream ()()
 
-private CharacterIStream = CharacterInput mixinApply: BasicInputStream.
-private CharacterOStream =  CharacterOutput mixinApply: BasicOutputStream.
+private class CharacterIStream = CharacterInput <: BasicInputStream ()()
+private class CharacterOStream = CharacterOutput <: BasicOutputStream ()()
 
-private CharacterConverterWithOutput = BasicOutputStream mixinApply: CharacterInputConverter.
-private OutputInputConverter = CharacterOutput mixinApply: CharacterConverterWithOutput.
-private BasicIExStream = BasicInputStream mixinApply: ExternalStream.
-private EIStream = BasicReadStream mixinApply: ExternalInputStream.
-private ReadExternalOutputStream = BasicOutputStream mixinApply: ExternalReadStream.
-private EOStream = BasicOutputStream mixinApply: ExternalStream.
-private EIOStream = ExternalOutputStream mixinApply: ReadExternalOutputStream.
-|) (
+private class CharacterConverterWithOutput = BasicOutputStream <: CharacterInputConverter ()()
+private class OutputInputConverter = CharacterOutput <: CharacterConverterWithOutput ()()
+private class BasicIExStream = BasicInputStream <: ExternalStream ()()
+private class EIStream = BasicReadStream <: ExternalInputStream ()()
+private class ReadExternalOutputStream = BasicOutputStream <: ExternalReadStream ()()
+private class EOStream = BasicOutputStream <: ExternalStream ()()
+private class EIOStream = ExternalOutputStream <: ReadExternalOutputStream ()()
+
 public class BasicInputStream = (
 (* This class provides the standard implementation of the InputStream[E] protocol, where E is the type of the elements of the stream.  It implements all functionality
 in terms of the two messages #actualNext and #actualAtEnd, which subclasses must provide.
