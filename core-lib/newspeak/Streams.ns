@@ -13,25 +13,25 @@ The naming conventions are probably too verbose as well. Finally, the fine grain
 
 Copyright (c) 1995-2006 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
 Copyright 2008-2009 Gilad Bracha and other contributors.
- 
+
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, 
+* Redistributions of source code must retain the above copyright notice,
  this  list of conditions and the following disclaimer.
 
-* Redistribution in binary form must reproduce the above copyright notice, 
+* Redistribution in binary form must reproduce the above copyright notice,
 this list of conditions and the following disclaimer in the documentation and/o other materials provided with the distribution.
 
-Neither the name of Sun Microsystems or the names of contributors may 
-be used to endorse or promote products derived from this software without 
+Neither the name of Sun Microsystems or the names of contributors may
+be used to endorse or promote products derived from this software without
 specific prior written permission.
 
 >>
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
-GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.>> *)|
 private BasicOutputReadStream = BasicOutputStream mixinApply: BasicReadStream.
 
@@ -58,8 +58,8 @@ messages will not terminate on their own for infinite streams.
 %responsibility #newCollectionOfSize:
     Optionally override
 %responsibility #close
-    Close must be reimplemented if any work must be done when the stream is closed. *)| 
-havePeeked_0 <Boolean> ::= false.	
+    Close must be reimplemented if any work must be done when the stream is closed. *)|
+havePeeked_0 <Boolean> ::= false.
 (* If true, then peekVal is the next element *)
 peekVal <E>
 |) (
@@ -226,7 +226,7 @@ skip: nElements <Integer>
 skipTo: o <Object> ^ <Boolean> = (
 
 
-	[ self atEnd ] whileFalse: [ 
+	[ self atEnd ] whileFalse: [
 			self next = o
 				ifTrue: [ ^true ]	].
 	^false
@@ -276,7 +276,7 @@ public nextPut: el <E> ^ <E> = (
 	self subclassResponsibility
 )
 public nextPutAll: els <Collection[E]> ^ <Collection[Object]> = (
- 
+
 
 	els do: [ :el <E> |
 		self nextPut: el		].
@@ -304,7 +304,7 @@ show: els <Collection[E]> ^ <Collection[Object]> = (
 ) : (
 )
 class BasicReadStream = BasicInputStream (
-(* This class provides the standard implementation of the ReadStream protocol. 
+(* This class provides the standard implementation of the ReadStream protocol.
 
 Subclass responsibilities:
     %responsibility actualPosition:
@@ -317,7 +317,7 @@ actualAtEnd ^ <Boolean> = (
 	^self actualPosition >= self size
 )
 actualPosition ^ <Integer> = (
-	^actualPosition_slot	
+	^actualPosition_slot
 )
 actualPosition: p <Integer> = (
 	actualPosition_slot: p
@@ -347,7 +347,7 @@ collection  ^ <List[E]> = (
 )
 public contents  ^ <List[E]> = (
 
-	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use 
+	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use
 	 #contentsRemaining and #contentsWritten, which will work when a ReadWriteStream
 	 is substituted for a ReadStream or a WriteStream, unlike this method *)
 
@@ -494,7 +494,7 @@ fully substitutable for both ReadStreams and WriteStreams.
 *)| size <Integer> ::= 0.  |) (
 public contents  ^ <List[E]> = (
 
-	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use 
+	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use
 	 #contentsRemaining and #contentsWritten, which will work when a ReadWriteStream
 	 is substituted for a ReadStream or a WriteStream, unlike this method *)
 
@@ -910,7 +910,7 @@ public class ExternalOutputStream = EOStream (
     This method may have to be reimplemented (for example in read/write streams) depending
     on whether the buffer contains only written elements, or a mix of read/written elements.
 
-%todo: we must make sure when %finalization is implemented that instances of this class are finalized before their descriptors, so that the buffer can be flushed.  See #finalize. *)| 
+%todo: we must make sure when %finalization is implemented that instances of this class are finalized before their descriptors, so that the buffer can be flushed.  See #finalize. *)|
 dirty <Boolean> ::= false. (* indicates whether the buffer contains unflushed modified data *)
 |) (
 advanceBufferLocation
@@ -931,7 +931,7 @@ public close = (
 )
 externalFlush
  = (
-	
+
 	self flush.
 	self descriptor flushIfFail: [ :err <ExternalError> | self error: err ]
 )
@@ -948,7 +948,7 @@ public flush = (
 )
 logicalFlush
  = (
-    
+
     self dirty
         ifTrue: [    self bufferNumElements > 0
                     ifTrue: [    self writeBuffer; updateBufferLocationAfterFlush.     ].
@@ -959,7 +959,7 @@ public nextPut: byte <Integer> ^ <Integer> = (
     | pos <Integer> |
     pos:: self nextBufferPosition.
     (* self buffer byteAt: pos put: byte. *)
-	self buffer unsignedByteAt: pos+1 put: byte.	
+	self buffer unsignedByteAt: pos+1 put: byte.
 
     pos:: pos + 1.
     self nextBufferPosition: pos;
@@ -977,7 +977,7 @@ updateBufferLocationAfterFlush
 public writeBuffer = (
     (* Caller is responsible for updating dirty *)
     self descriptor
-        write: self bufferNumElements 
+        write: self bufferNumElements
         at: self bufferOrigin
         ifFail: [ :err |  self error: err ]
 )
@@ -1041,7 +1041,7 @@ initializeActualPosition
 )
 repositioningAt: index <Integer> ^ <Integer> = (
 
-	
+
 	| i <Integer> |
 	i:: index - self bufferOrigin.
 	^(i < 1 or: [ i > self bufferNumElements ])
@@ -1072,7 +1072,7 @@ for read-only streams and read-write streams, with different creation messages. 
 public contents  ^ <List[Integer]> = (
 
 
-	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use 
+	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use
 	 #contentsRemaining and #contentsWritten, which will work when a ReadWriteStream
 	 is substituted for a ReadStream or a WriteStream, unlike this method *)
 
@@ -1125,7 +1125,7 @@ Invariant: the buffer position is always less than the index of the last buffer 
 
 %responsibility #arrangeForFinalization
     Subclasses should reimplement this appropriately to do any finalization registration
-      to ensure that the stream is closed when it is garbage collected. *)| 
+      to ensure that the stream is closed when it is garbage collected. *)|
 descriptor <DESCRIPTOR> (* = d. *)
 buffer <ExternalProxy> (* I/O buffer, cached from descriptor for speed (0 indexed) *)
 bufferSize <Integer> (* I/O buffer size, cached from descriptor for speed *)
@@ -1337,12 +1337,12 @@ collection ^ <MutableList[E]> = (
 )
 public contents  ^ <List[E]> = (
 
-	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use 
+	(* Obsolete: this method is included purely for BlueBook compatibility.  If possible, use
 	 #contentsRemaining and #contentsWritten, which will work when a ReadWriteStream
 	 is substituted for a ReadStream or a WriteStream, unlike this method *)
 
 	(* This originally referred to contentsWritten. The result of 'contents' should not depend on how much of a stream has already been read, see Blue Book - Protocol for Streams *)
-		
+
 	^ self collection
 )
 public initBuffer: sc <MutableList[E]> = (
@@ -1418,7 +1418,7 @@ public printOn: strm <CharOutputStream>
 			nextPutAll: '(position='; 	print: self position;
 			nextPutAll: ' buffer=';  print: self buffer;
 			nextPut: ")"
-			
+
 )
 ) : (
 on: sc <MutableList[E]> ^ <ReadWriteStream[E]> = (
