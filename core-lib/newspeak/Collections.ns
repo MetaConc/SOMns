@@ -1,32 +1,32 @@
 Newspeak3
 'NSCollections'
 class Collections usingPlatform: p = (
-(* 
+(*
 Newspeak collections library.
 This code was derived by converting the Strongtalk Collections classes to Newspeak, which is why the Sun Microsystems copyright and BSD license below applies.
 
 Copyright (c) 1995-2006 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
 Copyright 2008-2009 Yardena Meymann, Gilad Bracha and other contributors.
- 
+
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, 
+* Redistributions of source code must retain the above copyright notice,
  this  list of conditions and the following disclaimer.
 
-* Redistribution in binary form must reproduce the above copyright notice, 
+* Redistribution in binary form must reproduce the above copyright notice,
 this list of conditions and the following disclaimer in the documentation and/o other materials provided with the distribution.
 
-Neither the name of Sun Microsystems or the names of contributors may 
-be used to endorse or promote products derived from this software without 
+Neither the name of Sun Microsystems or the names of contributors may
+be used to endorse or promote products derived from this software without
 specific prior written permission.
 
 >>
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
-GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH 
 DAMAGE.>> *)|	private MutableAddableList = MutableList mixinApply: AddableList.	(* -- streams -- *)	private ListReadStream = p streams SeqCltnReadStream. 	private ListReadWriteStream = p streams SeqCltnReadWriteStream.		(* magic collections *)	(* Not yet supported by NS2JS or NS2Dart *)	public WeakArray = Future computing: [p squeak WeakArray].|) (
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 class AbstractList = Collection (
 (* This class implements the read-only protocol for indexed collections that order their elements using integer indices. *)) (
 public , other <List[X]> ^<MutableList[E | X]> = (
@@ -67,11 +67,11 @@ toCompare: compare <[:EL def :EL| Boolean]>
 					mid:: (low + high)  // 2.
 	  				(* The guaranteed below is safe because of the inference clause *)
 					(compare value: ((* guaranteed <EL> *) (at: mid)) value: el)
-						ifTrue: [ low:: mid + 1 ]	
+						ifTrue: [ low:: mid + 1 ]
 						ifFalse: [ high:: mid - 1 ].
 				].
 	^low
-	
+
 )
 public binarySearchFor: el <EL>
 toCompare: compare <[:EL def :EL| Boolean]>
@@ -85,7 +85,7 @@ toCompare: compare <[:EL def :EL| Boolean]>
 			binarySearchFor: el
 			between: 1
 			and: size
-			toCompare: compare	
+			toCompare: compare
 )
 public collect: map <[:E | R def]> ^<List[R]> = (
 	^collectUsingAtPut: map
@@ -122,7 +122,7 @@ public copyFrom: start <Integer> to: stop <Integer>   ^<MutableList[EX]> = (
 	(* The guarantee is typesafe since the inference clause guarantees that E < EX at the call site *)
 	| cp <MutableList[EX]> safeme <List[EX]> |
 	safeme:: (* guaranteed <List[EX]> *) self.
-	cp:: (* guaranteed <MutableList[EX]> *) 
+	cp:: (* guaranteed <MutableList[EX]> *)
 				newCopyOfSize: (stop - start) + 1 thatCanAlsoHoldElementsOf: safeme.
 	cp replaceFrom: 1 to: cp size with: safeme startingAt: start.
 	^cp
@@ -148,7 +148,7 @@ public copyReplaceAll: oldSub <List[Object]> with: newSub <List[X]>  ^<MutableLi
 	(* This guarantee is typesafe since the inference clause guarantees that E < EX at the call site *)
 	safeself:: (* guaranteed <List[EX]> *) self.
 
-	spots size = 0 
+	spots size = 0
 		ifTrue: [	copy::  safeself newCopyOfSize: size
 								thatCanAlsoHoldElementsOf: newSub.
 						copy replaceFrom: 1 to: size with: safeself.
@@ -159,7 +159,7 @@ public copyReplaceAll: oldSub <List[Object]> with: newSub <List[X]>  ^<MutableLi
 				thatCanAlsoHoldElementsOf: newSub.
 	current:: 1.
 	offset:: 0.
-	spots do: 
+	spots do:
 		[ :spot <Int> |	| offspot <Int> |
 			offspot:: spot + offset.
 
@@ -202,14 +202,14 @@ copyReplaceFrom: start <Integer> to: stop <Integer> with: other <List[X]>  ^<Mut
 	copy replaceFrom: 1 to: start - 1 with: safeself startingAt: 1.
 	copy replaceFrom: start to: afterNew - 1 with: other.
 	copy replaceFrom: afterNew to: copy size with: ((* guaranteed <List[EX]> *) self) startingAt: stop + 1.
-	^copy	
+	^copy
 )
 public copyWith: element <X>  ^<MutableList[E | X]> = (
 	^self , {element}
 )
 public copyWithSize: s <Integer> ^<MutableList[EX]> = (
 	(* {where EX is returnType of #anElement message of receiverType} *)
-	
+
 	(* return a mutable copy of the receiver of a different size, that is either truncated
 		or extended with nils as necessary.  Note this works even if the receiver itself
 		is not mutable *)
@@ -221,14 +221,14 @@ public copyWithSize: s <Integer> ^<MutableList[EX]> = (
 	  without the inference clause, because we would have to have a return type of
 	  <MutableList[E]>, which isn't typesafe since  E is a 'covariant' generic variable of this
 	  class, whereas E is an 'unrelated' generic variable in MutableList. - D.G. *)
-	  
+
 	(* %note: The inference clause above should really read ... EX <E> ..., but the type
 		system implementation for some reason can't deal with implementations
 		of such a method in subclasses that have bound E (i.e. are not generic on E).
 		For an example, see the implementation in ReadString, which would not have to
 		have a guarantee in the method body if this worked right - D.G. *)
 
-	subclassResponsibility	
+	subclassResponsibility
 )
 public copyWithout: el <Object>  ^<MutableList[EX]> = (
 	(* {where EX is returnType of #anElement message of receiverType} *)
@@ -237,9 +237,9 @@ public copyWithout: el <Object>  ^<MutableList[EX]> = (
 
 	(* The following guarantee is safe because the inference clause ensures that E < EX
 		at the call site *)
-	safeself:: (* guaranteed <List[EX]> *) self. 
+	safeself:: (* guaranteed <List[EX]> *) self.
 
-	^safeself copyReplaceAll: (Array(* [Object] *) with: el) with: {} 	
+	^safeself copyReplaceAll: (Array(* [Object] *) with: el) with: {}
 )
 public do: f <[:E]> = (
 
@@ -277,7 +277,7 @@ public hasSameElementsAndOrderAs: other <List[Object]>  ^<Boolean> = (
 	(* Like #hasSameElementsAs:, but also requires the elements to be in the same order *)
 
 	size = other size
-		ifFalse: [ ^false ].  
+		ifFalse: [ ^false ].
 	1 to: size do:
 		[ :i <Integer> |
 			(at: i) = (other at: i)
@@ -317,7 +317,7 @@ public indexOf: element <Object> ifAbsent: f <[X def]>  ^<Integer | X> = (
 
 	1 to: size do:
  [:index <Integer> |
- (at: index) = 
+ (at: index) =
 element ifTrue: [^index]].
 	^f value
 )
@@ -354,7 +354,7 @@ startingAt: index <Integer>
 	current:: index.
 	[ current:: self indexOfSubCollection: sub startingAt: current ifAbsent: [ 0 ].
 	  current = 0
-		] whileFalse: 
+		] whileFalse:
 			[	indices addLast: current.
 				current:: current + subSize.		].
 	^indices
@@ -390,7 +390,7 @@ public last ^<E> = (
 )
 public newCopyOfSize: size <Integer>
 thatCanAlsoHoldElementsOf: other <List[X]>
-^<MutableList[EX | X]> 
+^<MutableList[EX | X]>
 = (
 		(* {where X is returnType of #anElement message of arg 2;
 		     where EX is returnType of #anElement message of receiverType} *)
@@ -399,7 +399,7 @@ thatCanAlsoHoldElementsOf: other <List[X]>
 	that can hold both elements of self and elements of the other collection *)
 
 	^Array(* [EX | X] *) new: size
-	
+
 )
 newForCollectUsingAtPut: size <Integer> ^<MutableList[Object]> = (
 	(* Return a new extensible collection that is as closely related to the receiver's class as possible.  The
@@ -416,16 +416,16 @@ public reverse   ^<MutableList[EX]> = (
 
 	(* The guarantees are typesafe since the inference clause guarantees that E < EX at the call site *)
 	| copy <MutableList[EX]> |
-	
+
 	#BOGUS. (* #reverse implies an in-place operation, should be #reversed *)
 	copy:: (* guaranteed <MutableList[EX]> *)
 		(newCopyOfSize: size thatCanAlsoHoldElementsOf: self).
-	1 to: size do: 
+	1 to: size do:
 		[ :i <Integer> |
 			| el <EX> |
 			el:: ((* guaranteed <MutableList[EX]> *) self) at: i.
 			copy at: size + 1 - i put: el.	].
-	^copy	
+	^copy
 )
 public reverseDo: action <[:E]> = (
 
@@ -449,7 +449,7 @@ public with: other <List[X def]> do: action <[:E :X]> = (
 ) : (
 )
 class AddableList = AbstractList (
-(* AddableLists are Lists that support the Extensible protocol, and which support indexing in constant time. *)| 
+(* AddableLists are Lists that support the Extensible protocol, and which support indexing in constant time. *)|
 	protected contents <Array[E]>
 	protected startGap <Integer>  (* number of empty slots at the beginning of contents *)
 	protected lastIndex <Integer>  (* (internal) index of last occupied table entry *)
@@ -487,7 +487,7 @@ public copyWithSize: s <Integer> ^<MutableList[EX]> = (
 	safeself:: (* guaranteed <List[EX]> *) self.
 
 	^(Array(* [EX] *) new: s)
-		replaceFrom: 1 to: (s min: size) with: safeself	
+		replaceFrom: 1 to: (s min: size) with: safeself
 )
 public do: action <[:E]> = (
 	startGap + 1 to: lastIndex do:
@@ -536,7 +536,7 @@ internalRangeCheck: index <Integer> = (
 makeSpace: slots <Integer> beforeIndex: i <Integer> ^<Integer> = (
 
 	(* assume:  i is a valid internal index.  The index is returned, adjusted
-	 for any resizing of the internal array that may have taken place 
+	 for any resizing of the internal array that may have taken place
 	 (i.e. the index of the beginning of the created gap is returned) *)
 
 	(* # before i is (i - startGap) - 1, # after is (lastIndex - i) + 1 *)
@@ -590,7 +590,7 @@ makeSpaceAtStart: nslots <Integer> ^<Integer> = (
 	startGap: newGap.
 	contents: newContents.
 	lastIndex: newLastIndex.
-	^diff	
+	^diff
 )
 needSpaceAtEnd: slots <Integer>
  = (
@@ -826,7 +826,7 @@ public collect: map <[:E | R def]> ^<Collection[R]> = (
 protected collectUsingAdd: map <[:E | R def]> ^<Collection[R]> = (
 	| c |
 	(* See #newForCollect: for explanation of why the guarantee is safe *)
-	c:: (newForCollectUsingAdd: size). 
+	c:: (newForCollectUsingAdd: size).
 	do: [ :e | c add: (map value: e) ].
 	^c
 )
@@ -848,7 +848,7 @@ public do: action <[:E]> separatedBy: betweenAction <[]> = (
 	(* Useful when you need to do something 'between' elements (i.e. not before the first one, and not after the last one). [action] is evaluated the same way as for #do:, but [betweenAction] is evaluated once between each pair of elements. *)
 	| firstTime <Boolean> ::= true. |
 	firstTime:: true.
-	self do: 
+	self do:
 		[:element <E> |
 		firstTime
 			ifTrue: [firstTime:: false]
@@ -861,7 +861,7 @@ public flatMap: map <[:E | R def]> ^<Collection[R]> = (
 public flatten ^ <Collection[E]> = (
     | totalSize <Integer> ::= 0. c |
 	do: [:e <E> | totalSize:: totalSize + (e isKindOfCollection ifTrue: [e size] ifFalse: [1])].
-	c::  newForCollectUsingAdd: totalSize. 
+	c::  newForCollectUsingAdd: totalSize.
 	do: [:e <E> | e isKindOfCollection ifTrue: [e do: [:x | c add: x]] ifFalse: [c add: e]].
 	^c
 )
@@ -947,8 +947,8 @@ public printOn: stream <CharOutputStream> = (
 public reduce: reduceFn <[:RE def :RE | RE]> ^<RE> = (
 	(* {where CONSTRAINER <RE> is returnType of #anElement message of receiverType} *)
 	(* Like reduce:ifEmpty: except that it is a dynamic error to send this to an empty collection *)
-	
-	^self reduce: reduceFn ifEmpty: [Error signal: 'Cannot reduce an empty collection' ] 
+
+	^self reduce: reduceFn ifEmpty: [Error signal: 'Cannot reduce an empty collection' ]
 )
 public reduce: reduceFn <[:RE def :RE| RE]> ifEmpty: onEmpty <[X def]>  ^<RE | X> = (
 	(* {where CONSTRAINER <RE> is returnType of #anElement message of receiverType} *)
@@ -959,7 +959,7 @@ public reduce: reduceFn <[:RE def :RE| RE]> ifEmpty: onEmpty <[X def]>  ^<RE | X
 	(* esoteric typing %note: We need to ensure that E is a subtype of RE (the argument type for the reduction
 		function), but since that would require a
 		supertype constraint (which neither we nor anyone else support, we accomplish the same
-	    thing indirectly by introducing an unreferenced type 
+	    thing indirectly by introducing an unreferenced type
 		variable CONSTRAINER that is inferred to be E at the call site, and then constraining it with a bound
 		of RE.  This will prevent any call where E > RE from typechecking.  However, since the
 		typesystem doesn't 'know' that, we have to tell it that with a guarantee in the method body.
@@ -1011,9 +1011,9 @@ class HashedCollection new: cap = Collection (|
 			which is currently the table itself.  This of course means that the table is not allowed
 			as a valid element of the collection, but this is only an issue when writing reflective
 			system code that violates encapsulation. *)
-	protected size_0 <Integer> 
+	protected size_0 <Integer>
 			(* the number of collection elements (not the size of the table) *)
-	protected deleted <Integer> 
+	protected deleted <Integer>
 			(* the number of slots marked with the deletion placeholder *)
 
 |initCapacity: cap) (
@@ -1027,14 +1027,14 @@ public addAll: c <Collection[A]> ^<Collection[A]> = (
 	^c
 )
 advanceAmount ^<Int> = (
-	(* a large prime - 1 *)	
+	(* a large prime - 1 *)
 		^99990
 )
 public at: key <K> ^<E> = (
-	^at: key ifAbsent: [ Error signal: 'key not found' ] 
+	^at: key ifAbsent: [ Error signal: 'key not found' ]
 )
 public at: key <Object> ifAbsent: f <[X def]> ^<E|X> = (
-	^elementFor: 
+	^elementFor:
 			(valAt: key ifAbsent: [ ^f value ])
 )
 atIndex: i <Int>
@@ -1054,12 +1054,12 @@ deletedSlotDo: deleted <[Z def]>
 	el == tbl
 		ifTrue: [ ^deleted value ].
 
-	(* The following guarantee is because the table uses a non-typesafe trick in 
+	(* The following guarantee is because the table uses a non-typesafe trick in
 	  which the table pointer itself is used to indicate a deleted slot; thus the table
 	  doesn't hold only values of type A.  The guarantee is safe because we know that
 	  we only put either values or the table into the table, and the previous
 	  statement already handled the case when el is the table pointer-
-	  thus at this point by elimination el has to be a value of type A *)		
+	  thus at this point by elimination el has to be a value of type A *)
 	^occupied value: (* (guaranteed <A> *)el(* ) *)
 )
 buildValForKey: k <K> element: el <E> ^<A> = (
@@ -1121,7 +1121,7 @@ elementForCopy: el <A> ^<A> = (
 )
 firstTableSize ^<Integer> = (
 	(* The size used for the table when the capacity is 0 and the first element is added *)
-	
+
 	^8
 )
 growIfNeeded = (
@@ -1213,7 +1213,7 @@ public keyAtValue: v <Object> ^<K> = (
 	^indexOf: v
 )
 public keyAtValue: v <Object> ifAbsent: blk <[X def]> ^<K | X> = (
-	^indexOf: v ifAbsent: blk 
+	^indexOf: v ifAbsent: blk
 )
 keyFor: val <A> ^<K> = (
 
@@ -1322,7 +1322,7 @@ postCopy = (
 	setTable: newtbl
 )
 printElementsDo: f <[:Object]> = (
-	
+
 	contentsDo: f
 )
 public remove: val <A> ^<A> = (
@@ -1479,7 +1479,7 @@ valAt: key <Object> ifAbsent: f <[X def]> ^<A|X> = (
 
 	table == nil
 		ifTrue: [	^f value ].
-		
+
 	^			lookup: key
 				matchingSlotDo:
 					[ :index <Integer> :val <A> |
@@ -1551,7 +1551,7 @@ be noted about this design:
 		for example, use (j asFloat to: k asFloat by: 0.1) rather than
 		 (j to: k by: 0.1) when j and k are typed as Numbers or Integers.
 	2) this scheme is perfectly compatible with untyped code, since the typed versions will work correctly
-	    even if called with arguments of mismatched numeric types, so that things like (1 to: 10 by: 0.1) will 
+	    even if called with arguments of mismatched numeric types, so that things like (1 to: 10 by: 0.1) will
 	    work, even though they don't typecheck.
 	3) If full coercive generality is needed in typesafe code, the Interval class can be used, which has been
 	    designed using values of type Number, so that things like (1 to: 10 by: 0.1) are ok.  They cannot, however,
@@ -1673,7 +1673,7 @@ public at: i <Int> put: el <E> ^<E> = (
 public collect: map <[:E | R def]> ^<MutableArrayList[R]> = (
 	^(collectUsingAdd: map) asMutableArrayList
 )
-public copyWithSize: s <Int> ^<MutableArrayList[EX]> = ( 
+public copyWithSize: s <Int> ^<MutableArrayList[EX]> = (
 	(* {where EX is returnType of #anElement message of receiverType} *)
 
 	(* Note: this method temporarily mutates the receiver, so it should not be sent to an object that
@@ -1880,7 +1880,7 @@ public withAll: cltn <Collection[A]> ^<Instance> = (
 )
 )
 class MutableList = AbstractList (
-(* This class extends List[E] with mutation operations defined in terms of #at:put:. 
+(* This class extends List[E] with mutation operations defined in terms of #at:put:.
 The List[E] protocol is defined from this class' interface. *)) (
 public at: index <Int> put: el <E> ^<E> = (
 	self subclassResponsibility
@@ -1938,7 +1938,7 @@ defaultSort: l <Int> to: r <Int>
 	x:: at: m.
 
 	[i <= j]
-		whileTrue: 
+		whileTrue:
 			[	| ati <E> atj <E> |
 			 	[ x <= (ati:: at: i)]
 					whileFalse: [i:: i + 1].
@@ -2099,7 +2099,7 @@ public class SortedList = AddableList (
 	and #asSortedList, respectively. *)|
 	private usesDefaultSortBlock_private <Boolean>
 	private sortBlock_private <[:E :E| Boolean]>
-|initCapacity: self class defaultCapacity. 
+|initCapacity: self class defaultCapacity.
 	sortBlock_private:: SortedList defaultSortBlock.
 	usesDefaultSortBlock_private:: true) (
 public add: el <E> ^<E> = (
