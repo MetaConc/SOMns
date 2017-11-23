@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 import som.interpreter.nodes.dispatch.BlockDispatchNode;
 import som.primitives.PathPrims;
@@ -36,6 +37,7 @@ public class SFileDescriptor extends SObjectWithClass {
     f = new File(uri);
   }
 
+  @TruffleBoundary
   public void openFile(final SBlock fail, final BlockDispatchNode dispatchHandler) {
     long[] storage = new long[bufferSize];
     buffer = new SMutableArray(storage, Classes.arrayClass);
@@ -55,6 +57,7 @@ public class SFileDescriptor extends SObjectWithClass {
     open = true;
   }
 
+  @TruffleBoundary
   public void closeFile() {
     try {
       raf.close();
@@ -64,6 +67,7 @@ public class SFileDescriptor extends SObjectWithClass {
     }
   }
 
+  @TruffleBoundary
   public int read(final long position, final SBlock fail,
       final BlockDispatchNode dispatchHandler) {
     if (!open) {
@@ -87,12 +91,13 @@ public class SFileDescriptor extends SObjectWithClass {
 
     // move read data to the storage
     for (int i = 0; i < bufferSize; i++) {
-      storage[i] = buff[i];
+      storage[i] = Byte.toUnsignedLong(buff[i]);
     }
 
     return bytes;
   }
 
+  @TruffleBoundary
   public void write(final int nBytes, final long position, final SBlock fail,
       final BlockDispatchNode dispatchHandler) {
     if (!open) {

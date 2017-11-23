@@ -1,0 +1,339 @@
+class Files usingPlatform: platform andHarness: harness = Value (
+| private Benchmark = harness Benchmark.
+  private actors    = platform actors.
+  private Array     = platform kernel Array.
+  private TransferArray= platform kernel TransferArray.
+  private Vector    = platform kernel Vector.
+  private Dictionary= platform collections Dictionary.
+  private system    = platform system.
+  private FilePath = platform files FilePath.
+|
+)(
+  (* A simple PRNG, to be as portable as possible. *)
+  public class Random new: seed = (
+    | private seed ::= seed.
+      private gotNextGaussian  ::= false.
+      private nextNextGaussian ::= 0.0. |
+  ) (
+    public next = (
+      seed:: ((seed * 1309) + 13849) & 65535.
+      ^ seed
+    )
+
+    (* Returns an integer within the range of [0, bound) *)
+    public next: bound = (
+      ^ next % bound
+    )
+
+    (* Returns a double uniformly distributed in the range of [0.0, 1.0) *)
+    public nextDouble = (
+      ^ next // 65536
+    )
+
+    public nextBoolean = (
+      ^ next < 32768
+    )
+
+    (* Returns a double normally distributed with mean 0.0
+       and standard deviation of 1.0 *)
+    public nextGaussian = (
+      | v1 v2 s multiplier |
+      gotNextGaussian ifTrue: [
+        gotNextGaussian:: false.
+        ^ nextNextGaussian ].
+
+      v1:: (2.0 * nextDouble) - 1.0.
+      v2:: (2.0 * nextDouble) - 1.0.
+      s::  (v1 * v1) + (v2 * v2).
+
+      [s >= 1.0 or: [s = 0.0]] whileTrue: [
+        v1:: (2.0 * nextDouble) - 1.0.
+        v2:: (2.0 * nextDouble) - 1.0.
+        s::  (v1 * v1) + (v2 * v2).
+      ].
+
+      multiplier:: (-2.0 * s log // s) sqrt.
+      nextNextGaussian:: v2 * multiplier.
+      gotNextGaussian:: true.
+      ^ v1 * multiplier
+    )
+  ) : (
+    public new = (
+      ^ new: 74755
+    )
+  )
+
+  public class ImageProcessing numWorkers: workers size: size threshold: threshold = Benchmark <: Value (
+  | private numWorkers = workers.
+    private size       = size.
+    private threshold  = threshold.
+  |)(
+
+    private class Image h: h w: w pixels: pixels = (
+      | height = h. 
+        width = w.
+        pixels = pixels.
+      |
+
+    ) (
+      public setPixelx: x y: y to: color = (
+        (pixels at: y) at: x put: color.
+      )
+
+      public getPixelx: x y: y = (
+        ^ ((pixels at: y) at: x)
+      )
+
+      setRed: rval AtX: x y: y = (
+        |cur|
+        cur:: (pixels at: y) at: x.
+        (pixels at: y) at: x put: ((cur & 16776960) bitOr: (rval & 255))
+      )
+
+      setGreen: rval AtX: x y: y = (
+        |cur|
+        cur:: (pixels at: y) at: x.
+        (pixels at: y) at: x put: ((cur & 16711935) bitOr: ((rval & 255) << 8))
+      )
+
+      setBlue: rval AtX: x y: y = (
+        |cur|
+        cur:: (pixels at: y) at: x.
+        (pixels at: y) at: x put: ((cur & 65535) bitOr: ((rval & 255) << 16))
+      )
+
+      public convertToGray = (
+        |avg|
+        1 to: width do: [ :x|
+          1 to: height do: [ :y|
+            avg:: ((getRedAtX: x y: y) + (getGreenAtX: x y: y) + (getBlueAtX: x y: y)) / 3.
+            setRed: avg AtX: x y: y.
+            setGreen: avg AtX: x y: y.
+            setBlue: avg AtX: x y: y.
+          ]
+        ]
+      )
+
+      public deSaturate = (
+        |avg|
+        1 to: width do: [ :x|
+          1 to: height do: [ :y|
+            avg:: ((getRedAtX: x y: y) + (getGreenAtX: x y: y) + (getBlueAtX: x y: y)) / 3.
+            setRed: ((avg + (getRedAtX: x y: y))/2) AtX: x y: y.
+            setGreen: ((avg + (getGreenAtX: x y: y))/2) AtX: x y: y.
+            setBlue: ((avg + (getBlueAtX: x y: y))/2) AtX: x y: y.
+          ]
+        ]
+      )
+
+      public getRedAtX: x y: y = (
+        ^ ((pixels at: y) at: x) & 255.
+      )
+
+      public getGreenAtX: x y: y = (
+        ^ (((pixels at: y) at: x) >>> 8) & 255.
+      )
+
+      public getBlueAtX: x y: y = (
+        ^ ((pixels at: y) at: x) >>> 16.
+      )
+
+      public export: file = (
+        |fp fd fsize imagesize rowsize padding |
+        fp:: FilePath for: file.
+        fd:: fp open: #readwrite ifFail: [].
+
+        padding:: 4 - ((3 * width) % 4).
+        rowsize:: (3 * width) + padding.
+        imagesize:: height * rowsize.
+        fsize:: imagesize + 54.
+
+        fd buffer at: 1 put: 66.
+        fd buffer at: 2 put: 77.
+
+        (*file size*)
+        fd buffer at: 3 put: fsize >>> 24.
+        fd buffer at: 4 put: (fsize >>> 16) & 255.
+        fd buffer at: 5 put: (fsize >>> 8) & 255.
+        fd buffer at: 6 put: fsize & 255.
+        
+        (*4 reserved 0 bytes*)
+
+        (*offset*)
+        fd buffer at: 11 put: 54.
+        fd buffer at: 12 put: 0.
+        fd buffer at: 13 put: 0.
+        fd buffer at: 14 put: 0.
+
+        (*DIB Header size*)
+        fd buffer at: 15 put: 40.
+        fd buffer at: 16 put: 0.
+        fd buffer at: 17 put: 0.
+        fd buffer at: 18 put: 0.
+
+        (*width*)
+        fd buffer at: 22 put: width >>> 24.
+        fd buffer at: 21 put: (width >>> 16) & 255.
+        fd buffer at: 20 put: (width >>> 8) & 255.
+        fd buffer at: 19 put: width & 255.
+
+        (*height*)
+        fd buffer at: 26 put: height >>> 24.
+        fd buffer at: 25 put: (height >>> 16) & 255.
+        fd buffer at: 24 put: (height >>> 8) & 255.
+        fd buffer at: 23 put: height & 255.
+
+        (*color planes*)
+        fd buffer at: 27 put: 1.
+        fd buffer at: 28 put: 0.
+
+        (*bit per pixel*)
+        fd buffer at: 29 put: 24.
+        fd buffer at: 30 put: 0.
+
+        (*compression*)
+        fd buffer at: 31 put: 0.
+        fd buffer at: 32 put: 0.
+        fd buffer at: 33 put: 0.
+        fd buffer at: 34 put: 0.
+
+        (*image size*)
+        fd buffer at: 38 put: imagesize >>> 24.
+        fd buffer at: 37 put: (imagesize >>> 16) & 255.
+        fd buffer at: 36 put: (imagesize >>> 8) & 255.
+        fd buffer at: 35 put: imagesize & 255.
+
+        (*other stuff that is ignored*)
+        fd buffer at: 39 put: 0.
+        fd buffer at: 40 put: 0.
+        fd buffer at: 41 put: 0.
+        fd buffer at: 42 put: 0.
+
+        fd buffer at: 43 put: 0.
+        fd buffer at: 44 put: 0.
+        fd buffer at: 45 put: 0.
+        fd buffer at: 46 put: 0.
+
+        fd buffer at: 47 put: 0.
+        fd buffer at: 48 put: 0.
+        fd buffer at: 49 put: 0.
+        fd buffer at: 50 put: 0.
+
+        fd buffer at: 51 put: 0.
+        fd buffer at: 52 put: 0.
+        fd buffer at: 53 put: 0.
+        fd buffer at: 54 put: 0.
+
+        fd write: 54 at: 0 ifFail:[].
+
+        1 to: height do: [ :y| | pos |
+          pos:: 0.
+          1 to: width do: [ :x|
+            fd buffer at: (pos + 1) put: (getBlueAtX: x y: y).
+            fd buffer at: (pos + 2) put: (getGreenAtX: x y: y).
+            fd buffer at: (pos + 3) put: (getRedAtX: x y: y).
+            pos:: pos + 3.
+          ].
+          
+          fd write: rowsize at: (54 + (rowsize*(y - 1))) ifFail: [].
+        ].
+
+      )
+    ) : (
+      public construct: file = (
+      |fp fd fsize imagestart headersize w h bpp imagesize padding apos rpos pixels|
+      fp:: FilePath for: file.
+      fd:: fp open: #read ifFail: [].
+      fd readAt: 0 ifFail: [].
+      ((fd buffer at: 1) = 66) && ((fd buffer at: 2) = 77) ifFalse:[
+        self error: 'not a BitMap'.
+      ].
+
+
+      (*little endian*)
+      fsize:: ((fd buffer at: 6) << 24) + ((fd buffer at: 5) << 16) +((fd buffer at: 4) << 8) + (fd buffer at: 3).
+
+      imagestart:: ((fd buffer at: 14) << 24) + ((fd buffer at: 13) << 16) +((fd buffer at: 12) << 8) + (fd buffer at: 11).
+
+      headersize:: ((fd buffer at: 18) << 24) + ((fd buffer at: 13) << 17) +((fd buffer at: 16) << 8) + (fd buffer at: 15).
+      w:: ((fd buffer at: 22) << 24) + ((fd buffer at: 21) << 16) +((fd buffer at: 20) << 8) + (fd buffer at: 19).
+      h:: ((fd buffer at: 26) << 24) + ((fd buffer at: 25) << 16) + ((fd buffer at: 24) << 8) + (fd buffer at: 23).
+      ('width: ' + w + ' height: ' + h) println.
+      
+      (* planes:: ((fd buffer at: 28) << 8) + (fd buffer at: 27)*)
+      bpp:: ((fd buffer at: 30) << 8) + (fd buffer at: 29).
+      imagesize:: ((fd buffer at: 34) << 24) + ((fd buffer at: 33) << 16) + ((fd buffer at: 32) << 8) + (fd buffer at: 31).
+      padding:: 4 - ((w*bpp/8) % 4).
+      apos:: imagestart.
+
+      pixels:: Array new: h.
+      1 to: h do: [ :y| |row |
+        fd readAt: apos ifFail: [].
+        rpos:: 0.
+        row:: Array new: w.
+        pixels at: y put: row.
+
+        1 to: w do: [ :x|
+          row at: x put: ((fd buffer at: (rpos + 1)) << 16) + ((fd buffer at: (rpos + 2)) << 8) + (fd buffer at: (rpos + 3)).  
+          rpos:: rpos + 3.
+        ].
+        apos:: apos + padding + rpos.
+
+      ].
+
+      fd close.
+
+      ^ Image h: h w: w pixels: pixels.
+
+      )
+    )
+
+    public benchmark = (
+      | master completionPP image |
+      
+      completionPP:: actors createPromisePair.
+      image:: Image construct: '/users/dominikaumayr/Downloads/MARBLES.bmp'.
+      1 to: 1419 do: [ :i|
+        image setPixelx: i y:300 to: 16777215.
+      ].
+      image deSaturate.
+      image export: '/users/dominikaumayr/Downloads/MARBLES_New.bmp'.
+
+
+      image deSaturate.
+      image export: '/users/dominikaumayr/Downloads/MARBLES_New1.bmp'.
+
+
+      image deSaturate.
+      image export: '/users/dominikaumayr/Downloads/MARBLES_New2.bmp'.
+
+
+      image deSaturate.
+      image export: '/users/dominikaumayr/Downloads/MARBLES_New3.bmp'.
+
+      completionPP resolve: 1.
+      
+      ^ completionPP promise
+    )
+
+    public verifyResult: result = (
+      ^ true.(*)
+      size =  1 ifTrue: [ ^ result = 1           ].
+
+      ('---- result: ' + result asString + ' dont have a hardcoded verification result for this config yet') println.
+      ^ false*)
+    )
+  ) : (
+    public newInstance: problemSize = (
+      | problem |
+      problem:: problemSize split: ':'.
+      ^ self numWorkers: (problem at: 1) asInteger
+                   size: (problem at: 2) asInteger
+              threshold: (problem at: 3) asInteger
+    )
+
+    public setupVerifiedRun: run = (
+      run problemSize: '20:12:4'
+    )
+  )
+)
