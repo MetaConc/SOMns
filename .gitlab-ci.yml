@@ -62,15 +62,7 @@ benchmark_savina_csp_job:
   script:
     - ant compile
     - rebench --without-nice --experiment="CI Benchmark Run Pipeline ID $CI_PIPELINE_ID" --branch="$CI_COMMIT_REF_NAME" -c codespeed.conf SOMns-SavinaCSP
-
-benchmark_mutex_job:
-  stage: benchmark
-  tags: [benchmarks, infinity]
-  allow_failure: true
-  script:
-    - ant compile
     - rebench --without-nice --experiment="CI Benchmark Run Pipeline ID $CI_PIPELINE_ID" --branch="$CI_COMMIT_REF_NAME" -c codespeed.conf SOMns-Mutex
-
 
 benchmark_job:
   stage: benchmark
